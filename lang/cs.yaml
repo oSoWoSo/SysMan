@@ -1,0 +1,56 @@
+meta:
+  code: cs
+  name: Čeština
+
+strings:
+  app.title: "svman"
+  app.subtitle: "správa runit služeb - Void Linux"
+  app.window: "svman — správa runit služeb"
+
+  filter.all: "Vše"
+  filter.enabled: "Povolené"
+  filter.disabled: "Zakázané"
+
+  search.placeholder: "hledat službu..."
+  search.hint: "/ psát = hledat"
+  search.active: "enter=ok  esc=zrušit"
+  search.clear: "esc=vymazat"
+
+  detail.title: "DETAIL SLUŽBY"
+  detail.name: "název"
+  detail.state: "stav"
+  detail.source: "zdroj"
+  detail.symlink: "symlink"
+  detail.empty: "---"
+  detail.header: "Detail"
+
+  state.enabled: "povolena"
+  state.disabled: "zakázána"
+
+  config.title: "KONFIGURACE"
+
+  btn.enable: "Povolit"
+  btn.disable: "Zakázat"
+  btn.reload: "Obnovit"
+
+  confirm.title: "Zakázat službu"
+  confirm.disable: "Opravdu zakázat '%s'?"
+
+  status.enabled: "OK: '%s' povolena"
+  status.disabled: "OK: '%s' zakázána"
+  status.reloaded: "seznam obnoven"
+  status.err: "CHYBA: "
+  status.already.on: "'%s' je již povolena"
+  status.already.off: "'%s' není povolena"
+
+  count.fmt: "povoleno %d/%d  zobrazeno %d"
+  stats.fmt: "povoleno: %d/%d  zobrazeno: %d"
+
+  help.normal: "jk/šipky=pohyb  enter/mezera=přepnout  /=hledat  tab=filtr  r=obnovit  q/esc=konec"
+  help.search: "psát=filtrovat  up/down=pohyb  enter=ok  esc=zrušit"
+
+  services.none: "(žádné služby)"
+  services.header: "Služby  "
+
+  action.enable: "enter/mezera = povolit"
+  action.disable: "enter/mezera = zakázat"

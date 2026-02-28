@@ -1,0 +1,56 @@
+meta:
+  code: en
+  name: English
+
+strings:
+  app.title: "svman"
+  app.subtitle: "runit service manager - Void Linux"
+  app.window: "svman — runit service manager"
+
+  filter.all: "All"
+  filter.enabled: "Enabled"
+  filter.disabled: "Disabled"
+
+  search.placeholder: "search service..."
+  search.hint: "/ type to search"
+  search.active: "enter=ok  esc=cancel"
+  search.clear: "esc=clear"
+
+  detail.title: "SERVICE DETAIL"
+  detail.name: "name"
+  detail.state: "state"
+  detail.source: "source"
+  detail.symlink: "symlink"
+  detail.empty: "---"
+  detail.header: "Detail"
+
+  state.enabled: "enabled"
+  state.disabled: "disabled"
+
+  config.title: "CONFIGURATION"
+
+  btn.enable: "Enable"
+  btn.disable: "Disable"
+  btn.reload: "Reload"
+
+  confirm.title: "Disable service"
+  confirm.disable: "Really disable '%s'?"
+
+  status.enabled: "OK: '%s' enabled"
+  status.disabled: "OK: '%s' disabled"
+  status.reloaded: "list reloaded"
+  status.err: "ERROR: "
+  status.already.on: "'%s' is already enabled"
+  status.already.off: "'%s' is not enabled"
+
+  count.fmt: "enabled %d/%d  shown %d"
+  stats.fmt: "enabled: %d/%d  shown: %d"
+
+  help.normal: "jk/arrows=move  enter/space=toggle  /=search  tab=filter  r=reload  q/esc=quit"
+  help.search: "type=filter  up/down=move  enter=ok  esc=cancel"
+
+  services.none: "(no services)"
+  services.header: "Services  "
+
+  action.enable: "enter/space = enable"
+  action.disable: "enter/space = disable"
