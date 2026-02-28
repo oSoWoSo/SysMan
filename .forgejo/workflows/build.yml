@@ -1,5 +1,4 @@
 name: Build
-
 on:
   push:
     branches:
@@ -12,13 +11,12 @@ on:
 jobs:
   build:
     runs-on: codeberg-medium
-    
+
     strategy:
       matrix:
         goos: [linux, freebsd, openbsd]
         goarch: [amd64, arm64, 386]
         exclude:
-          # FreeBSD/OpenBSD on 386 not supported
           - goos: freebsd
             goarch: 386
           - goos: openbsd
@@ -34,37 +32,63 @@ jobs:
           go-version: '1.21'
           cache: true
 
+      # Fyne requires graphics libraries — native linux/amd64 only
+      - name: Install system dependencies
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            gcc pkg-config \
+            libgl1-mesa-dev \
+            libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxi-dev libxxf86vm-dev
+
       - name: Download dependencies
         run: go mod download
 
-      - name: Run linter (golangci-lint)
+      # Run linter and tests once (native build only)
+      - name: Run linter
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
           args: --timeout=5m
 
       - name: Run tests
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        env:
+          CGO_ENABLED: 1
         run: go test -v -race -coverprofile=coverage.out ./...
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage.out
-          flags: unittests
-
-      - name: Build binary
+      # Native build: linux/amd64 with GUI (CGO enabled)
+      - name: Build (linux/amd64 + GUI)
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: 1
         run: |
           mkdir -p build
           go build \
             -ldflags="-s -w -X main.Version=${{ github.sha }}" \
-            -o build/svman-${{ matrix.goos }}-${{ matrix.goarch }} \
-            .
+            -o build/svman-linux-amd64 .
+
+      # Cross-compile: no GUI (CGO disabled, build tag tui_only)
+      - name: Build (cross-compile, TUI only)
+        if: "!(matrix.goos == 'linux' && matrix.goarch == 'amd64')"
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p build
+          go build \
+            -tags tui_only \
+            -ldflags="-s -w -X main.Version=${{ github.sha }}" \
+            -o build/svman-${{ matrix.goos }}-${{ matrix.goarch }} .
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: forgejo-actions/upload-artifact@v4
         with:
           name: svman-${{ matrix.goos }}-${{ matrix.goarch }}
           path: build/svman-${{ matrix.goos }}-${{ matrix.goarch }}
