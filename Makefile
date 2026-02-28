@@ -60,6 +60,7 @@ build-sysmanager:
 
 build-plugins:
 	@echo "Building dynamic plugins (.so)..."
+	go build -buildmode=plugin -o build/plugins/xbps-src.so ./pluginentry/xbps-src/
 	@mkdir -p build/plugins
 	go build -buildmode=plugin -o build/plugins/svman.so     ./pluginentry/svman/
 	go build -buildmode=plugin -o build/plugins/testplugin.so ./pluginentry/testplugin/
