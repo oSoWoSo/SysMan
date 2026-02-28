@@ -154,7 +154,7 @@ SERVICEDIR=/opt/sv SVMAN_LANG=en svman --tui
 - Creating symlinks in `/var/service`
 - Deleting symlinks
 
-### Recommended sudo configuration
+### (Not) Recommended sudo configuration
 
 Add to `/etc/sudoers` (using `visudo`):
 
