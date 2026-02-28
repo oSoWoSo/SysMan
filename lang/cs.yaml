@@ -9,7 +9,7 @@ strings:
 
   filter.all: "Vše"
   filter.enabled: "Povolené"
-  filter.disabled: "Zakázané"
+  filter.disabled: "Nepovolené"
 
   search.placeholder: "hledat službu..."
   search.hint: "/ psát = hledat"
