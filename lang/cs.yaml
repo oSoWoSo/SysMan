@@ -32,6 +32,14 @@ strings:
   btn.enable: "Povolit"
   btn.disable: "Zakázat"
   btn.reload: "Obnovit"
+  btn.close: "Zavřít"
+
+  menu.help: "Nápověda"
+  menu.about: "O aplikaci svman"
+
+  about.version: "Verze"
+  about.author: "Autor"
+  about.license: "Licence"
 
   confirm.title: "Zakázat službu"
   confirm.disable: "Opravdu zakázat '%s'?"

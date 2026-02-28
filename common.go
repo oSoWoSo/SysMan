@@ -11,6 +11,16 @@ import (
 
 // ── Constants ────────────────────────────────────────────────────────
 
+// Version is set at build time via -ldflags "-X main.Version=<tag>".
+var Version = "dev"
+
+// App metadata used in the About dialog.
+const (
+	appAuthor  = "oSoWoSo"
+	appLicense = "MIT"
+	appURL     = "https://codeberg.org/oSoWoSo/svman"
+)
+
 // Default directories for service definitions and enabled services.
 const (
 	defaultServiceDir     = "/etc/sv"      // service definition directory
