@@ -1,7 +1,8 @@
-package main
+package plugin
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -13,19 +14,19 @@ import (
 
 // ── Styles ───────────────────────────────────────────────────────────
 
-// Color palette — adaptive to light/dark terminal themes ──────────────
+// Color palette — adaptive to light/dark terminal themes.
 var (
 	tsubtleColor = lipgloss.AdaptiveColor{Light: "#9B9B9B", Dark: "#585858"}
 	thighlight   = lipgloss.AdaptiveColor{Light: "#00AABB", Dark: "#00DDFF"}
 	tdanger      = lipgloss.AdaptiveColor{Light: "#CC3333", Dark: "#FF5555"}
 	tsuccess     = lipgloss.AdaptiveColor{Light: "#22AA55", Dark: "#44DD77"}
 	twarn        = lipgloss.AdaptiveColor{Light: "#BB8800", Dark: "#FFCC00"}
-	// Component styles ────────────────────────────────────────────────
+	// Component styles
 	ttitleStyle    = lipgloss.NewStyle().Bold(true).Foreground(thighlight).Padding(0, 1).MarginBottom(1)
 	tsectionStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#444444", Dark: "#AAAAAA"})
 	tselectedStyle = lipgloss.NewStyle().Bold(true).Foreground(thighlight).Background(lipgloss.AdaptiveColor{Light: "#DDFAFF", Dark: "#003344"}).Padding(0, 1)
 	tnormalStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#333333", Dark: "#CCCCCC"}).Padding(0, 1)
-	// Service status and feedback styles ──────────────────────────────
+	// Service status and feedback styles
 	tenabledBadge  = lipgloss.NewStyle().Foreground(tsuccess).Bold(true)
 	tdisabledBadge = lipgloss.NewStyle().Foreground(tsubtleColor)
 	tstatusOk      = lipgloss.NewStyle().Foreground(tsuccess).Italic(true)
@@ -34,19 +35,20 @@ var (
 	tdividerStyle  = lipgloss.NewStyle().Foreground(tsubtleColor)
 	twarnStyle     = lipgloss.NewStyle().Foreground(twarn)
 	tcolumnStyle   = lipgloss.NewStyle().Padding(0, 1).Border(lipgloss.RoundedBorder()).BorderForeground(tsubtleColor)
-	// Filters — same height, active only when underlined + color ──────
+	// Filters — active only when underlined + color
 	tfilterActive   = lipgloss.NewStyle().Bold(true).Foreground(thighlight).Padding(0, 1).Underline(true)
 	tfilterInactive = lipgloss.NewStyle().Foreground(tsubtleColor).Padding(0, 1)
 )
 
 // ── Filter ───────────────────────────────────────────────────────────
+
 // tuiFilter represents the current filter state for the service list.
 type tuiFilter int
 
 const (
-	tuiFilterAll      tuiFilter = iota  // show all services
-	tuiFilterEnabled                    // show only enabled services
-	tuiFilterDisabled                   // show only disabled services
+	tuiFilterAll      tuiFilter = iota // show all services
+	tuiFilterEnabled                   // show only enabled services
+	tuiFilterDisabled                  // show only disabled services
 )
 
 // label returns the translated label for the filter state.
@@ -62,32 +64,28 @@ func (f tuiFilter) label() string {
 }
 
 // ── Model ────────────────────────────────────────────────────────────
+
 // tuiModel holds the state of the TUI application.
-// It manages the service list, cursor position, filters, search, and UI dimensions.
 type tuiModel struct {
-	serviceDir     string               // path to service definitions
-	serviceDestDir string               // path to enabled services symlinks
-	services       []Service            // all loaded services
-	cursor         int                  // selected item index in filtered list
-	filter         tuiFilter            // current filter (all/enabled/disabled)
-	search         textinput.Model      // search input field
-	searchMode     bool                 // true when user is typing search query
-	status         string               // status/error message
-	statusErr      bool                 // true if status is an error
-	width          int                  // terminal width
-	height         int                  // terminal height
+	serviceDir     string          // path to service definitions
+	serviceDestDir string          // path to enabled services symlinks
+	services       []Service       // all loaded services
+	cursor         int             // selected item index in filtered list
+	filter         tuiFilter       // current filter (all/enabled/disabled)
+	search         textinput.Model // search input field
+	searchMode     bool            // true when user is typing search query
+	status         string          // status/error message
+	statusErr      bool            // true if status is an error
+	width          int             // terminal width
+	height         int             // terminal height
 }
 
-// tuiReloadMsg signals that services should be reloaded from disk.
+// Messages for async operations.
 type tuiReloadMsg struct{}
-
-// tuiErrMsg carries an error message to display to the user.
 type tuiErrMsg struct{ err error }
-
-// tuiStatusMsg carries a success status message to display.
 type tuiStatusMsg struct{ msg string }
 
-// Key bindings for TUI navigation and actions ────────────────────────
+// Key bindings for TUI navigation and actions.
 var (
 	tkeyUp     = key.NewBinding(key.WithKeys("up", "k"))
 	tkeyDown   = key.NewBinding(key.WithKeys("down", "j"))
@@ -100,8 +98,9 @@ var (
 	tkeyFilter = key.NewBinding(key.WithKeys("tab"))
 )
 
-// newTuiModel creates and initializes a new TUI model with services loaded.
-func newTuiModel(serviceDir, serviceDestDir string) tuiModel {
+// NewTuiModel creates and initializes a new TUI model with services loaded.
+// Exported so a system manager can embed the model in its own tea.Program.
+func NewTuiModel(serviceDir, serviceDestDir string) tea.Model {
 	ti := textinput.New()
 	ti.Placeholder = t("search.placeholder")
 	ti.CharLimit = 64
@@ -111,13 +110,12 @@ func newTuiModel(serviceDir, serviceDestDir string) tuiModel {
 	return tuiModel{
 		serviceDir:     serviceDir,
 		serviceDestDir: serviceDestDir,
-		services:       loadServices(serviceDir, serviceDestDir),
+		services:       LoadServices(serviceDir, serviceDestDir),
 		search:         ti,
 	}
 }
 
 // filtered returns the service list filtered by current filter and search query.
-// Respects both the enabled/disabled filter and text search.
 func (m tuiModel) filtered() []Service {
 	var out []Service
 	q := strings.ToLower(m.search.Value())
@@ -132,7 +130,6 @@ func (m tuiModel) filtered() []Service {
 				continue
 			}
 		}
-		// apply search query filter
 		if q != "" && !strings.Contains(strings.ToLower(svc.Name), q) {
 			continue
 		}
@@ -142,7 +139,6 @@ func (m tuiModel) filtered() []Service {
 }
 
 // clampCursor ensures the cursor position is valid for the current filtered list.
-// Moves cursor to the last item if it exceeds list bounds.
 func (m tuiModel) clampCursor() tuiModel {
 	list := m.filtered()
 	if len(list) == 0 {
@@ -160,13 +156,9 @@ func (m tuiModel) Init() tea.Cmd { return nil }
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// update terminal dimensions for layout recalculation
 		m.width, m.height = msg.Width, msg.Height
 
 	case tea.KeyMsg:
-		// ── Search mode ──────────────────────────────────────────────
-		// In search mode, most keys are passed to the text input.
-		// Arrow keys still navigate results; Esc/Enter exit search.
 		if m.searchMode {
 			switch {
 			case key.Matches(msg, tkeyEsc):
@@ -199,8 +191,6 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// ── Normal mode ──────────────────────────────────────────────
-		// Handle navigation, filtering, search, and service toggling.
 		switch {
 		case key.Matches(msg, tkeyQuit):
 			return m, tea.Quit
@@ -235,18 +225,15 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tuiReloadMsg:
-		// reload services from disk and adjust cursor if needed
-		m.services = loadServices(m.serviceDir, m.serviceDestDir)
+		m.services = LoadServices(m.serviceDir, m.serviceDestDir)
 		m = m.clampCursor()
 
 	case tuiStatusMsg:
-		// display success message and reload services
 		m.status = msg.msg
 		m.statusErr = false
 		return m, func() tea.Msg { return tuiReloadMsg{} }
 
 	case tuiErrMsg:
-		// display error message
 		m.status = msg.err.Error()
 		m.statusErr = true
 	}
@@ -254,11 +241,9 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // tuiEnableCmd returns an async command that enables a service.
-// On success, displays a status message and reloads the service list.
-// On error, displays an error message.
 func tuiEnableCmd(serviceDir, destDir, name string) tea.Cmd {
 	return func() tea.Msg {
-		if err := enableService(serviceDir, destDir, name); err != nil {
+		if err := EnableService(serviceDir, destDir, name); err != nil {
 			return tuiErrMsg{err}
 		}
 		return tuiStatusMsg{fmt.Sprintf(t("status.enabled"), name)}
@@ -266,11 +251,9 @@ func tuiEnableCmd(serviceDir, destDir, name string) tea.Cmd {
 }
 
 // tuiDisableCmd returns an async command that disables a service.
-// On success, displays a status message and reloads the service list.
-// On error, displays an error message.
 func tuiDisableCmd(destDir, name string) tea.Cmd {
 	return func() tea.Msg {
-		if err := disableService(destDir, name); err != nil {
+		if err := DisableService(destDir, name); err != nil {
 			return tuiErrMsg{err}
 		}
 		return tuiStatusMsg{fmt.Sprintf(t("status.disabled"), name)}
@@ -278,7 +261,6 @@ func tuiDisableCmd(destDir, name string) tea.Cmd {
 }
 
 // View implements tea.Model; renders the entire TUI layout.
-// Layout: title + two-column (list + detail) + separator + status + help.
 func (m tuiModel) View() string {
 	title := ttitleStyle.Render(t("app.title") + " - " + t("app.subtitle"))
 
@@ -290,7 +272,7 @@ func (m tuiModel) View() string {
 		}
 	}
 
-	// Calculate column width based on terminal width ──────────────────
+	// Calculate column width based on terminal width.
 	colWidth := 36
 	if m.width > 0 {
 		colWidth = (m.width - 8) / 2
@@ -299,8 +281,7 @@ func (m tuiModel) View() string {
 		}
 	}
 
-	// ── Filter tabs — fixed height, no border ────────────────────────
-	// Display all three filter options with active one highlighted.
+	// Filter tabs — active one highlighted.
 	filters := []tuiFilter{tuiFilterAll, tuiFilterEnabled, tuiFilterDisabled}
 	filterRow := ""
 	for _, f := range filters {
@@ -312,25 +293,23 @@ func (m tuiModel) View() string {
 		filterRow += " "
 	}
 
-	// ── Search — always 1 line ───────────────────────────────────────
-	// Show search input in active mode, or hint/clear message otherwise.
+	// Search — always 1 line.
 	var searchRow string
-	if m.searchMode {
+	switch {
+	case m.searchMode:
 		searchRow = lipgloss.NewStyle().Foreground(thighlight).Render(m.search.View()) +
 			thelpStyle.Render("  "+t("search.active"))
-	} else if m.search.Value() != "" {
+	case m.search.Value() != "":
 		searchRow = thelpStyle.Render("/ "+m.search.Value()) +
 			lipgloss.NewStyle().Foreground(tdanger).Render("  "+t("search.clear"))
-	} else {
+	default:
 		searchRow = thelpStyle.Render(t("search.hint"))
 	}
 
-	// ── Stats ────────────────────────────────────────────────────────
-	// Display counts: enabled/total and filtered results.
+	// Stats — enabled/total and filtered count.
 	stats := tdisabledBadge.Render(fmt.Sprintf(t("stats.fmt"), enabledTotal, len(m.services), len(list)))
 
-	// ── List ─────────────────────────────────────────────────────────
-	// Render each service with enabled/disabled badge and highlight cursor.
+	// Service list — each item with enabled/disabled badge.
 	listContent := ""
 	for i, svc := range list {
 		var badge string
@@ -356,8 +335,7 @@ func (m tuiModel) View() string {
 		searchRow + "\n\n"
 	leftCol := tcolumnStyle.Width(colWidth).Render(leftHeader + listContent)
 
-	// ── Detail ───────────────────────────────────────────────────────
-	// Show service metadata and toggle action for selected item.
+	// Detail panel — metadata and toggle action for selected item.
 	detail := ""
 	if len(list) > 0 && m.cursor < len(list) {
 		svc := list[m.cursor]
@@ -374,13 +352,13 @@ func (m tuiModel) View() string {
 			tnormalStyle.Render(t("detail.state")+":    ") + stateStr + "\n" +
 			tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(m.serviceDir, svc.Name)) + "\n" +
 			tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(m.serviceDestDir, svc.Name)) + "\n\n" +
-			tnormalStyle.Render("akce:    ") + actionStr
+			tnormalStyle.Render("action:  ") + actionStr
 	}
 	rightCol := tcolumnStyle.Width(colWidth).Render(detail)
 
 	cols := lipgloss.JoinHorizontal(lipgloss.Top, leftCol, " ", rightCol)
 
-	// ── Status ───────────────────────────────────────────────────────
+	// Status line.
 	statusLine := ""
 	if m.status != "" {
 		if m.statusErr {
@@ -390,7 +368,7 @@ func (m tuiModel) View() string {
 		}
 	}
 
-	// ── Help ─────────────────────────────────────────────────────────
+	// Help bar.
 	var helpText string
 	if m.searchMode {
 		helpText = t("help.search")
@@ -404,10 +382,13 @@ func (m tuiModel) View() string {
 	return "\n" + title + "\n" + cols + "\n" + sep + statusLine + "\n" + help + "\n"
 }
 
-func runTUI(serviceDir, serviceDestDir string) {
-	initI18n()
-	p := tea.NewProgram(newTuiModel(serviceDir, serviceDestDir), tea.WithAltScreen())
+// ── Standalone runner ────────────────────────────────────────────────
+
+// RunTUI runs svman as a standalone fullscreen TUI application.
+func RunTUI(serviceDir, serviceDestDir string) {
+	InitI18n()
+	p := tea.NewProgram(NewTuiModel(serviceDir, serviceDestDir), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(errorWriter(), "Chyba TUI: %v\n", err)
+		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
 	}
 }

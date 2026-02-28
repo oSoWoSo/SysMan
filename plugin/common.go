@@ -1,4 +1,4 @@
-package main
+package plugin
 
 import (
 	"fmt"
@@ -9,41 +9,35 @@ import (
 	"strings"
 )
 
-// ── Constants ────────────────────────────────────────────────────────
+// ── App metadata ─────────────────────────────────────────────────────
 
-// Version is set at build time via -ldflags "-X main.Version=<tag>".
+// Version is set at build time via -ldflags "-X codeberg.org/oSoWoSo/svman/plugin.Version=<tag>".
 var Version = "dev"
 
 // App metadata used in the About dialog.
 const (
-	appAuthor  = "oSoWoSo"
-	appLicense = "MIT"
-	appURL     = "https://codeberg.org/oSoWoSo/svman"
+	AppAuthor  = "oSoWoSo"
+	AppLicense = "MIT"
+	AppURL     = "https://codeberg.org/oSoWoSo/svman"
 )
+
+// ── Defaults ─────────────────────────────────────────────────────────
 
 // Default directories for service definitions and enabled services.
 const (
-	defaultServiceDir     = "/etc/sv"      // service definition directory
-	defaultServiceDestDir = "/var/service" // enabled services symlink directory
+	DefaultServiceDir     = "/etc/sv"      // service definition directory
+	DefaultServiceDestDir = "/var/service" // enabled services symlink directory
 )
 
 // ── Types ────────────────────────────────────────────────────────────
 
-// Service represents a single service with its name and enabled state.
+// Service represents a single runit service with its name and enabled state.
 type Service struct {
 	Name    string // service name (directory name)
 	Enabled bool   // true if symlink exists in destination directory
 }
 
 // ── Utilities ────────────────────────────────────────────────────────
-
-// getEnv retrieves an environment variable, returning fallback if not set.
-func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
-}
 
 // isSymlink checks whether the given path is a symbolic link.
 // Returns false if the path does not exist or cannot be accessed.
@@ -54,11 +48,11 @@ func isSymlink(path string) bool {
 
 // ── Loading ──────────────────────────────────────────────────────────
 
-// loadServices scans the service directory and returns a sorted list of services.
+// LoadServices scans the service directory and returns a sorted list of services.
 // Each service's enabled state is determined by checking for a symlink
 // in the destination directory.
 // Returns nil if the service directory cannot be read.
-func loadServices(serviceDir, destDir string) []Service {
+func LoadServices(serviceDir, destDir string) []Service {
 	entries, err := os.ReadDir(serviceDir)
 	if err != nil {
 		return nil
@@ -80,12 +74,12 @@ func loadServices(serviceDir, destDir string) []Service {
 	return svcs
 }
 
-// ── Service Control ─────────────────────────────────────────────────
+// ── Service Control ──────────────────────────────────────────────────
 
-// enableService creates a symlink from the service source to the destination,
+// EnableService creates a symlink from the service source to the destination,
 // enabling the service. Uses sudo to handle permission requirements.
 // Returns an error if the symlink creation fails.
-func enableService(serviceDir, destDir, name string) error {
+func EnableService(serviceDir, destDir, name string) error {
 	src := filepath.Join(serviceDir, name)
 	dst := filepath.Join(destDir, name)
 	out, err := exec.Command("sudo", "ln", "-s", src, dst).CombinedOutput()
@@ -95,10 +89,10 @@ func enableService(serviceDir, destDir, name string) error {
 	return nil
 }
 
-// disableService removes the symlink from the destination directory,
+// DisableService removes the symlink from the destination directory,
 // disabling the service. Uses sudo to handle permission requirements.
 // Returns an error if the symlink removal fails.
-func disableService(destDir, name string) error {
+func DisableService(destDir, name string) error {
 	dst := filepath.Join(destDir, name)
 	out, err := exec.Command("sudo", "rm", dst).CombinedOutput()
 	if err != nil {

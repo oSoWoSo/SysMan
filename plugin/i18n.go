@@ -1,10 +1,11 @@
-package main
+package plugin
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
@@ -15,11 +16,10 @@ import (
 type translations map[string]string
 
 // langFile represents the structure of a single language YAML file.
-// It contains metadata (language code, display name) and string mappings.
 type langFile struct {
 	Meta struct {
-		Code string `yaml:"code"`   // language code (e.g., "en", "cs")
-		Name string `yaml:"name"`   // display name (e.g., "English", "Čeština")
+		Code string `yaml:"code"` // language code (e.g., "en", "cs")
+		Name string `yaml:"name"` // display name (e.g., "English", "Čeština")
 	} `yaml:"meta"`
 	Strings translations `yaml:"strings"` // key-value translation pairs
 }
@@ -30,14 +30,15 @@ type langFile struct {
 var langs = map[string]translations{}
 
 // T is the active translation map selected at initialization.
+// Exported so standalone main.go can read values for --help output.
 var T translations
 
 // langDirs are directories where to look for *.yaml translation files.
 // They are searched in order — the first file found wins.
 var langDirs = []string{
-	"./lang",                       // next to binary / in CWD
-	"/usr/share/svman/lang",        // system installation
-	"/usr/local/share/svman/lang",  // local installation
+	"./lang",                      // next to binary / in CWD
+	"/usr/share/svman/lang",       // system installation
+	"/usr/local/share/svman/lang", // local installation
 }
 
 // ── Loading ──────────────────────────────────────────────────────────
@@ -54,14 +55,12 @@ func loadLangDir(dir string) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
 			continue
 		}
-		path := filepath.Join(dir, e.Name())
-		loadLangFile(path)
+		loadLangFile(filepath.Join(dir, e.Name()))
 	}
 }
 
 // loadLangFile parses a single YAML translation file and registers it in langs.
 // Skips files with missing or empty language codes.
-// Logs parsing errors to stderr but continues execution.
 func loadLangFile(path string) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -69,10 +68,9 @@ func loadLangFile(path string) {
 	}
 	var lf langFile
 	if err := yaml.Unmarshal(data, &lf); err != nil {
-		fmt.Fprintf(os.Stderr, "svman: chyba pri nacitani %s: %v\n", path, err)
+		fmt.Fprintf(os.Stderr, "svman: error loading %s: %v\n", path, err)
 		return
 	}
-	// only register languages with a valid code
 	if lf.Meta.Code == "" {
 		return
 	}
@@ -81,41 +79,37 @@ func loadLangFile(path string) {
 
 // ── Init ─────────────────────────────────────────────────────────────
 
-// initI18n initializes the translation system:
-// 1. Loads all language files from registered directories.
-// 2. Detects and selects the appropriate language.
-// 3. Falls back to English if the detected language is unavailable.
-// 4. Uses an empty map if no languages are loaded.
-func initI18n() {
-	// Load all language files ─────────────────────────────────────────
-	for _, dir := range langDirs {
-		loadLangDir(dir)
-	}
+var i18nOnce sync.Once
 
-	// Select language ─────────────────────────────────────────────────
-	lang := detectLang()
-	if tr, ok := langs[lang]; ok {
-		T = tr
-		return
-	}
-	if tr, ok := langs["en"]; ok {
-		T = tr // fallback ─────────────────────────────────────────────
-		return
-	}
-	T = translations{}
+// InitI18n initializes the translation system (idempotent — safe to call multiple times).
+// Loads all language files, detects and selects the appropriate language,
+// falling back to English if the detected language is unavailable.
+func InitI18n() {
+	i18nOnce.Do(func() {
+		for _, dir := range langDirs {
+			loadLangDir(dir)
+		}
+		lang := detectLang()
+		if tr, ok := langs[lang]; ok {
+			T = tr
+			return
+		}
+		if tr, ok := langs["en"]; ok {
+			T = tr // fallback to English
+			return
+		}
+		T = translations{}
+	})
 }
 
 // detectLang determines the active language by checking:
 // 1. SVMAN_LANG environment variable (highest priority).
 // 2. Standard locale variables (LANGUAGE, LANG, LC_ALL, LC_MESSAGES).
-// 3. Returns "en" (English) as the default if no match is found.
-// Extracts the language code from locale strings (e.g., "cs_CZ.UTF-8" → "cs").
+// 3. Returns "en" (English) as the default.
 func detectLang() string {
-	// check explicit SVMAN_LANG override
 	if l := os.Getenv("SVMAN_LANG"); l != "" {
 		return strings.ToLower(strings.TrimSpace(l))
 	}
-	// check standard locale environment variables
 	for _, env := range []string{"LANGUAGE", "LANG", "LC_ALL", "LC_MESSAGES"} {
 		if l := os.Getenv(env); l != "" {
 			l = strings.ToLower(l)
@@ -134,7 +128,7 @@ func detectLang() string {
 // Lazily initializes the translation system on first call.
 func t(key string) string {
 	if T == nil {
-		initI18n()
+		InitI18n()
 	}
 	if v, ok := T[key]; ok {
 		return v

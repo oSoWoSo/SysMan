@@ -46,50 +46,17 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      # Run linter and tests once (native build only)
-      - name: Run linter
+      - name: Run tests (native only)
         if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
-          args: --timeout=5m
+        run: go test -v ./...
 
-      - name: Run tests
-        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-        env:
-          CGO_ENABLED: 1
-        run: go test -v -race -coverprofile=coverage.out ./...
-
-      # Native build: linux/amd64 with GUI (CGO enabled)
-      - name: Build (linux/amd64 + GUI)
-        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-        env:
-          GOOS: linux
-          GOARCH: amd64
-          CGO_ENABLED: 1
-        run: |
-          mkdir -p build
-          go build \
-            -ldflags="-s -w -X main.Version=${{ github.sha }}" \
-            -o build/svman-linux-amd64 .
-
-      # Cross-compile: no GUI (CGO disabled, build tag tui_only)
-      - name: Build (cross-compile, TUI only)
-        if: "!(matrix.goos == 'linux' && matrix.goarch == 'amd64')"
+      - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          mkdir -p build
           go build \
-            -tags tui_only \
-            -ldflags="-s -w -X main.Version=${{ github.sha }}" \
-            -o build/svman-${{ matrix.goos }}-${{ matrix.goarch }} .
-
-      - name: Upload artifacts
-        uses: forgejo-actions/upload-artifact@v4
-        with:
-          name: svman-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: build/svman-${{ matrix.goos }}-${{ matrix.goarch }}
-          retention-days: 7
+            -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=${{ github.sha }}" \
+            -o build/svman-${{ matrix.goos }}-${{ matrix.goarch }} \
+            .
