@@ -45,7 +45,7 @@ func main() {
 		serviceDestDir = svman.DefaultServiceDestDir
 	}
 
-	mode := "gui"
+	mode := "auto"
 	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "--tui", "-t":
@@ -55,6 +55,14 @@ func main() {
 		case "--help", "-h":
 			fmt.Printf("sysmanager [--gui|--tui]\n\nPlugin dir: %s\n", pluginDir())
 			os.Exit(0)
+		}
+	}
+
+	if mode == "auto" {
+		if os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != "" {
+			mode = "gui"
+		} else {
+			mode = "tui"
 		}
 	}
 
