@@ -100,3 +100,62 @@ func DisableService(destDir, name string) error {
 	}
 	return nil
 }
+
+// ── Runtime status ───────────────────────────────────────────────────
+
+// ServiceStatus holds the live runtime status from `sv status`.
+type ServiceStatus struct {
+	Running bool
+	PID     int
+	Uptime  string // e.g., "42s", "5m"
+	Raw     string // full sv output line
+}
+
+// GetServiceStatus runs `sv status <path>` and parses the output.
+// Only meaningful for enabled services (those with a symlink in destDir).
+func GetServiceStatus(destDir, name string) ServiceStatus {
+	path := filepath.Join(destDir, name)
+	out, _ := exec.Command("sv", "status", path).CombinedOutput()
+	line := strings.TrimSpace(string(out))
+	s := ServiceStatus{Raw: line}
+	s.Running = strings.HasPrefix(line, "run:")
+	// Extract PID: "(pid 1234)"
+	if i := strings.Index(line, "(pid "); i >= 0 {
+		rest := line[i+5:]
+		if j := strings.Index(rest, ")"); j >= 0 {
+			fmt.Sscanf(rest[:j], "%d", &s.PID) //nolint:errcheck
+		}
+	}
+	// Extract uptime: the token after ") "
+	if i := strings.LastIndex(line, ") "); i >= 0 {
+		rest := strings.TrimSpace(line[i+2:])
+		if j := strings.Index(rest, ";"); j >= 0 {
+			rest = rest[:j]
+		}
+		s.Uptime = strings.TrimSpace(rest)
+	}
+	return s
+}
+
+// ── sv control commands ──────────────────────────────────────────────
+
+func svCmd(destDir, name, action string) error {
+	path := filepath.Join(destDir, name)
+	out, err := exec.Command("sudo", "sv", action, path).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// StartService starts an enabled service via `sv start`.
+func StartService(destDir, name string) error { return svCmd(destDir, name, "start") }
+
+// StopService stops an enabled service via `sv stop`.
+func StopService(destDir, name string) error { return svCmd(destDir, name, "stop") }
+
+// RestartService restarts an enabled service via `sv restart`.
+func RestartService(destDir, name string) error { return svCmd(destDir, name, "restart") }
+
+// ReloadService sends SIGHUP to an enabled service via `sv reload`.
+func ReloadService(destDir, name string) error { return svCmd(destDir, name, "reload") }

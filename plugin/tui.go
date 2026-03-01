@@ -76,6 +76,8 @@ type tuiModel struct {
 	searchMode     bool            // true when user is typing search query
 	status         string          // status/error message
 	statusErr      bool            // true if status is an error
+	svStatus       ServiceStatus   // live runtime status of selected service
+	svStatName     string          // service name svStatus was fetched for
 	width          int             // terminal width
 	height         int             // terminal height
 }
@@ -84,18 +86,30 @@ type tuiModel struct {
 type tuiReloadMsg struct{}
 type tuiErrMsg struct{ err error }
 type tuiStatusMsg struct{ msg string }
+type tuiSvStatusMsg struct {
+	name   string
+	status ServiceStatus
+}
+type tuiSvOpDoneMsg struct {
+	name   string
+	action string // key into status.* translations
+}
 
 // Key bindings for TUI navigation and actions.
 var (
-	tkeyUp     = key.NewBinding(key.WithKeys("up", "k"))
-	tkeyDown   = key.NewBinding(key.WithKeys("down", "j"))
-	tkeyToggle = key.NewBinding(key.WithKeys("enter", " "))
-	tkeyReload = key.NewBinding(key.WithKeys("r"))
-	tkeyQuit   = key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"))
-	tkeySearch = key.NewBinding(key.WithKeys("/"))
-	tkeyEsc    = key.NewBinding(key.WithKeys("esc"))
-	tkeyEnter  = key.NewBinding(key.WithKeys("enter"))
-	tkeyFilter = key.NewBinding(key.WithKeys("tab"))
+	tkeyUp      = key.NewBinding(key.WithKeys("up", "k"))
+	tkeyDown    = key.NewBinding(key.WithKeys("down", "j"))
+	tkeyToggle  = key.NewBinding(key.WithKeys("enter", " "))
+	tkeyReload  = key.NewBinding(key.WithKeys("r"))
+	tkeyQuit    = key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"))
+	tkeySearch  = key.NewBinding(key.WithKeys("/"))
+	tkeyEsc     = key.NewBinding(key.WithKeys("esc"))
+	tkeyEnter   = key.NewBinding(key.WithKeys("enter"))
+	tkeyFilter  = key.NewBinding(key.WithKeys("tab"))
+	tkeyStart   = key.NewBinding(key.WithKeys("s"))
+	tkeyStop    = key.NewBinding(key.WithKeys("x"))
+	tkeyRestart = key.NewBinding(key.WithKeys("t"))
+	tkeyHup     = key.NewBinding(key.WithKeys("l"))
 )
 
 // NewTuiModel creates and initializes a new TUI model with services loaded.
@@ -149,6 +163,28 @@ func (m tuiModel) clampCursor() tuiModel {
 	return m
 }
 
+// currentName returns the name of the currently selected service, or "".
+func (m tuiModel) currentName() string {
+	list := m.filtered()
+	if m.cursor < 0 || m.cursor >= len(list) {
+		return ""
+	}
+	return list[m.cursor].Name
+}
+
+// selectedEnabled returns the currently selected service if it is enabled, else nil.
+func (m tuiModel) selectedEnabled() *Service {
+	list := m.filtered()
+	if m.cursor < 0 || m.cursor >= len(list) {
+		return nil
+	}
+	svc := list[m.cursor]
+	if !svc.Enabled {
+		return nil
+	}
+	return &svc
+}
+
 // Init implements tea.Model; returns no initial command.
 func (m tuiModel) Init() tea.Cmd { return nil }
 
@@ -166,10 +202,14 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.search.Blur()
 				m.searchMode = false
 				m.cursor = 0
+				m.svStatName = m.currentName()
+				return m, m.fetchStatusCmd()
 			case key.Matches(msg, tkeyEnter):
 				m.search.Blur()
 				m.searchMode = false
 				m.cursor = 0
+				m.svStatName = m.currentName()
+				return m, m.fetchStatusCmd()
 			case key.Matches(msg, tkeyUp):
 				if m.cursor > 0 {
 					m.cursor--
@@ -201,14 +241,20 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, tkeyFilter):
 			m.filter = (m.filter + 1) % 3
 			m.cursor = 0
+			m.svStatName = m.currentName()
+			return m, m.fetchStatusCmd()
 		case key.Matches(msg, tkeyUp):
 			if m.cursor > 0 {
 				m.cursor--
+				m.svStatName = m.currentName()
+				return m, m.fetchStatusCmd()
 			}
 		case key.Matches(msg, tkeyDown):
 			list := m.filtered()
 			if m.cursor < len(list)-1 {
 				m.cursor++
+				m.svStatName = m.currentName()
+				return m, m.fetchStatusCmd()
 			}
 		case key.Matches(msg, tkeyToggle):
 			list := m.filtered()
@@ -222,22 +268,67 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tuiEnableCmd(m.serviceDir, m.serviceDestDir, svc.Name)
 		case key.Matches(msg, tkeyReload):
 			return m, func() tea.Msg { return tuiReloadMsg{} }
+		case key.Matches(msg, tkeyStart):
+			if svc := m.selectedEnabled(); svc != nil {
+				return m, tuiSvCmd(m.serviceDestDir, svc.Name, "started", StartService)
+			}
+		case key.Matches(msg, tkeyStop):
+			if svc := m.selectedEnabled(); svc != nil {
+				return m, tuiSvCmd(m.serviceDestDir, svc.Name, "stopped", StopService)
+			}
+		case key.Matches(msg, tkeyRestart):
+			if svc := m.selectedEnabled(); svc != nil {
+				return m, tuiSvCmd(m.serviceDestDir, svc.Name, "restarted", RestartService)
+			}
+		case key.Matches(msg, tkeyHup):
+			if svc := m.selectedEnabled(); svc != nil {
+				return m, tuiSvCmd(m.serviceDestDir, svc.Name, "hupped", ReloadService)
+			}
 		}
 
 	case tuiReloadMsg:
 		m.services = LoadServices(m.serviceDir, m.serviceDestDir)
 		m = m.clampCursor()
+		return m, m.fetchStatusCmd()
 
 	case tuiStatusMsg:
 		m.status = msg.msg
 		m.statusErr = false
 		return m, func() tea.Msg { return tuiReloadMsg{} }
 
+	case tuiSvStatusMsg:
+		if msg.name == m.svStatName {
+			m.svStatus = msg.status
+		}
+
+	case tuiSvOpDoneMsg:
+		m.status = fmt.Sprintf(t("status."+msg.action), msg.name)
+		m.statusErr = false
+		return m, m.fetchStatusCmd()
+
 	case tuiErrMsg:
 		m.status = msg.err.Error()
 		m.statusErr = true
 	}
 	return m, nil
+}
+
+// fetchStatusCmd returns a command that fetches sv status for the currently selected service.
+// Returns nil if no enabled service is selected.
+func (m tuiModel) fetchStatusCmd() tea.Cmd {
+	list := m.filtered()
+	if m.cursor < 0 || m.cursor >= len(list) {
+		return nil
+	}
+	svc := list[m.cursor]
+	if !svc.Enabled {
+		return nil
+	}
+	name := svc.Name
+	destDir := m.serviceDestDir
+	return func() tea.Msg {
+		return tuiSvStatusMsg{name: name, status: GetServiceStatus(destDir, name)}
+	}
 }
 
 // tuiEnableCmd returns an async command that enables a service.
@@ -257,6 +348,16 @@ func tuiDisableCmd(destDir, name string) tea.Cmd {
 			return tuiErrMsg{err}
 		}
 		return tuiStatusMsg{fmt.Sprintf(t("status.disabled"), name)}
+	}
+}
+
+// tuiSvCmd returns a command that runs an sv control action and emits tuiSvOpDoneMsg.
+func tuiSvCmd(destDir, name, action string, fn func(string, string) error) tea.Cmd {
+	return func() tea.Msg {
+		if err := fn(destDir, name); err != nil {
+			return tuiErrMsg{err}
+		}
+		return tuiSvOpDoneMsg{name: name, action: action}
 	}
 }
 
@@ -347,12 +448,36 @@ func (m tuiModel) View() string {
 			stateStr = tdisabledBadge.Render("[ ] " + t("state.disabled"))
 			actionStr = tenabledBadge.Render(t("action.enable"))
 		}
+
+		// Running status (only for enabled services)
+		runningStr := ""
+		if svc.Enabled && m.svStatName == svc.Name {
+			st := m.svStatus
+			if st.Running {
+				runningStr = tenabledBadge.Render("▶ "+t("state.running"))
+				if st.PID > 0 {
+					runningStr += tnormalStyle.Render(fmt.Sprintf("  pid %d", st.PID))
+				}
+				if st.Uptime != "" {
+					runningStr += tdisabledBadge.Render("  "+st.Uptime)
+				}
+			} else if st.Raw != "" {
+				runningStr = tdisabledBadge.Render("■ " + t("state.stopped"))
+			}
+		}
+
 		detail = tsectionStyle.Render(t("detail.header")) + "\n\n" +
 			tnormalStyle.Render(t("detail.name")+":   "+svc.Name) + "\n" +
-			tnormalStyle.Render(t("detail.state")+":    ") + stateStr + "\n" +
-			tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(m.serviceDir, svc.Name)) + "\n" +
+			tnormalStyle.Render(t("detail.state")+":    ") + stateStr + "\n"
+		if runningStr != "" {
+			detail += tnormalStyle.Render(t("detail.running")+": ") + runningStr + "\n"
+		}
+		detail += tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(m.serviceDir, svc.Name)) + "\n" +
 			tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(m.serviceDestDir, svc.Name)) + "\n\n" +
 			tnormalStyle.Render("action:  ") + actionStr
+		if svc.Enabled {
+			detail += "\n\n" + thelpStyle.Render("s=start  x=stop  t=restart  l=hup")
+		}
 	}
 	rightCol := tcolumnStyle.Width(colWidth).Render(detail)
 
