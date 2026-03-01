@@ -53,12 +53,16 @@ func (g *ugApp) showAbout() {
 	)
 	repoURL, _ := url.Parse(svman.AppURL)
 	link := widget.NewHyperlink(svman.AppURL, repoURL)
+	descLabel := widget.NewLabel(t("about.description"))
+	descLabel.Wrapping = fyne.TextWrapWord
 	content := container.NewVBox(
 		container.NewCenter(title),
 		container.NewCenter(subtitle),
 		widget.NewSeparator(),
 		infoForm,
 		container.NewCenter(link),
+		widget.NewSeparator(),
+		descLabel,
 	)
 	d := dialog.NewCustom(t("btn.about"), t("btn.close"), content, g.win)
 	d.Show()

@@ -11,6 +11,7 @@ strings:
   about.version: "Verze"
   about.author: "Autor"
   about.license: "Licence"
+  about.description: "Správa XBPS balíčků na Void Linuxu.\n\nNahoře: vyhledávací pole a záložky filtru (Vše / Nainstalované / Dostupné).\nVlevo: seznam balíčků. Vpravo: detail vybraného balíčku — název, verze,\nstav, popis, odkaz na web. Tlačítka: Instalovat, Odebrat, Aktualizovat vše."
   btn.about: "O aplikaci"
   btn.close: "Zavřít"
 

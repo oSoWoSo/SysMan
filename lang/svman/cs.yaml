@@ -54,6 +54,7 @@ strings:
   about.version: "Verze"
   about.author: "Autor"
   about.license: "Licence"
+  about.description: "Správa runit služeb na Void Linuxu.\n\nLevý panel: seznam všech služeb s filtrem (Vše / Povolené / Nepovolené)\na vyhledáváním. Pravý panel: detail vybrané služby — stav, PID, uptime,\ncesta ke zdroji. Spodní panel: povolit, zakázat, spustit, zastavit,\nrestartovat, HUP, pozastavit, pokračovat, zabít."
 
   confirm.title: "Potvrdit akci"
   confirm.disable: "Opravdu zakázat '%s'?"

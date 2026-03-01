@@ -34,6 +34,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Usage is the --help text for infoman.
+const Usage = "infoman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SYSMAN_LANG  language override (e.g. cs)"
+
 // Plugin displays basic system information (hostname, OS, arch, CPUs, Go version).
 type Plugin struct{}
 
@@ -349,12 +352,16 @@ func showAbout(win fyne.Window) {
 	)
 	repoURL, _ := url.Parse(svman.AppURL)
 	link := widget.NewHyperlink(svman.AppURL, repoURL)
+	descLabel := widget.NewLabel(t("about.description"))
+	descLabel.Wrapping = fyne.TextWrapWord
 	content := container.NewVBox(
 		container.NewCenter(title),
 		container.NewCenter(subtitle),
 		widget.NewSeparator(),
 		infoForm,
 		container.NewCenter(link),
+		widget.NewSeparator(),
+		descLabel,
 	)
 	d := dialog.NewCustom(t("btn.about"), t("btn.close"), content, win)
 	d.Show()

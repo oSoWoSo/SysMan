@@ -11,6 +11,7 @@ strings:
   about.version: "Version"
   about.author: "Author"
   about.license: "License"
+  about.description: "Display system information at a glance.\n\nShows: hostname, OS, kernel version, architecture, CPU model,\nnumber of cores, memory usage, uptime, shell, desktop environment\nand disk usage for /."
   btn.about: "About"
   btn.close: "Close"
 

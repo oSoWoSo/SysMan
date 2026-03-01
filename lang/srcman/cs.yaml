@@ -7,10 +7,10 @@ strings:
   app.subtitle: "správce šablon xbps-src"
   app.window: "Šablony"
   tab.name: "Šablony"
-
   about.version: "Verze"
   about.author: "Autor"
   about.license: "Licence"
+  about.description: "Správa šablon xbps-src ve void-packages.\n\nLevý panel: prohledávatelný seznam šablon. Pravý panel: detail šablony\n(název, verze, popis) a editor pro přímou úpravu šablony.\nTlačítka: Sestavit, Lint, Kontrolní součet, Zvýšit verzi, Instalovat,\nVyčistit, Web, Repology, Aktualizovat bootstrap. Panel výstupu zobrazuje výstup příkazů."
   btn.about: "O aplikaci"
   btn.close: "Zavřít"
 
@@ -21,6 +21,7 @@ strings:
   detail.desc: "Popis"
 
   btn.build: "Sestavit"
+  btn.stop: "Zastavit"
   btn.install: "Instalovat"
   btn.clean: "Vyčistit"
   btn.homepage: "Domovská stránka"
@@ -32,6 +33,8 @@ strings:
   btn.bump: "Zvýšit verzi"
   btn.reload: "Obnovit"
   btn.find: "Hledat"
+  find.placeholder: "Hledat ve výstupu…"
+  find.no_matches: "nic nenalezeno"
 
   editor.title: "Editor šablon"
 
@@ -40,6 +43,7 @@ strings:
   menu.add.depends: "Přidat do depends"
   menu.add.checkdepends: "Přidat do checkdepends"
   menu.xlocate: "xlocate: najít soubor"
+  menu.xbpsquery: "xbps-query: hledat balíček"
   menu.websearch: "Hledat na webu"
 
   status.no_template: "V editoru není načtena žádná šablona"

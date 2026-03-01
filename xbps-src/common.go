@@ -6,6 +6,7 @@ package xbpssrc
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +19,9 @@ import (
 
 // DefaultDistDir signals that the directory should be resolved at runtime.
 const DefaultDistDir = ""
+
+// Usage is the --help text for srcman.
+const Usage = "srcman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  XBPS_DISTDIR  void-packages dir (default: ~/void)\n  SYSMAN_LANG  language override (e.g. cs)"
 
 // Template represents a single xbps-src package template (one srcpkgs/<name>/ directory).
 type Template struct {
@@ -157,6 +161,13 @@ func RunXbps(distDir string, args ...string) (string, error) {
 // streaming each output line to w in real-time (pass nil to skip streaming).
 // Returns combined output and any error.
 func RunXbpsStream(distDir string, w io.Writer, args ...string) (string, error) {
+	return RunXbpsStreamCtx(context.Background(), distDir, w, args...)
+}
+
+// RunXbpsStreamCtx is like RunXbpsStream but honours a context for cancellation.
+// It puts the child process in its own process group so that cancellation kills
+// the whole group (including grandchildren spawned by shell scripts).
+func RunXbpsStreamCtx(ctx context.Context, distDir string, w io.Writer, args ...string) (string, error) {
 	dir := ResolveDistDir(distDir)
 	pr, pw, err := os.Pipe()
 	if err != nil {
@@ -166,14 +177,24 @@ func RunXbpsStream(distDir string, w io.Writer, args ...string) (string, error) 
 	cmd.Dir = dir
 	cmd.Stdout = pw
 	cmd.Stderr = pw
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		pw.Close()
 		pr.Close()
 		return "", err
 	}
 	pw.Close()
+
+	// Kill the whole process group when context is cancelled.
+	pgid := cmd.Process.Pid
+	go func() {
+		<-ctx.Done()
+		_ = syscall.Kill(-pgid, syscall.SIGKILL)
+	}()
+
 	var buf strings.Builder
 	scanner := bufio.NewScanner(pr)
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		buf.WriteString(line + "\n")
@@ -183,6 +204,9 @@ func RunXbpsStream(distDir string, w io.Writer, args ...string) (string, error) 
 	}
 	pr.Close()
 	err = cmd.Wait()
+	if ctx.Err() != nil {
+		return strings.TrimSpace(buf.String()), ctx.Err()
+	}
 	return strings.TrimSpace(buf.String()), err
 }
 

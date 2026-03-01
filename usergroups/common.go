@@ -16,6 +16,9 @@ import (
 	"codeberg.org/oSoWoSo/SysMan/api"
 )
 
+// Usage is the --help text for ugman.
+const Usage = "ugman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SYSMAN_LANG  language override (e.g. cs)"
+
 // ── Data types ────────────────────────────────────────────────────────
 
 // User holds a single /etc/passwd entry.

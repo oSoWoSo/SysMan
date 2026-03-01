@@ -18,9 +18,10 @@ var Version = "0.001 Alpha"
 
 // App metadata used in the About dialog.
 const (
-	AppAuthor  = "oSoWoSo"
+	AppAuthor  = "zenobit @ oSoWoSo.org"
 	AppLicense = "MIT"
 	AppURL     = "https://codeberg.org/oSoWoSo/SysMan"
+	Usage      = "svman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SERVICEDIR      service dir (default: /etc/sv)\n  SERVICEDESTDIR  enabled services dir (default: /var/service)\n  SYSMAN_LANG  language override (e.g. cs)"
 )
 
 // ── Defaults ─────────────────────────────────────────────────────────

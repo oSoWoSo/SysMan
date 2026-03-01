@@ -11,6 +11,7 @@ strings:
   about.version: "Verze"
   about.author: "Autor"
   about.license: "Licence"
+  about.description: "Přehled systémových informací na jednom místě.\n\nZobrazuje: název hostitele, OS, verzi jádra, architekturu, model CPU,\npočet jader, využití paměti, dobu běhu, shell, desktopové prostředí\na využití disku /."
   btn.about: "O aplikaci"
   btn.close: "Zavřít"
 

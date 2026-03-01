@@ -1,5 +1,4 @@
 // Command svman-tui is a TUI-only build of svman with no Fyne/OpenGL dependency.
-// It can be cross-compiled with CGO_ENABLED=0 for any supported platform.
 //
 // Build:
 //
@@ -27,7 +26,7 @@ func main() {
 
 	for _, arg := range os.Args[1:] {
 		if arg == "--help" || arg == "-h" {
-			fmt.Printf("svman-tui — runit service manager (TUI)\n\nUsage: svman-tui\n\nEnvironment:\n  SERVICEDIR      service directory (default: /etc/sv)\n  SERVICEDESTDIR  enabled services directory (default: /var/service)\n  SVMAN_LANG      language override (cs, en)\n")
+			fmt.Println(plugin.Usage)
 			os.Exit(0)
 		}
 	}

@@ -54,6 +54,7 @@ strings:
   about.version: "Version"
   about.author: "Author"
   about.license: "License"
+  about.description: "Manage runit services on Void Linux.\n\nLeft panel: list of all services with filter (All / Enabled / Disabled)\nand search. Right panel: detail of selected service — state, PID, uptime,\nsource path. Bottom toolbar: enable, disable, start, stop, restart,\nHUP, pause, continue, kill."
 
   confirm.title: "Confirm action"
   confirm.disable: "Really disable '%s'?"

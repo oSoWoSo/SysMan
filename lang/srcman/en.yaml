@@ -7,10 +7,10 @@ strings:
   app.subtitle: "xbps-src Template Manager"
   app.window: "Templates"
   tab.name: "Templates"
-
   about.version: "Version"
   about.author: "Author"
   about.license: "License"
+  about.description: "Manage xbps-src templates in void-packages.\n\nLeft panel: searchable template list. Right panel: template detail\n(name, version, description) and editor for direct template editing.\nButtons: Build, Lint, Checksum, Bump version, Install, Clean,\nHomepage, Repology, Bootstrap update. Output panel shows command output."
   btn.about: "About"
   btn.close: "Close"
 
@@ -21,6 +21,7 @@ strings:
   detail.desc: "Description"
 
   btn.build: "Build"
+  btn.stop: "Stop"
   btn.install: "Install"
   btn.clean: "Clean"
   btn.homepage: "Homepage"
@@ -32,6 +33,8 @@ strings:
   btn.bump: "Bump"
   btn.reload: "Reload"
   btn.find: "Find"
+  find.placeholder: "Find in output…"
+  find.no_matches: "no matches"
 
   editor.title: "Template editor"
 
@@ -40,6 +43,7 @@ strings:
   menu.add.depends: "Add to depends"
   menu.add.checkdepends: "Add to checkdepends"
   menu.xlocate: "xlocate: find file"
+  menu.xbpsquery: "xbps-query: search package"
   menu.websearch: "Search on web"
 
   status.no_template: "No template loaded in editor"

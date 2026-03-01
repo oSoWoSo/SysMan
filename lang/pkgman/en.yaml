@@ -11,6 +11,7 @@ strings:
   about.version: "Version"
   about.author: "Author"
   about.license: "License"
+  about.description: "Manage XBPS packages on Void Linux.\n\nTop: search bar and filter tabs (All / Installed / Available).\nLeft: package list. Right: detail of selected package — name, version,\nstatus, description, homepage link. Buttons: Install, Remove, Update all."
   btn.about: "About"
   btn.close: "Close"
 

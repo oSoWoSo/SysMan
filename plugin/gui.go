@@ -318,12 +318,17 @@ func (s *guiApp) showAbout() {
 	repoURL, _ := url.Parse(AppURL)
 	link := widget.NewHyperlink(AppURL, repoURL)
 
+	descLabel := widget.NewLabel(t("about.description"))
+	descLabel.Wrapping = fyne.TextWrapWord
+
 	content := container.NewVBox(
 		container.NewCenter(title),
 		container.NewCenter(subtitle),
 		widget.NewSeparator(),
 		infoForm,
 		container.NewCenter(link),
+		widget.NewSeparator(),
+		descLabel,
 	)
 
 	d := dialog.NewCustom(t("menu.about"), t("btn.close"), content, s.win)

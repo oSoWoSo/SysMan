@@ -8,6 +8,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -40,7 +41,7 @@ func newOutputPanel(onSecondaryTap func(sel string, pos fyne.Position)) *outputP
 
 	// ── Find bar (hidden by default) ──────────────────────────────────
 	p.findEntry = widget.NewEntry()
-	p.findEntry.SetPlaceHolder("Find in output…")
+	p.findEntry.SetPlaceHolder(t("find.placeholder"))
 	p.findEntry.OnChanged = func(q string) { p.search(q) }
 
 	p.findLabel = widget.NewLabel("")
@@ -53,7 +54,9 @@ func newOutputPanel(onSecondaryTap func(sel string, pos fyne.Position)) *outputP
 	btnClose := widget.NewButtonWithIcon("", theme.CancelIcon(), func() { p.HideFind() })
 	btnClose.Importance = widget.LowImportance
 
-	p.findBar = container.NewHBox(p.findEntry, btnPrev, btnNext, p.findLabel, btnClose)
+	findRight := container.NewHBox(btnPrev, btnNext, p.findLabel, btnClose)
+	findEntryWrap := container.New(layout.NewGridWrapLayout(fyne.NewSize(240, 36)), p.findEntry)
+	p.findBar = container.NewHBox(findEntryWrap, findRight)
 	p.findBar.Hide()
 
 	p.outer = container.NewBorder(nil, p.findBar, nil, nil, p.entry)
@@ -147,7 +150,7 @@ func (p *outputPanel) stepMatch(dir int) {
 func (p *outputPanel) updateFindLabel() {
 	if len(p.findMatches) == 0 {
 		if p.findQuery != "" {
-			p.findLabel.SetText("no matches")
+			p.findLabel.SetText(t("find.no_matches"))
 		} else {
 			p.findLabel.SetText("")
 		}

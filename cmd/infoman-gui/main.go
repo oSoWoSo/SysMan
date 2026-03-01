@@ -2,6 +2,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 
@@ -9,6 +12,12 @@ import (
 )
 
 func main() {
+	for _, arg := range os.Args[1:] {
+		if arg == "--help" || arg == "-h" {
+			fmt.Println(sysinfo.Usage)
+			os.Exit(0)
+		}
+	}
 	p := sysinfo.New()
 	a := app.New()
 	win := a.NewWindow(p.Name())

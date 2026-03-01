@@ -67,7 +67,7 @@ func loadLangFile(path string) {
 }
 
 func detectLang() string {
-	if l := os.Getenv("PKGMAN_LANG"); l != "" {
+	if l := os.Getenv("SYSMAN_LANG"); l != "" {
 		return strings.ToLower(strings.TrimSpace(l))
 	}
 	for _, env := range []string{"LANGUAGE", "LANG", "LC_ALL", "LC_MESSAGES"} {

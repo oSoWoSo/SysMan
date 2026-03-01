@@ -11,6 +11,7 @@ strings:
   about.version: "Version"
   about.author: "Author"
   about.license: "License"
+  about.description: "Manage users and groups on the local system.\n\nTwo tabs: Users (login, UID, full name, shell, home) and Groups\n(name, GID, members). Actions: Add, Delete, Properties, Change password\n(users); Add, Delete, Edit members (groups). Requires root for changes."
   btn.about: "About"
   btn.close: "Close"
 

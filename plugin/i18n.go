@@ -111,11 +111,11 @@ func InitI18n() {
 }
 
 // detectLang determines the active language by checking:
-// 1. SVMAN_LANG environment variable (highest priority).
+// 1. SYSMAN_LANG environment variable (highest priority).
 // 2. Standard locale variables (LANGUAGE, LANG, LC_ALL, LC_MESSAGES).
 // 3. Returns "en" (English) as the default.
 func detectLang() string {
-	if l := os.Getenv("SVMAN_LANG"); l != "" {
+	if l := os.Getenv("SYSMAN_LANG"); l != "" {
 		return strings.ToLower(strings.TrimSpace(l))
 	}
 	for _, env := range []string{"LANGUAGE", "LANG", "LC_ALL", "LC_MESSAGES"} {

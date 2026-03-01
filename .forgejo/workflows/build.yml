@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - develop
+      - dev
   pull_request:
     branches:
       - main
@@ -27,26 +27,8 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Build svman (GUI+TUI)
-        run: |
-          mkdir -p build
-          go build \
-            -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=${{ github.sha }}" \
-            -o build/svman .
+      - name: Build all GUI binaries
+        run: make build
 
-      - name: Build svman-tui (TUI-only, CGO-free)
-        env:
-          CGO_ENABLED: 0
-        run: |
-          go build -tags tui_only \
-            -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=${{ github.sha }}" \
-            -o build/svman-tui ./cmd/svman-tui/
-
-      - name: Build sysmanager
-        run: |
-          go build \
-            -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=${{ github.sha }}" \
-            -o build/sysmanager ./cmd/sysmanager/
-
-      - name: Build testplugin
-        run: go build -o build/testplugin ./cmd/testplugin/
+      - name: Build all TUI binaries (CGO-free)
+        run: make build-tui

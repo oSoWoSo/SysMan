@@ -3,6 +3,7 @@
 package xbpssrc
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -43,10 +44,25 @@ type xbpsGuiApp struct {
 	btnBuild   *widget.Button
 	btnInstall *widget.Button
 	btnClean   *widget.Button
+	btnBack    *widget.Button
+	btnFwd     *widget.Button
 
 	// always-visible inline editor
-	editorEntry *widget.Entry
-	editorPath  string // path of the file currently loaded
+	editorEntry    *focusEntry
+	editorPath     string // path of the file currently loaded
+	editorTop      *fyne.Container // toolbar+separators
+	editorBtnSave  *widget.Button
+	editorBtnLint  *widget.Button
+	editorBtnSum   *widget.Button
+	editorBtnBump  *widget.Button
+	editorTitle    *widget.Label
+	outerSplit     *container.Split
+
+	logHistory []string // past command outputs (oldest first)
+	logHistIdx int      // index while browsing; -1 = showing logLive
+	logLive    string   // current (latest) output, not yet in history
+
+	buildCancel context.CancelFunc // non-nil while build is running
 }
 
 func (g *xbpsGuiApp) filtered() []Template {
@@ -100,19 +116,25 @@ func (g *xbpsGuiApp) showAbout() {
 	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 	subtitle := canvas.NewText(t("app.subtitle"), color.NRGBA{R: 0x88, G: 0x88, B: 0x88, A: 0xff})
 	subtitle.TextSize = 12
-	infoForm := widget.NewForm(
-		widget.NewFormItem(t("about.version"), widget.NewLabel(svman.Version)),
-		widget.NewFormItem(t("about.author"), widget.NewLabel(svman.AppAuthor)),
-		widget.NewFormItem(t("about.license"), widget.NewLabel(svman.AppLicense)),
-	)
+	boldLabel := func(s string) *widget.Label {
+		l := widget.NewLabel(s)
+		l.TextStyle = fyne.TextStyle{Bold: true}
+		return l
+	}
 	repoURL, _ := url.Parse(svman.AppURL)
 	link := widget.NewHyperlink(svman.AppURL, repoURL)
+	descLabel := widget.NewLabel(t("about.description"))
+	descLabel.Wrapping = fyne.TextWrapWord
 	content := container.NewVBox(
 		container.NewCenter(title),
 		container.NewCenter(subtitle),
 		widget.NewSeparator(),
-		infoForm,
+		boldLabel(t("about.version")), widget.NewLabel(svman.Version),
+		boldLabel(t("about.author")), widget.NewLabel(svman.AppAuthor),
+		boldLabel(t("about.license")), widget.NewLabel(svman.AppLicense),
 		container.NewCenter(link),
+		widget.NewSeparator(),
+		descLabel,
 	)
 	d := dialog.NewCustom(t("btn.about"), t("btn.close"), content, g.win)
 	d.Show()
@@ -136,22 +158,42 @@ func (g *xbpsGuiApp) showSelectionMenu(sel string, pos fyne.Position) {
 			go func() {
 				out, err := RunXlocate(sel)
 				if err != nil {
-					g.setOutput(fmt.Sprintf("xlocate %s: %s\n%s", sel, err.Error(), out))
+					g.pushLog(fmt.Sprintf("xlocate %s: %s\n%s", sel, err.Error(), out))
 					g.setStatus(fmt.Sprintf("✗ xlocate %s", sel))
 				} else {
 					if out == "" {
 						out = "(no results)"
 					}
-					g.setOutput(out)
+					g.pushLog(out)
 					g.setStatus(fmt.Sprintf("✓ xlocate %s", sel))
 				}
 			}()
 		}),
+		fyne.NewMenuItem(t("menu.xbpsquery"), func() {
+			g.setStatus(fmt.Sprintf("xbps-query -Rs %s…", sel))
+			go func() {
+				out, err := RunXbpsStream("", nil, "xbps-query", "-Rs", sel)
+				if err != nil && out == "" {
+					g.pushLog(fmt.Sprintf("xbps-query -Rs %s: %s\n", sel, err.Error()))
+					g.setStatus(fmt.Sprintf("✗ xbps-query %s", sel))
+				} else {
+					if out == "" {
+						out = "(no results)"
+					}
+					g.pushLog(out)
+					g.setStatus(fmt.Sprintf("✓ xbps-query -Rs %s", sel))
+				}
+			}()
+		}),
+		fyne.NewMenuItemSeparator(),
+	}
+
+	items = append(items,
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem(t("menu.websearch"), func() {
 			OpenBrowser(g.cfg.SearchEngine + url.QueryEscape(sel))
 		}),
-	}
+	)
 
 	menu := fyne.NewMenu("", items...)
 	widget.ShowPopUpMenuAtPosition(menu, g.win.Canvas(), pos)
@@ -231,24 +273,159 @@ func (g *xbpsGuiApp) loadEditorFile(name string) {
 	g.editorEntry.SetText(string(data))
 }
 
+// pushLog commits current live output to history and shows text as new live output.
+func (g *xbpsGuiApp) pushLog(text string) {
+	g.commitLiveToHistory()
+	g.logHistIdx = -1
+	g.logLive = text
+	g.output.SetText(text)
+	g.updateNavBtns()
+}
+
+// commitLiveToHistory moves logLive into history (if non-empty).
+func (g *xbpsGuiApp) commitLiveToHistory() {
+	if g.logLive != "" {
+		g.logHistory = append(g.logHistory, g.logLive)
+		g.logLive = ""
+	}
+}
+
+// logBack navigates one step back in output history.
+// History:  [0, 1, 2, ...N-1]  live=logLive
+// At live (-1): show history[N-1], set idx=N-1
+// At idx>0:     show history[idx-1], set idx--
+func (g *xbpsGuiApp) logBack() {
+	if len(g.logHistory) == 0 {
+		return
+	}
+	if g.logHistIdx == -1 {
+		g.logHistIdx = len(g.logHistory) - 1
+	} else if g.logHistIdx > 0 {
+		g.logHistIdx--
+	} else {
+		return // already at oldest
+	}
+	g.output.SetText(g.logHistory[g.logHistIdx])
+	g.updateNavBtns()
+}
+
+// logForward navigates one step forward (toward live output).
+// At idx < N-1: show history[idx+1]
+// At idx == N-1: show live output, set idx=-1
+func (g *xbpsGuiApp) logForward() {
+	if g.logHistIdx == -1 {
+		return // already at live
+	}
+	g.logHistIdx++
+	if g.logHistIdx >= len(g.logHistory) {
+		g.logHistIdx = -1
+		g.output.SetText(g.logLive)
+	} else {
+		g.output.SetText(g.logHistory[g.logHistIdx])
+	}
+	g.updateNavBtns()
+}
+
+// updateNavBtns shows/hides the back and forward navigation buttons.
+func (g *xbpsGuiApp) updateNavBtns() {
+	if g.btnBack == nil || g.btnFwd == nil {
+		return
+	}
+	// canBack: history exists and we're not at the oldest entry
+	canBack := len(g.logHistory) > 0 && (g.logHistIdx == -1 || g.logHistIdx > 0)
+	// canFwd: we're browsing (not at live output)
+	canFwd := g.logHistIdx != -1
+	if canBack {
+		g.btnBack.Show()
+	} else {
+		g.btnBack.Hide()
+	}
+	if canFwd {
+		g.btnFwd.Show()
+	} else {
+		g.btnFwd.Hide()
+	}
+}
+
 func (g *xbpsGuiApp) setOutput(text string) {
 	g.output.SetText(text)
 }
 
+// checksumLineWidth is the target editor width in Fyne dp units for a
+// checksum= line (9 chars key + 64 hex chars + newline = 74 chars monospace ~9 dp/char).
+const checksumLineWidth float32 = 74 * 9
+
+func (g *xbpsGuiApp) setEditorFocused(focused bool) {
+	if focused {
+		g.editorBtnSave.SetText(t("btn.save"))
+		g.editorBtnLint.SetText(t("btn.lint"))
+		g.editorBtnSum.SetText(t("btn.sum"))
+		g.editorBtnBump.SetText(t("btn.bump"))
+		// Set offset so editor is exactly checksumLineWidth wide.
+		total := g.win.Canvas().Size().Width
+		if total > checksumLineWidth {
+			g.outerSplit.SetOffset(float64(1 - checksumLineWidth/total))
+		} else {
+			g.outerSplit.SetOffset(0.5)
+		}
+	} else {
+		g.editorBtnSave.SetText("")
+		g.editorBtnLint.SetText("")
+		g.editorBtnSum.SetText("")
+		g.editorBtnBump.SetText("")
+		g.outerSplit.SetOffset(0.92)
+	}
+	g.outerSplit.Refresh()
+}
+
+func (g *xbpsGuiApp) setBuildRunning(running bool) {
+	if running {
+		g.btnBuild.SetText(t("btn.stop"))
+		g.btnBuild.SetIcon(theme.MediaStopIcon())
+		g.btnBuild.Importance = widget.DangerImportance
+	} else {
+		g.btnBuild.SetText(t("btn.build"))
+		g.btnBuild.SetIcon(theme.MediaPlayIcon())
+		g.btnBuild.Importance = widget.HighImportance
+		g.buildCancel = nil
+	}
+}
+
 func (g *xbpsGuiApp) runCmd(label string, args ...string) {
+	g.runCmdCtx(false, label, args...)
+}
+
+func (g *xbpsGuiApp) runCmdCtx(cancellable bool, label string, args ...string) {
 	pkg := g.selectedName()
 	statusLabel := label
 	if pkg != "" {
 		statusLabel = fmt.Sprintf("%s %s", label, pkg)
 	}
 	g.setStatus(fmt.Sprintf(t("status.running"), statusLabel))
+	// Save current live output to history, then start fresh.
+	g.commitLiveToHistory()
+	g.logHistIdx = -1
+	g.logLive = ""
 	g.output.SetText("")
+	g.updateNavBtns()
+
+	ctx := context.Background()
+	if cancellable {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(context.Background())
+		g.buildCancel = cancel
+		g.setBuildRunning(true)
+	}
+
 	go func() {
 		w := writerFunc(func(p []byte) (int, error) {
 			g.output.Append(string(p))
 			return len(p), nil
 		})
-		_, err := RunXbpsStream(g.distDir, w, args...)
+		_, err := RunXbpsStreamCtx(ctx, g.distDir, w, args...)
+		if cancellable {
+			g.setBuildRunning(false)
+		}
 		if g.output.plain.Len() == 0 {
 			if err != nil {
 				g.setOutput(fmt.Sprintf(t("status.error"), err.Error()))
@@ -256,8 +433,15 @@ func (g *xbpsGuiApp) runCmd(label string, args ...string) {
 				g.setOutput(statusLabel + " OK")
 			}
 		}
+		// Snapshot the completed output as the new live buffer.
+		g.logLive = g.output.plain.String()
+		g.updateNavBtns()
 		if err != nil {
-			g.setStatus(fmt.Sprintf(t("status.failed"), statusLabel, err.Error()))
+			if ctx.Err() != nil {
+				g.setStatus(fmt.Sprintf(t("status.failed"), statusLabel, t("btn.stop")))
+			} else {
+				g.setStatus(fmt.Sprintf(t("status.failed"), statusLabel, err.Error()))
+			}
 		} else {
 			g.setStatus(fmt.Sprintf(t("status.ok"), statusLabel))
 		}
@@ -268,12 +452,40 @@ type writerFunc func([]byte) (int, error)
 
 func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
 
+// focusEntry is a plain multiline Entry used as the inline template editor.
+// onFocus is called with true on focus gained, false on focus lost.
+type focusEntry struct {
+	widget.Entry
+	onFocus func(bool)
+}
+
+func (e *focusEntry) FocusGained() {
+	e.Entry.FocusGained()
+	if e.onFocus != nil {
+		e.onFocus(true)
+	}
+}
+
+func (e *focusEntry) FocusLost() {
+	e.Entry.FocusLost()
+	if e.onFocus != nil {
+		e.onFocus(false)
+	}
+}
+
+func newFocusEntry(onFocus func(bool)) *focusEntry {
+	e := &focusEntry{onFocus: onFocus}
+	e.ExtendBaseWidget(e)
+	e.MultiLine = true
+	e.Wrapping = fyne.TextWrapOff
+	e.TextStyle = fyne.TextStyle{Monospace: true}
+	return e
+}
+
 // ── Build widget tree ─────────────────────────────────────────────────
 
 func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
-	g.editorEntry = widget.NewMultiLineEntry()
-	g.editorEntry.TextStyle = fyne.TextStyle{Monospace: true}
-	g.editorEntry.Wrapping = fyne.TextWrapOff
+	g.editorEntry = newFocusEntry(nil)
 
 	search := widget.NewEntry()
 	search.SetPlaceHolder(t("search.placeholder"))
@@ -326,11 +538,10 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		}
 	}
 
-	leftPanel := container.NewBorder(
-		container.NewVBox(search, widget.NewSeparator()),
-		nil, nil, nil,
-		g.templateList,
-	)
+	// Fix the list height to show exactly 4 rows; output fills the rest below.
+	const listRowH float32 = 38
+	listScroll := container.NewVScroll(g.templateList)
+	listScroll.SetMinSize(fyne.NewSize(0, listRowH*4))
 
 	g.detailName = widget.NewLabel("—")
 	g.detailName.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
@@ -345,11 +556,15 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	)
 
 	g.btnBuild = widget.NewButtonWithIcon(t("btn.build"), theme.MediaPlayIcon(), func() {
+		if g.buildCancel != nil {
+			g.buildCancel()
+			return
+		}
 		name := g.selectedName()
 		if name == "" {
 			return
 		}
-		g.runCmd("build", "./xbps-src", "pkg", name)
+		g.runCmdCtx(true, "build", "./xbps-src", "pkg", name)
 	})
 	g.btnBuild.Importance = widget.HighImportance
 
@@ -391,7 +606,6 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	actionRow2 := container.NewHBox(g.btnBuild, layout.NewSpacer(), g.btnInstall, g.btnClean)
 
 	g.output = newOutputPanel(func(sel string, pos fyne.Position) { g.showSelectionMenu(sel, pos) })
-	g.output.SetMinSize(fyne.NewSize(0, 280))
 
 	g.statusBar = widget.NewLabel("")
 	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
@@ -413,26 +627,32 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	btnFind.Importance = widget.LowImportance
 	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { g.showAbout() })
 	btnAbout.Importance = widget.LowImportance
-	statusBar := container.NewHBox(btnAbout, btnReload, btnFind, g.statusBar, layout.NewSpacer(), dirLabel)
 
-	topSection := container.NewVBox(
-		detailForm,
-		widget.NewSeparator(),
-		actionRow1,
-		actionRow2,
-		widget.NewSeparator(),
-	)
-	leftMainPanel := container.NewBorder(topSection, nil, nil, nil, g.output.CanvasObject())
+	g.btnBack = widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() { g.logBack() })
+	g.btnBack.Importance = widget.LowImportance
+	g.btnBack.Hide()
+	g.btnFwd = widget.NewButtonWithIcon("", theme.NavigateNextIcon(), func() { g.logForward() })
+	g.btnFwd.Importance = widget.LowImportance
+	g.btnFwd.Hide()
 
-	mainSplit := container.NewHSplit(
-		container.NewPadded(leftPanel),
-		container.NewPadded(leftMainPanel),
+	statusBar := container.NewHBox(btnAbout, btnReload, btnFind, g.statusBar, layout.NewSpacer(), g.btnBack, g.btnFwd, layout.NewSpacer(), dirLabel)
+
+	// Top split: left = search + list (4 rows), right = detail + buttons.
+	leftTop := container.NewVBox(search, widget.NewSeparator(), listScroll)
+	rightTop := container.NewVBox(detailForm, widget.NewSeparator(), actionRow1, actionRow2)
+
+	topSplit := container.NewHSplit(
+		container.NewPadded(leftTop),
+		container.NewPadded(rightTop),
 	)
-	mainSplit.SetOffset(0.32)
+	topSplit.SetOffset(0.45)
+
+	// Output terminal spans full width below the split.
+	mainPanel := container.NewBorder(topSplit, nil, nil, nil, g.output.CanvasObject())
 
 	g.clearDetail()
 
-	btnEditorSave := widget.NewButtonWithIcon(t("btn.save"), theme.DocumentSaveIcon(), func() {
+	g.editorBtnSave = widget.NewButtonWithIcon(t("btn.save"), theme.DocumentSaveIcon(), func() {
 		if g.editorPath == "" {
 			return
 		}
@@ -442,51 +662,60 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		}
 		g.setStatus(t("status.save_ok"))
 	})
-	btnEditorSave.Importance = widget.HighImportance
+	g.editorBtnSave.Importance = widget.HighImportance
 
-	btnEditorLint := widget.NewButtonWithIcon(t("btn.lint"), theme.WarningIcon(), func() {
+	g.editorBtnLint = widget.NewButtonWithIcon(t("btn.lint"), theme.WarningIcon(), func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("lint", "xlint", name)
 		}
 	})
 
-	btnEditorSum := widget.NewButtonWithIcon(t("btn.sum"), theme.ConfirmIcon(), func() {
+	g.editorBtnSum = widget.NewButtonWithIcon(t("btn.sum"), theme.ConfirmIcon(), func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("checksum", "xgensum", "-i", name)
 		}
 	})
 
-	btnEditorBump := widget.NewButtonWithIcon(t("btn.bump"), theme.MoveUpIcon(), func() {
+	g.editorBtnBump = widget.NewButtonWithIcon(t("btn.bump"), theme.MoveUpIcon(), func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("bump", "xxautobump", name)
 		}
 	})
 
-	editorTitle := widget.NewLabel(t("editor.title"))
-	editorTitle.TextStyle = fyne.TextStyle{Bold: true}
+	g.editorTitle = widget.NewLabel(t("editor.title"))
+	g.editorTitle.TextStyle = fyne.TextStyle{Bold: true}
 
 	editorToolbar := container.NewHBox(
-		editorTitle,
+		g.editorTitle,
 		layout.NewSpacer(),
-		btnEditorLint, btnEditorSum, btnEditorBump,
+		g.editorBtnLint, g.editorBtnSum, g.editorBtnBump,
 		widget.NewSeparator(),
-		btnEditorSave,
+		g.editorBtnSave,
 	)
 
+	g.editorTop = container.NewVBox(widget.NewSeparator(), container.NewPadded(editorToolbar), widget.NewSeparator())
+
 	editorPanel := container.NewBorder(
-		container.NewVBox(widget.NewSeparator(), container.NewPadded(editorToolbar), widget.NewSeparator()),
+		g.editorTop,
 		nil, nil, nil,
 		container.NewScroll(g.editorEntry),
 	)
 
-	outerSplit := container.NewHSplit(mainSplit, editorPanel)
-	outerSplit.SetOffset(0.45)
+	// Initial state: icon-only (unfocused).
+	g.editorBtnSave.SetText("")
+	g.editorBtnLint.SetText("")
+	g.editorBtnSum.SetText("")
+	g.editorBtnBump.SetText("")
+	g.outerSplit = container.NewHSplit(mainPanel, editorPanel)
+	g.outerSplit.SetOffset(0.92)
+	// Wire up focus callback now that outerSplit exists.
+	g.editorEntry.onFocus = g.setEditorFocused
 
 	return container.NewBorder(
 		nil,
 		container.NewVBox(widget.NewSeparator(), container.NewPadded(statusBar)),
 		nil, nil,
-		outerSplit,
+		g.outerSplit,
 	)
 }
 

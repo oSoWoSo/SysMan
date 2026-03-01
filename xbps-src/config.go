@@ -1,47 +1,35 @@
 package xbpssrc
 
 import (
-	"os"
-	"path/filepath"
-
-	"gopkg.in/yaml.v3"
+	svman "codeberg.org/oSoWoSo/SysMan/plugin"
 )
 
 const defaultSearchEngine = "https://duckduckgo.com/?q="
 
-// SrcmanConfig holds user-configurable settings for srcman.
+// SrcmanConfig holds srcman-specific settings extracted from the shared sysman.conf.
 type SrcmanConfig struct {
-	SearchEngine string `yaml:"search_engine"`
+	SearchEngine string
+	DistDir      string
 }
 
-// configPath returns the path to ~/.config/SysMan/srcman.conf.
-func configPath() string {
-	cfg, err := os.UserConfigDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(cfg, "SysMan", "srcman.conf")
-}
-
-// LoadConfig reads srcman.conf, writing defaults on first run.
+// LoadConfig reads srcman settings from the shared sysman.conf.
 func LoadConfig() SrcmanConfig {
-	c := SrcmanConfig{SearchEngine: defaultSearchEngine}
-	path := configPath()
-	if path == "" {
-		return c
+	c := svman.LoadSysManConfig()
+	se := c.SrcmanSearchEngine
+	if se == "" {
+		se = defaultSearchEngine
 	}
-	data, err := os.ReadFile(path) //nolint:gosec
-	if err != nil {
-		// First run — write defaults.
-		_ = os.MkdirAll(filepath.Dir(path), 0o755)
-		if out, merr := yaml.Marshal(c); merr == nil {
-			_ = os.WriteFile(path, out, 0o644)
-		}
-		return c
+	return SrcmanConfig{
+		SearchEngine: se,
+		DistDir:      c.SrcmanDistDir,
 	}
-	_ = yaml.Unmarshal(data, &c)
-	if c.SearchEngine == "" {
-		c.SearchEngine = defaultSearchEngine
-	}
-	return c
+}
+
+// SaveConfig writes srcman settings back into the shared sysman.conf,
+// preserving any keys set by other SysMan components.
+func SaveConfig(cfg SrcmanConfig) error {
+	c := svman.LoadSysManConfig()
+	c.SrcmanDistDir = cfg.DistDir
+	c.SrcmanSearchEngine = cfg.SearchEngine
+	return svman.SaveSysManConfig(c)
 }

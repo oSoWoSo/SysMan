@@ -11,6 +11,7 @@ strings:
   about.version: "Verze"
   about.author: "Autor"
   about.license: "Licence"
+  about.description: "Správa uživatelů a skupin v lokálním systému.\n\nDvě záložky: Uživatelé (přihlášení, UID, celé jméno, shell, domov)\na Skupiny (název, GID, členové). Akce: Přidat, Smazat, Vlastnosti,\nZměnit heslo (uživatelé); Přidat, Smazat, Upravit členy (skupiny).\nPro změny je vyžadován root."
   btn.about: "O aplikaci"
   btn.close: "Zavřít"
 

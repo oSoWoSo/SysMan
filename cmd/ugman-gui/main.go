@@ -1,6 +1,19 @@
 // Command ugman-gui is a standalone GUI for user and group management.
 package main
 
-import "codeberg.org/oSoWoSo/SysMan/usergroups"
+import (
+	"fmt"
+	"os"
 
-func main() { usergroups.RunGUI() }
+	"codeberg.org/oSoWoSo/SysMan/usergroups"
+)
+
+func main() {
+	for _, arg := range os.Args[1:] {
+		if arg == "--help" || arg == "-h" {
+			fmt.Println(usergroups.Usage)
+			os.Exit(0)
+		}
+	}
+	usergroups.RunGUI()
+}
