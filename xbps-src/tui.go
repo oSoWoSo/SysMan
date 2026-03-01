@@ -316,7 +316,11 @@ func xbpsCmd(action, templateName, dir string, args ...string) tea.Cmd {
 // ── View ──────────────────────────────────────────────────────────────
 
 func (m xbpsModel) View() string {
-	w := max(m.width, 60)
+	w := m.width
+	if w <= 0 {
+		w = 60
+	}
+	narrow := w < 80
 	divider := xSubtleStyle.Render(strings.Repeat("─", w))
 
 	// ── Title ─────────────────────────────────────────────────────────
@@ -338,10 +342,7 @@ func (m xbpsModel) View() string {
 	// ── Template list ─────────────────────────────────────────────────
 	list := m.filtered()
 	// Reserve lines: divider×3 + help + status + detail(3) + output(max 5)
-	listHeight := m.height - 13
-	if listHeight < 4 {
-		listHeight = 4
-	}
+	listHeight := max(m.height-13, 4)
 
 	// Scroll window: keep cursor visible.
 	start := 0
@@ -349,6 +350,9 @@ func (m xbpsModel) View() string {
 		start = m.cursor - listHeight + 1
 	}
 
+	if start > 0 {
+		sb.WriteString(xSubtleStyle.Render(fmt.Sprintf("  ↑ %d", start)) + "\n")
+	}
 	shown := 0
 	for i := start; i < len(list) && shown < listHeight; i++ {
 		tmpl := list[i]
@@ -361,6 +365,9 @@ func (m xbpsModel) View() string {
 			sb.WriteString(xNormalStyle.Render(line) + "\n")
 		}
 		shown++
+	}
+	if remaining := len(list) - (start + shown); remaining > 0 {
+		sb.WriteString(xSubtleStyle.Render(fmt.Sprintf("  ↓ %d", remaining)) + "\n")
 	}
 	if len(list) == 0 {
 		sb.WriteString(xSubtleStyle.Render("  (no templates found)") + "\n")
@@ -384,6 +391,8 @@ func (m xbpsModel) View() string {
 	// ── Help ──────────────────────────────────────────────────────────
 	if m.running {
 		sb.WriteString(xWarnStyle.Render("  ⏳ Running…") + "\n")
+	} else if narrow {
+		sb.WriteString(xHelpStyle.Render("  b=build  l=lint  i=install  e=edit  /=search  q=quit") + "\n")
 	} else {
 		sb.WriteString(xHelpStyle.Render(
 			"  b=build  l=lint  s=sum  a=bump  i=install  c=clean  e=edit  h=homepage  p=repology  u=update  /=search  r=reload  q=quit",

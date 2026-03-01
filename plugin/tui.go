@@ -363,7 +363,8 @@ func tuiSvCmd(destDir, name, action string, fn func(string, string) error) tea.C
 
 // View implements tea.Model; renders the entire TUI layout.
 func (m tuiModel) View() string {
-	title := ttitleStyle.Render(t("app.title") + " - " + t("app.subtitle"))
+	// narrow: switch to single-column layout when terminal is too slim for two columns.
+	narrow := m.width > 0 && m.width < 60
 
 	list := m.filtered()
 	enabledTotal := 0
@@ -373,12 +374,28 @@ func (m tuiModel) View() string {
 		}
 	}
 
-	// Calculate column width based on terminal width.
+	// Separator width — fill the terminal, fallback to 70.
+	sepWidth := 70
+	if m.width > 0 {
+		sepWidth = m.width - 2
+		if sepWidth < 10 {
+			sepWidth = 10
+		}
+	}
+
+	// Column width: single column when narrow, two equal columns otherwise.
 	colWidth := 36
 	if m.width > 0 {
-		colWidth = (m.width - 8) / 2
-		if colWidth < 24 {
-			colWidth = 24
+		if narrow {
+			colWidth = m.width - 4
+			if colWidth < 20 {
+				colWidth = 20
+			}
+		} else {
+			colWidth = (m.width - 8) / 2
+			if colWidth < 24 {
+				colWidth = 24
+			}
 		}
 	}
 
@@ -410,9 +427,34 @@ func (m tuiModel) View() string {
 	// Stats — enabled/total and filtered count.
 	stats := tdisabledBadge.Render(fmt.Sprintf(t("stats.fmt"), enabledTotal, len(m.services), len(list)))
 
-	// Service list — each item with enabled/disabled badge.
-	listContent := ""
-	for i, svc := range list {
+	// Height budget: blank(1)+title(1)+col-borders(2)+header-lines(5)+sep(1)+help(1)+trailing(2) ≈ 13.
+	// Narrow adds 1 for compact-detail line.
+	overhead := 13
+	if narrow {
+		overhead = 14
+	}
+	listHeight := 8
+	if m.height > 0 {
+		listHeight = m.height - overhead
+		if listHeight < 3 {
+			listHeight = 3
+		}
+	}
+
+	// Scroll window — keep cursor visible.
+	start := 0
+	if m.cursor >= listHeight {
+		start = m.cursor - listHeight + 1
+	}
+
+	// Service list with scroll indicators.
+	var lsb strings.Builder
+	if start > 0 {
+		lsb.WriteString(thelpStyle.Render(fmt.Sprintf("  ↑ %d", start)) + "\n")
+	}
+	shown := 0
+	for i := start; i < len(list) && shown < listHeight; i++ {
+		svc := list[i]
 		var badge string
 		if svc.Enabled {
 			badge = tenabledBadge.Render("[*]")
@@ -421,11 +463,16 @@ func (m tuiModel) View() string {
 		}
 		line := fmt.Sprintf("%s %s", badge, svc.Name)
 		if i == m.cursor {
-			listContent += tselectedStyle.Width(colWidth-4).Render(line) + "\n"
+			lsb.WriteString(tselectedStyle.Width(colWidth-4).Render(line) + "\n")
 		} else {
-			listContent += tnormalStyle.Render(line) + "\n"
+			lsb.WriteString(tnormalStyle.Render(line) + "\n")
 		}
+		shown++
 	}
+	if remaining := len(list) - (start + shown); remaining > 0 {
+		lsb.WriteString(thelpStyle.Render(fmt.Sprintf("  ↓ %d", remaining)) + "\n")
+	}
+	listContent := lsb.String()
 	if listContent == "" {
 		listContent = tnormalStyle.Render(t("services.none"))
 	}
@@ -435,53 +482,6 @@ func (m tuiModel) View() string {
 		filterRow + "\n" +
 		searchRow + "\n\n"
 	leftCol := tcolumnStyle.Width(colWidth).Render(leftHeader + listContent)
-
-	// Detail panel — metadata and toggle action for selected item.
-	detail := ""
-	if len(list) > 0 && m.cursor < len(list) {
-		svc := list[m.cursor]
-		var stateStr, actionStr string
-		if svc.Enabled {
-			stateStr = tenabledBadge.Render("[*] " + t("state.enabled"))
-			actionStr = twarnStyle.Render(t("action.disable"))
-		} else {
-			stateStr = tdisabledBadge.Render("[ ] " + t("state.disabled"))
-			actionStr = tenabledBadge.Render(t("action.enable"))
-		}
-
-		// Running status (only for enabled services)
-		runningStr := ""
-		if svc.Enabled && m.svStatName == svc.Name {
-			st := m.svStatus
-			if st.Running {
-				runningStr = tenabledBadge.Render("▶ "+t("state.running"))
-				if st.PID > 0 {
-					runningStr += tnormalStyle.Render(fmt.Sprintf("  pid %d", st.PID))
-				}
-				if st.Uptime != "" {
-					runningStr += tdisabledBadge.Render("  "+st.Uptime)
-				}
-			} else if st.Raw != "" {
-				runningStr = tdisabledBadge.Render("■ " + t("state.stopped"))
-			}
-		}
-
-		detail = tsectionStyle.Render(t("detail.header")) + "\n\n" +
-			tnormalStyle.Render(t("detail.name")+":   "+svc.Name) + "\n" +
-			tnormalStyle.Render(t("detail.state")+":    ") + stateStr + "\n"
-		if runningStr != "" {
-			detail += tnormalStyle.Render(t("detail.running")+": ") + runningStr + "\n"
-		}
-		detail += tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(m.serviceDir, svc.Name)) + "\n" +
-			tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(m.serviceDestDir, svc.Name)) + "\n\n" +
-			tnormalStyle.Render("action:  ") + actionStr
-		if svc.Enabled {
-			detail += "\n\n" + thelpStyle.Render("s=start  x=stop  t=restart  l=hup")
-		}
-	}
-	rightCol := tcolumnStyle.Width(colWidth).Render(detail)
-
-	cols := lipgloss.JoinHorizontal(lipgloss.Top, leftCol, " ", rightCol)
 
 	// Status line.
 	statusLine := ""
@@ -493,18 +493,105 @@ func (m tuiModel) View() string {
 		}
 	}
 
-	// Help bar.
+	// Help bar — abbreviated on narrow terminals.
 	var helpText string
-	if m.searchMode {
+	switch {
+	case m.searchMode:
 		helpText = t("help.search")
-	} else {
+	case narrow:
+		helpText = "↑↓=nav  enter=toggle  s/x/t=sv  /=search  q=quit"
+	default:
 		helpText = t("help.normal")
 	}
 
-	sep := tdividerStyle.Render(strings.Repeat("─", 70))
+	sep := tdividerStyle.Render(strings.Repeat("─", sepWidth))
 	help := thelpStyle.Render(helpText)
 
+	if narrow {
+		// Single-column: compact 1-line detail below the list.
+		title := ttitleStyle.Render(t("app.title"))
+		compact := m.compactDetail(list)
+		return "\n" + title + "\n" + leftCol + "\n" + compact + sep + statusLine + "\n" + help + "\n"
+	}
+
+	// Wide two-column layout.
+	title := ttitleStyle.Render(t("app.title") + " - " + t("app.subtitle"))
+	rightCol := tcolumnStyle.Width(colWidth).Render(m.buildDetail(list))
+	cols := lipgloss.JoinHorizontal(lipgloss.Top, leftCol, " ", rightCol)
 	return "\n" + title + "\n" + cols + "\n" + sep + statusLine + "\n" + help + "\n"
+}
+
+// buildDetail renders the full detail panel for the right column (wide layout).
+func (m tuiModel) buildDetail(list []Service) string {
+	if len(list) == 0 || m.cursor >= len(list) {
+		return ""
+	}
+	svc := list[m.cursor]
+	var stateStr, actionStr string
+	if svc.Enabled {
+		stateStr = tenabledBadge.Render("[*] " + t("state.enabled"))
+		actionStr = twarnStyle.Render(t("action.disable"))
+	} else {
+		stateStr = tdisabledBadge.Render("[ ] " + t("state.disabled"))
+		actionStr = tenabledBadge.Render(t("action.enable"))
+	}
+
+	runningStr := ""
+	if svc.Enabled && m.svStatName == svc.Name {
+		st := m.svStatus
+		if st.Running {
+			runningStr = tenabledBadge.Render("▶ " + t("state.running"))
+			if st.PID > 0 {
+				runningStr += tnormalStyle.Render(fmt.Sprintf("  pid %d", st.PID))
+			}
+			if st.Uptime != "" {
+				runningStr += tdisabledBadge.Render("  " + st.Uptime)
+			}
+		} else if st.Raw != "" {
+			runningStr = tdisabledBadge.Render("■ " + t("state.stopped"))
+		}
+	}
+
+	detail := tsectionStyle.Render(t("detail.header")) + "\n\n" +
+		tnormalStyle.Render(t("detail.name")+":   "+svc.Name) + "\n" +
+		tnormalStyle.Render(t("detail.state")+":    ") + stateStr + "\n"
+	if runningStr != "" {
+		detail += tnormalStyle.Render(t("detail.running")+": ") + runningStr + "\n"
+	}
+	detail += tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(m.serviceDir, svc.Name)) + "\n" +
+		tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(m.serviceDestDir, svc.Name)) + "\n\n" +
+		tnormalStyle.Render("action:  ") + actionStr
+	if svc.Enabled {
+		detail += "\n\n" + thelpStyle.Render("s=start  x=stop  t=restart  l=hup")
+	}
+	return detail
+}
+
+// compactDetail renders a concise 1-line summary for narrow (single-column) layout.
+func (m tuiModel) compactDetail(list []Service) string {
+	if len(list) == 0 || m.cursor >= len(list) {
+		return ""
+	}
+	svc := list[m.cursor]
+	var stateStr string
+	if svc.Enabled {
+		stateStr = tenabledBadge.Render("[*]")
+	} else {
+		stateStr = tdisabledBadge.Render("[ ]")
+	}
+	line := " " + tnormalStyle.Render(svc.Name) + " " + stateStr
+	if svc.Enabled && m.svStatName == svc.Name {
+		st := m.svStatus
+		if st.Running {
+			line += " " + tenabledBadge.Render("▶")
+			if st.PID > 0 {
+				line += tdisabledBadge.Render(fmt.Sprintf(" pid %d", st.PID))
+			}
+		} else if st.Raw != "" {
+			line += " " + tdisabledBadge.Render("■")
+		}
+	}
+	return line + "\n"
 }
 
 // ── Standalone runner ────────────────────────────────────────────────
