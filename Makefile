@@ -1,4 +1,4 @@
-.PHONY: build build-tui test lint clean release build-sysmanager build-testplugin build-plugins
+.PHONY: build build-tui test lint clean release build-sysmanager build-testplugin build-xbps build-plugins
 
 VERSION ?= dev
 GOOS ?= linux
@@ -51,6 +51,11 @@ build-testplugin:
 	@mkdir -p build
 	go build -o build/testplugin ./cmd/testplugin/
 
+build-xbps:
+	@echo "Building xbps-src standalone binary..."
+	@mkdir -p build
+	go build -o build/xbps-src ./cmd/xbps-src/
+
 build-sysmanager:
 	@echo "Building sysmanager..."
 	@mkdir -p build
@@ -60,9 +65,9 @@ build-sysmanager:
 
 build-plugins:
 	@echo "Building dynamic plugins (.so)..."
-	go build -buildmode=plugin -o build/plugins/xbps-src.so ./pluginentry/xbps-src/
 	@mkdir -p build/plugins
-	go build -buildmode=plugin -o build/plugins/svman.so     ./pluginentry/svman/
+	go build -buildmode=plugin -o build/plugins/svman.so      ./pluginentry/svman/
+	go build -buildmode=plugin -o build/plugins/xbps.so       ./pluginentry/xbps-src/
 	go build -buildmode=plugin -o build/plugins/testplugin.so ./pluginentry/testplugin/
 	@echo "Plugins ready in build/plugins/"
 
