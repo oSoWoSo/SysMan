@@ -54,13 +54,21 @@ func main() {
 		}
 	}
 
+	hasDisplay := os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != ""
+
 	// Auto-detect: prefer GUI when a display server is available.
 	if mode == "auto" {
-		if os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != "" {
+		if hasDisplay {
 			mode = "gui"
 		} else {
 			mode = "tui"
 		}
+	}
+
+	// Explicit --gui with no display falls back to TUI.
+	if mode == "gui" && !hasDisplay {
+		fmt.Fprintln(os.Stderr, "svman: no display available, falling back to TUI")
+		mode = "tui"
 	}
 
 	// Launch the selected UI mode.

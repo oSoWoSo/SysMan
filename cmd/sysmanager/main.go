@@ -58,12 +58,20 @@ func main() {
 		}
 	}
 
+	hasDisplay := os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != ""
+
 	if mode == "auto" {
-		if os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != "" {
+		if hasDisplay {
 			mode = "gui"
 		} else {
 			mode = "tui"
 		}
+	}
+
+	// Explicit --gui with no display falls back to TUI.
+	if mode == "gui" && !hasDisplay {
+		fmt.Fprintln(os.Stderr, "sysmanager: no display available, falling back to TUI")
+		mode = "tui"
 	}
 
 	// Built-in plugins — always present, no rebuild needed for these.
