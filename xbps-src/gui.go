@@ -18,8 +18,8 @@ import (
 // ── App state ─────────────────────────────────────────────────────────
 
 type xbpsGuiApp struct {
-	win      fyne.Window
-	distDir  string
+	win       fyne.Window
+	distDir   string
 	templates []Template
 	selected  int
 	search    string

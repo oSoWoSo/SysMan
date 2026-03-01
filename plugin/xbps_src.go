@@ -12,7 +12,7 @@ type XbpsSrc struct {
 }
 
 // LoadXbpsSrcPackages lists available packages from the xbps-src repository.
-func LoadXbpsSrcPackages(repoDir string) []XbpsSrc {
+func LoadXbpsSrcPackages(_ string) []XbpsSrc {
 	// Placeholder: real implementation would parse pkgbuild files.
 	return []XbpsSrc{{Name: "example"}}
 }

@@ -58,8 +58,8 @@ type xbpsModel struct {
 	height     int
 }
 
-// NewTuiModel creates an initialized xbpsModel.
-func NewTuiModel(distDir string) xbpsModel {
+// NewTuiModel creates an initialized xbps TUI model.
+func NewTuiModel(distDir string) tea.Model {
 	ti := textinput.New()
 	ti.Placeholder = "search templates..."
 	m := xbpsModel{
@@ -389,11 +389,12 @@ func (m xbpsModel) View() string {
 	sb.WriteString(divider + "\n")
 
 	// ── Help ──────────────────────────────────────────────────────────
-	if m.running {
+	switch {
+	case m.running:
 		sb.WriteString(xWarnStyle.Render("  ⏳ Running…") + "\n")
-	} else if narrow {
+	case narrow:
 		sb.WriteString(xHelpStyle.Render("  b=build  l=lint  i=install  e=edit  /=search  q=quit") + "\n")
-	} else {
+	default:
 		sb.WriteString(xHelpStyle.Render(
 			"  b=build  l=lint  s=sum  a=bump  i=install  c=clean  e=edit  h=homepage  p=repology  u=update  /=search  r=reload  q=quit",
 		) + "\n")
