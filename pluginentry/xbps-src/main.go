@@ -3,8 +3,8 @@
 package main
 
 import (
-	"codeberg.org/oSoWoSo/svman/api"
-	xbpssrc "codeberg.org/oSoWoSo/svman/xbps-src"
+	"codeberg.org/oSoWoSo/SysMan/api"
+	xbpssrc "codeberg.org/oSoWoSo/SysMan/xbps-src"
 )
 
 // New returns a new xbps-src plugin instance.

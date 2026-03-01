@@ -41,6 +41,9 @@ strings:
   btn.stop: "Stop"
   btn.restart: "Restart"
   btn.hup: "Reload (HUP)"
+  btn.pause: "Pause"
+  btn.continue: "Continue"
+  btn.kill: "Kill"
   btn.close: "Close"
 
   menu.help: "Help"
@@ -50,9 +53,10 @@ strings:
   about.author: "Author"
   about.license: "License"
 
-  confirm.title: "Disable service"
+  confirm.title: "Confirm action"
   confirm.disable: "Really disable '%s'?"
   confirm.stop: "Really stop '%s'?"
+  confirm.kill: "Send SIGKILL to '%s'?"
 
   status.enabled: "OK: '%s' enabled"
   status.disabled: "OK: '%s' disabled"
@@ -60,6 +64,9 @@ strings:
   status.stopped: "OK: '%s' stopped"
   status.restarted: "OK: '%s' restarted"
   status.hupped: "OK: '%s' reloaded (HUP)"
+  status.paused: "OK: '%s' paused"
+  status.continued: "OK: '%s' continued"
+  status.killed: "OK: '%s' killed"
   status.reloaded: "list reloaded"
   status.err: "ERROR: "
   status.already.on: "'%s' is already enabled"
@@ -68,7 +75,7 @@ strings:
   count.fmt: "enabled %d/%d  shown %d"
   stats.fmt: "enabled: %d/%d  shown: %d"
 
-  help.normal: "jk/arrows=move  enter/space=toggle  s=start  x=stop  t=restart  l=hup  /=search  tab=filter  r=reload  q/esc=quit"
+  help.normal: "jk/arrows=move  enter/space=toggle  s=start  x=stop  t=restart  l=hup  p=pause  c=cont  K=kill  /=search  tab=filter  r=reload  q/esc=quit"
   help.search: "type=filter  up/down=move  enter=ok  esc=cancel"
 
   services.none: "(no services)"

@@ -67,19 +67,18 @@ func (f tuiFilter) label() string {
 
 // tuiModel holds the state of the TUI application.
 type tuiModel struct {
-	serviceDir     string          // path to service definitions
-	serviceDestDir string          // path to enabled services symlinks
-	services       []Service       // all loaded services
-	cursor         int             // selected item index in filtered list
-	filter         tuiFilter       // current filter (all/enabled/disabled)
-	search         textinput.Model // search input field
-	searchMode     bool            // true when user is typing search query
-	status         string          // status/error message
-	statusErr      bool            // true if status is an error
-	svStatus       ServiceStatus   // live runtime status of selected service
-	svStatName     string          // service name svStatus was fetched for
-	width          int             // terminal width
-	height         int             // terminal height
+	backend    Backend         // service manager backend (runit, openrc, …)
+	services   []Service       // all loaded services
+	cursor     int             // selected item index in filtered list
+	filter     tuiFilter       // current filter (all/enabled/disabled)
+	search     textinput.Model // search input field
+	searchMode bool            // true when user is typing search query
+	status     string          // status/error message
+	statusErr  bool            // true if status is an error
+	svStatus   ServiceStatus   // live runtime status of selected service
+	svStatName string          // service name svStatus was fetched for
+	width      int             // terminal width
+	height     int             // terminal height
 }
 
 // Messages for async operations.
@@ -97,24 +96,27 @@ type tuiSvOpDoneMsg struct {
 
 // Key bindings for TUI navigation and actions.
 var (
-	tkeyUp      = key.NewBinding(key.WithKeys("up", "k"))
-	tkeyDown    = key.NewBinding(key.WithKeys("down", "j"))
-	tkeyToggle  = key.NewBinding(key.WithKeys("enter", " "))
-	tkeyReload  = key.NewBinding(key.WithKeys("r"))
-	tkeyQuit    = key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"))
-	tkeySearch  = key.NewBinding(key.WithKeys("/"))
-	tkeyEsc     = key.NewBinding(key.WithKeys("esc"))
-	tkeyEnter   = key.NewBinding(key.WithKeys("enter"))
-	tkeyFilter  = key.NewBinding(key.WithKeys("tab"))
-	tkeyStart   = key.NewBinding(key.WithKeys("s"))
-	tkeyStop    = key.NewBinding(key.WithKeys("x"))
-	tkeyRestart = key.NewBinding(key.WithKeys("t"))
-	tkeyHup     = key.NewBinding(key.WithKeys("l"))
+	tkeyUp       = key.NewBinding(key.WithKeys("up", "k"))
+	tkeyDown     = key.NewBinding(key.WithKeys("down", "j"))
+	tkeyToggle   = key.NewBinding(key.WithKeys("enter", " "))
+	tkeyReload   = key.NewBinding(key.WithKeys("r"))
+	tkeyQuit     = key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"))
+	tkeySearch   = key.NewBinding(key.WithKeys("/"))
+	tkeyEsc      = key.NewBinding(key.WithKeys("esc"))
+	tkeyEnter    = key.NewBinding(key.WithKeys("enter"))
+	tkeyFilter   = key.NewBinding(key.WithKeys("tab"))
+	tkeyStart    = key.NewBinding(key.WithKeys("s"))
+	tkeyStop     = key.NewBinding(key.WithKeys("x"))
+	tkeyRestart  = key.NewBinding(key.WithKeys("t"))
+	tkeyHup      = key.NewBinding(key.WithKeys("l"))
+	tkeyPause    = key.NewBinding(key.WithKeys("p"))
+	tkeyContinue = key.NewBinding(key.WithKeys("c"))
+	tkeyKill     = key.NewBinding(key.WithKeys("K"))
 )
 
 // NewTuiModel creates and initializes a new TUI model with services loaded.
 // Exported so a system manager can embed the model in its own tea.Program.
-func NewTuiModel(serviceDir, serviceDestDir string) tea.Model {
+func NewTuiModel(b Backend) tea.Model {
 	ti := textinput.New()
 	ti.Placeholder = t("search.placeholder")
 	ti.CharLimit = 64
@@ -122,10 +124,9 @@ func NewTuiModel(serviceDir, serviceDestDir string) tea.Model {
 	ti.PromptStyle = lipgloss.NewStyle().Foreground(thighlight)
 	ti.Prompt = "/ "
 	return tuiModel{
-		serviceDir:     serviceDir,
-		serviceDestDir: serviceDestDir,
-		services:       LoadServices(serviceDir, serviceDestDir),
-		search:         ti,
+		backend:  b,
+		services: b.List(),
+		search:   ti,
 	}
 }
 
@@ -263,31 +264,43 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			svc := list[m.cursor]
 			if svc.Enabled {
-				return m, tuiDisableCmd(m.serviceDestDir, svc.Name)
+				return m, tuiBackendCmd(m.backend.Disable, svc.Name, "disabled")
 			}
-			return m, tuiEnableCmd(m.serviceDir, m.serviceDestDir, svc.Name)
+			return m, tuiBackendCmd(m.backend.Enable, svc.Name, "enabled")
 		case key.Matches(msg, tkeyReload):
 			return m, func() tea.Msg { return tuiReloadMsg{} }
 		case key.Matches(msg, tkeyStart):
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiSvCmd(m.serviceDestDir, svc.Name, "started", StartService)
+				return m, tuiBackendCmd(m.backend.Start, svc.Name, "started")
 			}
 		case key.Matches(msg, tkeyStop):
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiSvCmd(m.serviceDestDir, svc.Name, "stopped", StopService)
+				return m, tuiBackendCmd(m.backend.Stop, svc.Name, "stopped")
 			}
 		case key.Matches(msg, tkeyRestart):
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiSvCmd(m.serviceDestDir, svc.Name, "restarted", RestartService)
+				return m, tuiBackendCmd(m.backend.Restart, svc.Name, "restarted")
 			}
 		case key.Matches(msg, tkeyHup):
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiSvCmd(m.serviceDestDir, svc.Name, "hupped", ReloadService)
+				return m, tuiBackendCmd(m.backend.Reload, svc.Name, "hupped")
+			}
+		case key.Matches(msg, tkeyPause):
+			if svc := m.selectedEnabled(); svc != nil {
+				return m, tuiBackendCmd(m.backend.Pause, svc.Name, "paused")
+			}
+		case key.Matches(msg, tkeyContinue):
+			if svc := m.selectedEnabled(); svc != nil {
+				return m, tuiBackendCmd(m.backend.Continue, svc.Name, "continued")
+			}
+		case key.Matches(msg, tkeyKill):
+			if svc := m.selectedEnabled(); svc != nil {
+				return m, tuiBackendCmd(m.backend.Kill, svc.Name, "killed")
 			}
 		}
 
 	case tuiReloadMsg:
-		m.services = LoadServices(m.serviceDir, m.serviceDestDir)
+		m.services = m.backend.List()
 		m = m.clampCursor()
 		return m, m.fetchStatusCmd()
 
@@ -325,36 +338,16 @@ func (m tuiModel) fetchStatusCmd() tea.Cmd {
 		return nil
 	}
 	name := svc.Name
-	destDir := m.serviceDestDir
 	return func() tea.Msg {
-		return tuiSvStatusMsg{name: name, status: GetServiceStatus(destDir, name)}
+		return tuiSvStatusMsg{name: name, status: m.backend.Status(name)}
 	}
 }
 
-// tuiEnableCmd returns an async command that enables a service.
-func tuiEnableCmd(serviceDir, destDir, name string) tea.Cmd {
+// tuiBackendCmd returns an async command that calls a backend method and emits the result.
+// action must be a key suffix in the "status.*" translations (e.g. "enabled", "started").
+func tuiBackendCmd(fn func(string) error, name, action string) tea.Cmd {
 	return func() tea.Msg {
-		if err := EnableService(serviceDir, destDir, name); err != nil {
-			return tuiErrMsg{err}
-		}
-		return tuiStatusMsg{fmt.Sprintf(t("status.enabled"), name)}
-	}
-}
-
-// tuiDisableCmd returns an async command that disables a service.
-func tuiDisableCmd(destDir, name string) tea.Cmd {
-	return func() tea.Msg {
-		if err := DisableService(destDir, name); err != nil {
-			return tuiErrMsg{err}
-		}
-		return tuiStatusMsg{fmt.Sprintf(t("status.disabled"), name)}
-	}
-}
-
-// tuiSvCmd returns a command that runs an sv control action and emits tuiSvOpDoneMsg.
-func tuiSvCmd(destDir, name, action string, fn func(string, string) error) tea.Cmd {
-	return func() tea.Msg {
-		if err := fn(destDir, name); err != nil {
+		if err := fn(name); err != nil {
 			return tuiErrMsg{err}
 		}
 		return tuiSvOpDoneMsg{name: name, action: action}
@@ -477,7 +470,8 @@ func (m tuiModel) View() string {
 		listContent = tnormalStyle.Render(t("services.none"))
 	}
 
-	leftHeader := tsectionStyle.Render(t("services.header")+m.serviceDir) + "\n" +
+	svcDir, _ := m.backend.Dirs()
+	leftHeader := tsectionStyle.Render(t("services.header")+svcDir) + "\n" +
 		stats + "\n" +
 		filterRow + "\n" +
 		searchRow + "\n\n"
@@ -558,8 +552,9 @@ func (m tuiModel) buildDetail(list []Service) string {
 	if runningStr != "" {
 		detail += tnormalStyle.Render(t("detail.running")+": ") + runningStr + "\n"
 	}
-	detail += tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(m.serviceDir, svc.Name)) + "\n" +
-		tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(m.serviceDestDir, svc.Name)) + "\n\n" +
+	svcDir2, destDir2 := m.backend.Dirs()
+	detail += tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(svcDir2, svc.Name)) + "\n" +
+		tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(destDir2, svc.Name)) + "\n\n" +
 		tnormalStyle.Render("action:  ") + actionStr
 	if svc.Enabled {
 		detail += "\n\n" + thelpStyle.Render("s=start  x=stop  t=restart  l=hup")
@@ -599,7 +594,7 @@ func (m tuiModel) compactDetail(list []Service) string {
 // RunTUI runs svman as a standalone fullscreen TUI application.
 func RunTUI(serviceDir, serviceDestDir string) {
 	InitI18n()
-	p := tea.NewProgram(NewTuiModel(serviceDir, serviceDestDir), tea.WithAltScreen())
+	p := tea.NewProgram(NewTuiModel(NewRunitBackend(serviceDir, serviceDestDir)), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
 		os.Exit(1)

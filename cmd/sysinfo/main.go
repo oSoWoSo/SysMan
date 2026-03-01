@@ -1,4 +1,4 @@
-// Command testplugin runs the System Info plugin as a standalone application.
+// Command sysinfo runs the System Info plugin as a standalone application.
 // Use --gui (default) for the Fyne GUI or --tui for the Bubbletea TUI.
 package main
 
@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"codeberg.org/oSoWoSo/svman/testplugin"
+	"codeberg.org/oSoWoSo/SysMan/sysinfo"
 )
 
 func main() {
@@ -22,12 +22,12 @@ func main() {
 		case "--gui", "-g":
 			mode = "gui"
 		case "--help", "-h":
-			fmt.Println("testplugin [--gui|--tui]")
+			fmt.Println("sysinfo [--gui|--tui]")
 			os.Exit(0)
 		}
 	}
 
-	p := testplugin.New()
+	p := sysinfo.New()
 
 	switch mode {
 	case "tui":

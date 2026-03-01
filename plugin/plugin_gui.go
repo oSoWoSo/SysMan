@@ -10,17 +10,16 @@ import "fyne.io/fyne/v2"
 // InitI18n() must be called once before Content() if you are not using RunGUI().
 func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	g := &guiApp{
-		win:            win,
-		serviceDir:     p.serviceDir,
-		serviceDestDir: p.serviceDestDir,
-		selected:       -1,
+		win:      win,
+		backend:  p.backend,
+		selected: -1,
 	}
-	g.services = LoadServices(p.serviceDir, p.serviceDestDir)
-	return g.buildContent()
+	g.services = p.backend.List()
+	return g.buildContent(false)
 }
 
 // ShowAbout displays the About dialog attached to win.
 func (p *Plugin) ShowAbout(win fyne.Window) {
-	g := &guiApp{win: win, serviceDir: p.serviceDir, serviceDestDir: p.serviceDestDir}
+	g := &guiApp{win: win, backend: p.backend}
 	g.showAbout()
 }
