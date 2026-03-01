@@ -1,0 +1,49 @@
+meta:
+  code: cs
+  name: Čeština
+
+strings:
+  app.title: "pkgman"
+  app.subtitle: "Správce balíčků XBPS"
+  app.window: "xbps balíčky"
+  tab.name: "Balíčky"
+
+  about.version: "Verze"
+  about.author: "Autor"
+  about.license: "Licence"
+  btn.about: "O aplikaci"
+  btn.close: "Zavřít"
+
+  search.placeholder: "Hledat balíčky…"
+
+  filter.all: "Vše"
+  filter.installed: "Nainstalované"
+  filter.available: "Dostupné"
+
+  detail.name: "Název"
+  detail.status: "Stav"
+  detail.version: "Verze"
+  detail.desc: "Popis"
+  detail.homepage: "Domovská stránka"
+
+  btn.install: "Instalovat"
+  btn.remove: "Odebrat"
+  btn.update_all: "Aktualizovat vše"
+
+  pkg.installed: "nainstalován"
+  pkg.not_installed: "není nainstalován"
+  pkg.count: "%d balíčků"
+  pkg.loading: "Načítám…"
+
+  tui.search.placeholder: "hledat balíčky..."
+  tui.none: "(žádné balíčky)"
+  tui.running: "⏳ Probíhá…"
+  tui.loading: "načítám…"
+  tui.installed: "[nainstalován]"
+  tui.marked: "[%d označeno]"
+  tui.status.reloading: "Obnovuji..."
+  tui.status.installing: "Instaluji %s…"
+  tui.status.removing: "Odstraňuji %s…"
+  tui.status.updating: "Aktualizuji všechny balíčky…"
+  tui.help.simple: "i=instalovat  d=odebrat  u=aktualizovat vše  mezera=označit  tab=filtr  /=hledat  q=konec"
+  tui.help.full: "i=instalovat  d=odebrat  u=aktualizovat vše  mezera=označit  tab=filtr  /=hledat  h=web  r=obnovit  q=konec"

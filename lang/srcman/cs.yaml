@@ -1,0 +1,67 @@
+meta:
+  code: cs
+  name: Čeština
+
+strings:
+  app.title: "srcman"
+  app.subtitle: "správce šablon xbps-src"
+  app.window: "Šablony"
+  tab.name: "Šablony"
+
+  about.version: "Verze"
+  about.author: "Autor"
+  about.license: "Licence"
+  btn.about: "O aplikaci"
+  btn.close: "Zavřít"
+
+  search.placeholder: "Hledat šablony…"
+
+  detail.name: "Název"
+  detail.version: "Verze"
+  detail.desc: "Popis"
+
+  btn.build: "Sestavit"
+  btn.install: "Instalovat"
+  btn.clean: "Vyčistit"
+  btn.homepage: "Domovská stránka"
+  btn.repology: "Repology"
+  btn.bootstrap: "Aktualizovat bootstrap"
+  btn.save: "Uložit"
+  btn.lint: "Lint"
+  btn.sum: "Kontrolní součet"
+  btn.bump: "Zvýšit verzi"
+  btn.reload: "Obnovit"
+  btn.find: "Hledat"
+
+  editor.title: "Editor šablon"
+
+  menu.add.hostmakedepends: "Přidat do hostmakedepends"
+  menu.add.makedepends: "Přidat do makedepends"
+  menu.add.depends: "Přidat do depends"
+  menu.add.checkdepends: "Přidat do checkdepends"
+  menu.xlocate: "xlocate: najít soubor"
+  menu.websearch: "Hledat na webu"
+
+  status.no_template: "V editoru není načtena žádná šablona"
+  status.save_ok: "✓ uloženo"
+  status.save_err: "✗ uložení selhalo: "
+  status.added: "✓ přidáno %s do %s"
+  status.read_err: "✗ nelze číst šablonu: "
+  status.running: "Spuštěno: %s…"
+  status.error: "✗ chyba: %s"
+  status.ok: "✓ %s OK"
+  status.failed: "✗ %s selhalo: %s"
+  status.reloaded: "Obnoveno"
+
+  tui.search.placeholder: "hledat šablony..."
+  tui.status.bootstrap: "Aktualizuji bootstrap..."
+  tui.status.building: "Sestavuji %s…"
+  tui.status.linting: "Lintuji %s…"
+  tui.status.checksum: "Kontrolní součet %s…"
+  tui.status.bumping: "Zvyšuji verzi %s…"
+  tui.status.installing: "Instaluji %s…"
+  tui.status.cleaning: "Čistím %s…"
+  tui.none: "(žádné šablony)"
+  tui.running: "⏳ Probíhá…"
+  tui.help.simple: "b=sestavit  l=lint  i=instalovat  e=editovat  /=hledat  q=konec"
+  tui.help.full: "b=sestavit  l=lint  s=součet  a=zvýšit  i=instalovat  c=vyčistit  e=editovat  h=web  p=repology  u=aktualizovat  /=hledat  r=obnovit  q=konec"

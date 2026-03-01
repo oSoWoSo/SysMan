@@ -54,7 +54,8 @@ func ResolveDistDir(dir string) string {
 
 // ── Template loading ──────────────────────────────────────────────────
 
-// LoadTemplates scans srcpkgs/ in distDir and returns a sorted list of templates.
+// LoadTemplates scans srcpkgs/ in distDir and returns templates sorted by
+// the modification time of their template file (newest first).
 // Returns nil if the directory cannot be read.
 func LoadTemplates(distDir string) []Template {
 	srcDir := filepath.Join(ResolveDistDir(distDir), "srcpkgs")
@@ -62,13 +63,27 @@ func LoadTemplates(distDir string) []Template {
 	if err != nil {
 		return nil
 	}
-	var out []Template
+	type entry struct {
+		name    string
+		modTime int64 // Unix nano
+	}
+	var raw []entry
 	for _, e := range entries {
-		if e.IsDir() {
-			out = append(out, Template{Name: e.Name()})
+		if !e.IsDir() {
+			continue
+		}
+		tplPath := filepath.Join(srcDir, e.Name(), "template")
+		if info, err := os.Stat(tplPath); err == nil {
+			raw = append(raw, entry{e.Name(), info.ModTime().UnixNano()})
+		} else {
+			raw = append(raw, entry{e.Name(), 0})
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	sort.Slice(raw, func(i, j int) bool { return raw[i].modTime > raw[j].modTime })
+	out := make([]Template, len(raw))
+	for i, r := range raw {
+		out[i] = Template{Name: r.name}
+	}
 	return out
 }
 
@@ -187,4 +202,9 @@ func OpenEditor(distDir, name string) {
 func OpenBrowser(url string) {
 	cmd := exec.Command("xdg-open", url) //nolint:gosec
 	_ = cmd.Start()
+}
+
+// RunXlocate runs "xlocate <query>" and returns its output.
+func RunXlocate(query string) (string, error) {
+	return RunXbpsStream("", nil, "xlocate", query)
 }

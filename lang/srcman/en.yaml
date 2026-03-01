@@ -1,0 +1,67 @@
+meta:
+  code: en
+  name: English
+
+strings:
+  app.title: "srcman"
+  app.subtitle: "xbps-src Template Manager"
+  app.window: "Templates"
+  tab.name: "Templates"
+
+  about.version: "Version"
+  about.author: "Author"
+  about.license: "License"
+  btn.about: "About"
+  btn.close: "Close"
+
+  search.placeholder: "Search templates…"
+
+  detail.name: "Name"
+  detail.version: "Version"
+  detail.desc: "Description"
+
+  btn.build: "Build"
+  btn.install: "Install"
+  btn.clean: "Clean"
+  btn.homepage: "Homepage"
+  btn.repology: "Repology"
+  btn.bootstrap: "Bootstrap Update"
+  btn.save: "Save"
+  btn.lint: "Lint"
+  btn.sum: "Sum"
+  btn.bump: "Bump"
+  btn.reload: "Reload"
+  btn.find: "Find"
+
+  editor.title: "Template editor"
+
+  menu.add.hostmakedepends: "Add to hostmakedepends"
+  menu.add.makedepends: "Add to makedepends"
+  menu.add.depends: "Add to depends"
+  menu.add.checkdepends: "Add to checkdepends"
+  menu.xlocate: "xlocate: find file"
+  menu.websearch: "Search on web"
+
+  status.no_template: "No template loaded in editor"
+  status.save_ok: "✓ saved"
+  status.save_err: "✗ save failed: "
+  status.added: "✓ added %s to %s"
+  status.read_err: "✗ cannot read template: "
+  status.running: "Running: %s…"
+  status.error: "✗ error: %s"
+  status.ok: "✓ %s OK"
+  status.failed: "✗ %s failed: %s"
+  status.reloaded: "Reloaded"
+
+  tui.search.placeholder: "search templates..."
+  tui.status.bootstrap: "Updating bootstrap..."
+  tui.status.building: "Building %s…"
+  tui.status.linting: "Linting %s…"
+  tui.status.checksum: "Checksum %s…"
+  tui.status.bumping: "Bumping %s…"
+  tui.status.installing: "Installing %s…"
+  tui.status.cleaning: "Cleaning %s…"
+  tui.none: "(no templates found)"
+  tui.running: "⏳ Running…"
+  tui.help.simple: "b=build  l=lint  i=install  e=edit  /=search  q=quit"
+  tui.help.full: "b=build  l=lint  s=sum  a=bump  i=install  c=clean  e=edit  h=homepage  p=repology  u=update  /=search  r=reload  q=quit"

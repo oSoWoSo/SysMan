@@ -6,6 +6,7 @@ strings:
   app.title: "svman"
   app.subtitle: "runit service manager - Void Linux"
   app.window: "svman — runit service manager"
+  tab.name: "Services"
 
   filter.all: "All"
   filter.enabled: "Enabled"
@@ -33,6 +34,7 @@ strings:
   state.stopped: "stopped"
 
   config.title: "CONFIGURATION"
+  config.reload_hint: "Press Reload to fetch current service status"
 
   btn.enable: "Enable"
   btn.disable: "Disable"
@@ -68,6 +70,7 @@ strings:
   status.continued: "OK: '%s' continued"
   status.killed: "OK: '%s' killed"
   status.reloaded: "list reloaded"
+  status.no_root: "status may be incomplete (not running as root)"
   status.err: "ERROR: "
   status.already.on: "'%s' is already enabled"
   status.already.off: "'%s' is not enabled"

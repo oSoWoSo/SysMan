@@ -22,12 +22,12 @@ func highlightConfigPath() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(cfg, "svman", "highlight.conf")
+	return filepath.Join(cfg, "SysMan", "highlight.conf")
 }
 
 // ── Default config (grc-compatible format) ────────────────────────────
 
-// defaultConfig is written to ~/.config/svman/highlight.conf on first run.
+// defaultConfig is written to ~/.config/SysMan/highlight.conf on first run.
 // Format: each non-comment, non-blank line has fixed columns:
 //
 //	COL A T PATTERN
@@ -68,7 +68,7 @@ Green                grn     s Stripped position-independent executable:
 Green                grn     s cmd:
 Green                grn     s SONAME:
 Green                grn     s index:
-Green                grn     c [*]
+Green                grn b   c [*]
 Red                  red b   s ERROR
 Red                  red b   s error:
 Red                  red     s Removing
@@ -251,7 +251,7 @@ func grcColor(name string) color.Color {
 // ── Highlighter ───────────────────────────────────────────────────────
 
 // Highlighter applies colour rules to lines of text.
-// It watches ~/.config/svman/highlight.conf and reloads rules automatically
+// It watches ~/.config/SysMan/highlight.conf and reloads rules automatically
 // whenever the file is saved, with no restart required.
 type Highlighter struct {
 	mu      sync.RWMutex
@@ -259,7 +259,7 @@ type Highlighter struct {
 	watcher *fsnotify.Watcher // nil when watching is unavailable
 }
 
-// NewHighlighter loads rules from ~/.config/svman/highlight.conf (grc format).
+// NewHighlighter loads rules from ~/.config/SysMan/highlight.conf (grc format).
 // If the file does not exist it is created with built-in defaults.
 // A background goroutine watches the file for changes and reloads rules live.
 func NewHighlighter() *Highlighter {

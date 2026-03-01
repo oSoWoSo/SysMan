@@ -1,0 +1,49 @@
+meta:
+  code: en
+  name: English
+
+strings:
+  app.title: "pkgman"
+  app.subtitle: "XBPS Package Manager"
+  app.window: "xbps packages"
+  tab.name: "Packages"
+
+  about.version: "Version"
+  about.author: "Author"
+  about.license: "License"
+  btn.about: "About"
+  btn.close: "Close"
+
+  search.placeholder: "Search packages…"
+
+  filter.all: "All"
+  filter.installed: "Installed"
+  filter.available: "Available"
+
+  detail.name: "Name"
+  detail.status: "Status"
+  detail.version: "Version"
+  detail.desc: "Description"
+  detail.homepage: "Homepage"
+
+  btn.install: "Install"
+  btn.remove: "Remove"
+  btn.update_all: "Update all"
+
+  pkg.installed: "installed"
+  pkg.not_installed: "not installed"
+  pkg.count: "%d packages"
+  pkg.loading: "Loading…"
+
+  tui.search.placeholder: "search packages..."
+  tui.none: "(no packages found)"
+  tui.running: "⏳ Running…"
+  tui.loading: "loading…"
+  tui.installed: "[installed]"
+  tui.marked: "[%d marked]"
+  tui.status.reloading: "Reloading..."
+  tui.status.installing: "Installing %s…"
+  tui.status.removing: "Removing %s…"
+  tui.status.updating: "Updating all packages…"
+  tui.help.simple: "i=install  d=remove  u=update all  space=mark  tab=filter  /=search  q=quit"
+  tui.help.full: "i=install  d=remove  u=update all  space=mark  tab=filter  /=search  h=homepage  r=reload  q=quit"

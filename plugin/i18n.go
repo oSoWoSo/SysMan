@@ -33,12 +33,20 @@ var langs = map[string]translations{}
 // Exported so standalone main.go can read values for --help output.
 var T translations
 
-// langDirs are directories where to look for *.yaml translation files.
-// They are searched in order — the first file found wins.
-var langDirs = []string{
-	"./lang",                      // next to binary / in CWD
-	"/usr/share/svman/lang",       // system installation
-	"/usr/local/share/svman/lang", // local installation
+// langDirs returns directories where to look for *.yaml translation files.
+// They are searched in order — first match wins.
+func langDirs() []string {
+	dirs := []string{
+		"/usr/local/share/SysMan/lang/svman", // local installation (make install PREFIX=/usr/local)
+		"/usr/share/SysMan/lang/svman",       // system installation
+	}
+	// Prepend dir next to the running binary (portable/dev builds).
+	if exe, err := os.Executable(); err == nil {
+		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "svman")}, dirs...)
+	}
+	// Also prepend ./lang/svman relative to CWD (running from source tree).
+	dirs = append([]string{"./lang/svman"}, dirs...)
+	return dirs
 }
 
 // ── Loading ──────────────────────────────────────────────────────────
@@ -86,7 +94,7 @@ var i18nOnce sync.Once
 // falling back to English if the detected language is unavailable.
 func InitI18n() {
 	i18nOnce.Do(func() {
-		for _, dir := range langDirs {
+		for _, dir := range langDirs() {
 			loadLangDir(dir)
 		}
 		lang := detectLang()

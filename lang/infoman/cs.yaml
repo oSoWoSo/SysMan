@@ -1,0 +1,32 @@
+meta:
+  code: cs
+  name: Čeština
+
+strings:
+  app.title: "infoman"
+  app.subtitle: "Systémové informace"
+  app.window: "Systémové informace"
+  tab.name: "Systémové informace"
+
+  about.version: "Verze"
+  about.author: "Autor"
+  about.license: "Licence"
+  btn.about: "O aplikaci"
+  btn.close: "Zavřít"
+
+  info.hostname: "Název hostitele"
+  info.os: "OS"
+  info.kernel: "Jádro"
+  info.arch: "Architektura"
+  info.cpu: "CPU"
+  info.cores: "Jádra"
+  info.memory: "Paměť"
+  info.memory.fmt: "%s použito / %s celkem"
+  info.uptime: "Doba běhu"
+  info.shell: "Shell"
+  info.desktop: "Prostředí"
+  info.disk: "Disk /"
+  info.disk.fmt: "%s použito / %s celkem"
+
+  status.loading: "Načítám…"
+  status.loading_info: "Načítám systémové informace…"

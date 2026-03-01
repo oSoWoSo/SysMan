@@ -216,6 +216,56 @@ func DeleteGroup(name string) (string, error) {
 }
 
 // SetGroupMembers replaces the member list of a group.
+// It diffs the current membership against the desired list and calls
+// gpasswd -a / gpasswd -d for each change, because groupmod -M is not
+// available on Void Linux (busybox shadow does not implement that flag).
 func SetGroupMembers(group string, members []string) (string, error) {
-	return runPriv("groupmod", "-M", strings.Join(members, ","), group)
+	// Current members from /etc/group.
+	current := map[string]bool{}
+	for _, g := range LoadGroups() {
+		if g.Name == group {
+			for _, m := range g.Members {
+				current[m] = true
+			}
+			break
+		}
+	}
+
+	desired := map[string]bool{}
+	for _, m := range members {
+		if m != "" {
+			desired[m] = true
+		}
+	}
+
+	var out strings.Builder
+	var firstErr error
+
+	// Add new members.
+	for m := range desired {
+		if !current[m] {
+			o, err := runPriv("gpasswd", "-a", m, group)
+			if o != "" {
+				out.WriteString(o + "\n")
+			}
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+
+	// Remove members no longer in the list.
+	for m := range current {
+		if !desired[m] {
+			o, err := runPriv("gpasswd", "-d", m, group)
+			if o != "" {
+				out.WriteString(o + "\n")
+			}
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+
+	return strings.TrimSpace(out.String()), firstErr
 }

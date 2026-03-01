@@ -2,6 +2,7 @@ package usergroups
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -58,6 +59,8 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "q", "esc", "ctrl+c":
+			return m, tea.Quit
 		case "1":
 			m.tab = tabUsers
 			m.cursor = 0
@@ -101,12 +104,23 @@ func (m tuiModel) listLen() int {
 	return len(m.groups)
 }
 
+// overhead: tab bar + separator + col header + blank + status/help = 5 lines
+const tuiOverhead = 5
+
+func (m tuiModel) listHeight() int {
+	h := m.height - tuiOverhead
+	if h < 4 {
+		h = 4
+	}
+	return h
+}
+
 func (m tuiModel) View() string {
 	var sb strings.Builder
 
 	// Tab bar
-	u := "1 Users"
-	gr := "2 Groups"
+	u := t("tui.tab.users")
+	gr := t("tui.tab.groups")
 	if m.tab == tabUsers {
 		u = tuiHeader.Render(u)
 	}
@@ -114,7 +128,11 @@ func (m tuiModel) View() string {
 		gr = tuiHeader.Render(gr)
 	}
 	sb.WriteString(fmt.Sprintf("  %s   %s\n", u, gr))
-	sb.WriteString(strings.Repeat("─", m.width) + "\n")
+	w := m.width
+	if w < 10 {
+		w = 10
+	}
+	sb.WriteString(strings.Repeat("─", w) + "\n")
 
 	// Content
 	if m.tab == tabUsers {
@@ -132,7 +150,7 @@ func (m tuiModel) View() string {
 		}
 		sb.WriteString(style.Render(m.status))
 	} else {
-		help := "↑/↓: navigate   r: refresh   s: toggle system users   1/2: switch tab"
+		help := t("tui.help")
 		sb.WriteString(tuiHelp.Render(help))
 	}
 
@@ -141,14 +159,21 @@ func (m tuiModel) View() string {
 
 func (m tuiModel) viewUsers() string {
 	if len(m.users) == 0 {
-		return "  (no users)\n"
+		return "  " + t("tui.none.users") + "\n"
 	}
 	var sb strings.Builder
 	header := fmt.Sprintf("  %-20s %6s  %-20s  %-16s  %s",
-		"Login", "UID", "Full Name", "Group", "Home")
+		t("col.login"), t("col.uid"), t("col.fullname"), t("col.group"), t("col.home"))
 	sb.WriteString(lipgloss.NewStyle().Bold(true).Render(header) + "\n")
 
-	for i, u := range m.users {
+	lh := m.listHeight()
+	start := 0
+	if m.cursor >= lh {
+		start = m.cursor - lh + 1
+	}
+	shown := 0
+	for i := start; i < len(m.users) && shown < lh; i++ {
+		u := m.users[i]
 		line := fmt.Sprintf("  %-20s %6d  %-20s  %-16s  %s",
 			u.Login, u.UID, u.Name, u.Primary, u.Home)
 		if i == m.cursor {
@@ -156,19 +181,27 @@ func (m tuiModel) viewUsers() string {
 		} else {
 			sb.WriteString(line + "\n")
 		}
+		shown++
 	}
 	return sb.String()
 }
 
 func (m tuiModel) viewGroups() string {
 	if len(m.groups) == 0 {
-		return "  (no groups)\n"
+		return "  " + t("tui.none.groups") + "\n"
 	}
 	var sb strings.Builder
-	header := fmt.Sprintf("  %-20s %6s  %s", "Name", "GID", "Members")
+	header := fmt.Sprintf("  %-20s %6s  %s", t("col.name"), t("col.gid"), t("col.members"))
 	sb.WriteString(lipgloss.NewStyle().Bold(true).Render(header) + "\n")
 
-	for i, gr := range m.groups {
+	lh := m.listHeight()
+	start := 0
+	if m.cursor >= lh {
+		start = m.cursor - lh + 1
+	}
+	shown := 0
+	for i := start; i < len(m.groups) && shown < lh; i++ {
+		gr := m.groups[i]
 		members := strings.Join(gr.Members, ", ")
 		line := fmt.Sprintf("  %-20s %6d  %s", gr.Name, gr.GID, members)
 		if i == m.cursor {
@@ -176,6 +209,16 @@ func (m tuiModel) viewGroups() string {
 		} else {
 			sb.WriteString(line + "\n")
 		}
+		shown++
 	}
 	return sb.String()
+}
+
+// RunTUI runs the Users & Groups manager as a standalone Bubbletea TUI.
+func RunTUI() {
+	prog := tea.NewProgram(NewTuiModel(), tea.WithAltScreen())
+	if _, err := prog.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }

@@ -4,9 +4,15 @@ package usergroups
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
+	"image/color"
+
+	svman "codeberg.org/oSoWoSo/SysMan/plugin"
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -34,6 +40,30 @@ type ugApp struct {
 
 func (g *ugApp) setStatus(msg string) { g.statusBar.SetText(msg) }
 
+func (g *ugApp) showAbout() {
+	title := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
+	title.TextSize = 26
+	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	subtitle := canvas.NewText(t("app.subtitle"), color.NRGBA{R: 0x88, G: 0x88, B: 0x88, A: 0xff})
+	subtitle.TextSize = 12
+	infoForm := widget.NewForm(
+		widget.NewFormItem(t("about.version"), widget.NewLabel(svman.Version)),
+		widget.NewFormItem(t("about.author"), widget.NewLabel(svman.AppAuthor)),
+		widget.NewFormItem(t("about.license"), widget.NewLabel(svman.AppLicense)),
+	)
+	repoURL, _ := url.Parse(svman.AppURL)
+	link := widget.NewHyperlink(svman.AppURL, repoURL)
+	content := container.NewVBox(
+		container.NewCenter(title),
+		container.NewCenter(subtitle),
+		widget.NewSeparator(),
+		infoForm,
+		container.NewCenter(link),
+	)
+	d := dialog.NewCustom(t("btn.about"), t("btn.close"), content, g.win)
+	d.Show()
+}
+
 func (g *ugApp) refresh() {
 	g.users = LoadUsers(g.showSystem)
 	g.groups = LoadGroups()
@@ -45,11 +75,13 @@ func (g *ugApp) refresh() {
 
 // ── Users table ───────────────────────────────────────────────────────
 
-var userCols = []string{"Login", "UID", "Full Name", "Group", "Home"}
+func userCols() []string {
+	return []string{t("col.login"), t("col.uid"), t("col.fullname"), t("col.group"), t("col.home")}
+}
 
 func (g *ugApp) buildUserTable() *widget.Table {
 	t := widget.NewTable(
-		func() (int, int) { return len(g.users) + 1, len(userCols) },
+		func() (int, int) { return len(g.users) + 1, len(userCols()) },
 		func() fyne.CanvasObject {
 			lbl := widget.NewLabel("placeholder")
 			lbl.TextStyle = fyne.TextStyle{Monospace: true}
@@ -59,7 +91,7 @@ func (g *ugApp) buildUserTable() *widget.Table {
 			lbl := obj.(*widget.Label)
 			if id.Row == 0 {
 				lbl.TextStyle = fyne.TextStyle{Bold: true}
-				lbl.SetText(userCols[id.Col])
+				lbl.SetText(userCols()[id.Col])
 				return
 			}
 			lbl.TextStyle = fyne.TextStyle{Monospace: true}
@@ -90,6 +122,7 @@ func (g *ugApp) buildUserTable() *widget.Table {
 			return
 		}
 		g.selectedUser = id.Row - 1
+		g.showUserPropsDialog()
 	}
 	g.userTable = t
 	return t
@@ -97,11 +130,13 @@ func (g *ugApp) buildUserTable() *widget.Table {
 
 // ── Groups table ──────────────────────────────────────────────────────
 
-var groupCols = []string{"Name", "GID", "Members"}
+func groupCols() []string {
+	return []string{t("col.name"), t("col.gid"), t("col.members")}
+}
 
 func (g *ugApp) buildGroupTable() *widget.Table {
 	t := widget.NewTable(
-		func() (int, int) { return len(g.groups) + 1, len(groupCols) },
+		func() (int, int) { return len(g.groups) + 1, len(groupCols()) },
 		func() fyne.CanvasObject {
 			lbl := widget.NewLabel("placeholder")
 			lbl.TextStyle = fyne.TextStyle{Monospace: true}
@@ -111,7 +146,7 @@ func (g *ugApp) buildGroupTable() *widget.Table {
 			lbl := obj.(*widget.Label)
 			if id.Row == 0 {
 				lbl.TextStyle = fyne.TextStyle{Bold: true}
-				lbl.SetText(groupCols[id.Col])
+				lbl.SetText(groupCols()[id.Col])
 				return
 			}
 			lbl.TextStyle = fyne.TextStyle{Monospace: true}
@@ -136,6 +171,7 @@ func (g *ugApp) buildGroupTable() *widget.Table {
 			return
 		}
 		g.selectedGroup = id.Row - 1
+		g.showEditGroupMembersDialog()
 	}
 	g.groupTable = t
 	return t
@@ -145,17 +181,17 @@ func (g *ugApp) buildGroupTable() *widget.Table {
 
 func (g *ugApp) showAddUserDialog() {
 	loginEntry := widget.NewEntry()
-	loginEntry.SetPlaceHolder("login name")
+	loginEntry.SetPlaceHolder(t("user.add.login_ph"))
 	nameEntry := widget.NewEntry()
-	nameEntry.SetPlaceHolder("Full Name")
+	nameEntry.SetPlaceHolder(t("user.add.fullname_ph"))
 	shellEntry := widget.NewEntry()
-	shellEntry.SetText("/bin/bash")
+	shellEntry.SetText(t("user.add.shell_ph"))
 
-	form := dialog.NewForm("Add User", "Add", "Cancel",
+	form := dialog.NewForm(t("user.add.title"), t("btn.add"), t("btn.cancel"),
 		[]*widget.FormItem{
-			widget.NewFormItem("Login", loginEntry),
-			widget.NewFormItem("Full Name", nameEntry),
-			widget.NewFormItem("Shell", shellEntry),
+			widget.NewFormItem(t("user.add.login"), loginEntry),
+			widget.NewFormItem(t("user.add.fullname"), nameEntry),
+			widget.NewFormItem(t("user.add.shell"), shellEntry),
 		},
 		func(ok bool) {
 			if !ok || loginEntry.Text == "" {
@@ -163,9 +199,9 @@ func (g *ugApp) showAddUserDialog() {
 			}
 			out, err := AddUser(loginEntry.Text, nameEntry.Text, shellEntry.Text)
 			if err != nil {
-				g.setStatus("✗ useradd: " + err.Error() + " " + out)
+				g.setStatus(t("status.useradd_err") + err.Error() + " " + out)
 			} else {
-				g.setStatus("✓ User " + loginEntry.Text + " created")
+				g.setStatus(fmt.Sprintf(t("status.user_created"), loginEntry.Text))
 				g.refresh()
 			}
 		}, g.win)
@@ -174,16 +210,16 @@ func (g *ugApp) showAddUserDialog() {
 
 func (g *ugApp) showDeleteUserDialog() {
 	if g.selectedUser < 0 || g.selectedUser >= len(g.users) {
-		g.setStatus("No user selected")
+		g.setStatus(t("status.no_user"))
 		return
 	}
 	u := g.users[g.selectedUser]
-	removeHome := widget.NewCheck("Remove home directory", nil)
+	removeHome := widget.NewCheck(t("user.delete.rmhome"), nil)
 	dialog.ShowCustomConfirm(
-		"Delete User",
-		"Delete", "Cancel",
+		t("user.delete.title"),
+		t("btn.delete"), t("btn.cancel"),
 		container.NewVBox(
-			widget.NewLabel("Delete user: "+u.Login+" (UID "+fmt.Sprintf("%d", u.UID)+")"),
+			widget.NewLabel(fmt.Sprintf(t("user.delete.confirm"), u.Login, u.UID)),
 			removeHome,
 		),
 		func(ok bool) {
@@ -192,9 +228,9 @@ func (g *ugApp) showDeleteUserDialog() {
 			}
 			out, err := DeleteUser(u.Login, removeHome.Checked)
 			if err != nil {
-				g.setStatus("✗ userdel: " + err.Error() + " " + out)
+				g.setStatus(t("status.userdel_err") + err.Error() + " " + out)
 			} else {
-				g.setStatus("✓ User " + u.Login + " deleted")
+				g.setStatus(fmt.Sprintf(t("status.user_deleted"), u.Login))
 				g.refresh()
 			}
 		}, g.win)
@@ -202,7 +238,7 @@ func (g *ugApp) showDeleteUserDialog() {
 
 func (g *ugApp) showUserPropsDialog() {
 	if g.selectedUser < 0 || g.selectedUser >= len(g.users) {
-		g.setStatus("No user selected")
+		g.setStatus(t("status.no_user"))
 		return
 	}
 	u := g.users[g.selectedUser]
@@ -211,10 +247,10 @@ func (g *ugApp) showUserPropsDialog() {
 	shellEntry := widget.NewEntry()
 	shellEntry.SetText(u.Shell)
 
-	form := dialog.NewForm("User Properties: "+u.Login, "Apply", "Cancel",
+	form := dialog.NewForm(fmt.Sprintf(t("user.props.title"), u.Login), t("btn.apply"), t("btn.cancel"),
 		[]*widget.FormItem{
-			widget.NewFormItem("Full Name", nameEntry),
-			widget.NewFormItem("Shell", shellEntry),
+			widget.NewFormItem(t("user.props.fullname"), nameEntry),
+			widget.NewFormItem(t("user.props.shell"), shellEntry),
 		},
 		func(ok bool) {
 			if !ok {
@@ -222,9 +258,9 @@ func (g *ugApp) showUserPropsDialog() {
 			}
 			out, err := SetUserProps(u.Login, nameEntry.Text, shellEntry.Text)
 			if err != nil {
-				g.setStatus("✗ usermod: " + err.Error() + " " + out)
+				g.setStatus(t("status.usermod_err") + err.Error() + " " + out)
 			} else {
-				g.setStatus("✓ User " + u.Login + " updated")
+				g.setStatus(fmt.Sprintf(t("status.user_updated"), u.Login))
 				g.refresh()
 			}
 		}, g.win)
@@ -233,31 +269,31 @@ func (g *ugApp) showUserPropsDialog() {
 
 func (g *ugApp) showChangePasswordDialog() {
 	if g.selectedUser < 0 || g.selectedUser >= len(g.users) {
-		g.setStatus("No user selected")
+		g.setStatus(t("status.no_user"))
 		return
 	}
 	u := g.users[g.selectedUser]
 	pwEntry := widget.NewPasswordEntry()
 	pw2Entry := widget.NewPasswordEntry()
 
-	form := dialog.NewForm("Change Password: "+u.Login, "Apply", "Cancel",
+	form := dialog.NewForm(fmt.Sprintf(t("user.passwd.title"), u.Login), t("btn.apply"), t("btn.cancel"),
 		[]*widget.FormItem{
-			widget.NewFormItem("New password", pwEntry),
-			widget.NewFormItem("Confirm", pw2Entry),
+			widget.NewFormItem(t("user.passwd.new"), pwEntry),
+			widget.NewFormItem(t("user.passwd.confirm"), pw2Entry),
 		},
 		func(ok bool) {
 			if !ok {
 				return
 			}
 			if pwEntry.Text != pw2Entry.Text {
-				g.setStatus("✗ Passwords do not match")
+				g.setStatus(t("status.passwd_mismatch"))
 				return
 			}
 			out, err := SetPassword(u.Login, pwEntry.Text)
 			if err != nil {
-				g.setStatus("✗ chpasswd: " + err.Error() + " " + out)
+				g.setStatus(t("status.chpasswd_err") + err.Error() + " " + out)
 			} else {
-				g.setStatus("✓ Password for " + u.Login + " changed")
+				g.setStatus(fmt.Sprintf(t("status.passwd_changed"), u.Login))
 			}
 		}, g.win)
 	form.Show()
@@ -265,18 +301,18 @@ func (g *ugApp) showChangePasswordDialog() {
 
 func (g *ugApp) showAddGroupDialog() {
 	nameEntry := widget.NewEntry()
-	nameEntry.SetPlaceHolder("group name")
-	form := dialog.NewForm("Add Group", "Add", "Cancel",
-		[]*widget.FormItem{widget.NewFormItem("Name", nameEntry)},
+	nameEntry.SetPlaceHolder(t("group.add.name_ph"))
+	form := dialog.NewForm(t("group.add.title"), t("btn.add"), t("btn.cancel"),
+		[]*widget.FormItem{widget.NewFormItem(t("group.add.name"), nameEntry)},
 		func(ok bool) {
 			if !ok || nameEntry.Text == "" {
 				return
 			}
 			out, err := AddGroup(nameEntry.Text)
 			if err != nil {
-				g.setStatus("✗ groupadd: " + err.Error() + " " + out)
+				g.setStatus(t("status.groupadd_err") + err.Error() + " " + out)
 			} else {
-				g.setStatus("✓ Group " + nameEntry.Text + " created")
+				g.setStatus(fmt.Sprintf(t("status.group_created"), nameEntry.Text))
 				g.refresh()
 			}
 		}, g.win)
@@ -285,7 +321,7 @@ func (g *ugApp) showAddGroupDialog() {
 
 func (g *ugApp) showEditGroupMembersDialog() {
 	if g.selectedGroup < 0 || g.selectedGroup >= len(g.groups) {
-		g.setStatus("No group selected")
+		g.setStatus(t("status.no_group"))
 		return
 	}
 	gr := g.groups[g.selectedGroup]
@@ -311,8 +347,8 @@ func (g *ugApp) showEditGroupMembersDialog() {
 	scroll.SetMinSize(fyne.NewSize(300, 240))
 
 	dialog.ShowCustomConfirm(
-		"Edit Members: "+gr.Name,
-		"Apply", "Cancel",
+		fmt.Sprintf(t("group.members.title"), gr.Name),
+		t("btn.apply"), t("btn.cancel"),
 		scroll,
 		func(ok bool) {
 			if !ok {
@@ -326,9 +362,9 @@ func (g *ugApp) showEditGroupMembersDialog() {
 			}
 			out, err := SetGroupMembers(gr.Name, members)
 			if err != nil {
-				g.setStatus("✗ groupmod: " + err.Error() + " " + out)
+				g.setStatus(t("status.groupmod_err") + err.Error() + " " + out)
 			} else {
-				g.setStatus("✓ Group " + gr.Name + " members updated")
+				g.setStatus(fmt.Sprintf(t("status.group_updated"), gr.Name))
 				g.refresh()
 			}
 		}, g.win)
@@ -336,21 +372,21 @@ func (g *ugApp) showEditGroupMembersDialog() {
 
 func (g *ugApp) showDeleteGroupDialog() {
 	if g.selectedGroup < 0 || g.selectedGroup >= len(g.groups) {
-		g.setStatus("No group selected")
+		g.setStatus(t("status.no_group"))
 		return
 	}
 	gr := g.groups[g.selectedGroup]
-	dialog.ShowConfirm("Delete Group",
-		"Delete group: "+gr.Name+" (GID "+fmt.Sprintf("%d", gr.GID)+")?",
+	dialog.ShowConfirm(t("group.delete.title"),
+		fmt.Sprintf(t("group.delete.confirm"), gr.Name, gr.GID),
 		func(ok bool) {
 			if !ok {
 				return
 			}
 			out, err := DeleteGroup(gr.Name)
 			if err != nil {
-				g.setStatus("✗ groupdel: " + err.Error() + " " + out)
+				g.setStatus(t("status.groupdel_err") + err.Error() + " " + out)
 			} else {
-				g.setStatus("✓ Group " + gr.Name + " deleted")
+				g.setStatus(fmt.Sprintf(t("status.group_deleted"), gr.Name))
 				g.refresh()
 			}
 		}, g.win)
@@ -376,7 +412,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	// ── Users tab ─────────────────────────────────────────────────────
 	userTable := g.buildUserTable()
 
-	showSystemChk := widget.NewCheck("Show system users", func(v bool) {
+	showSystemChk := widget.NewCheck(t("chk.system_users"), func(v bool) {
 		g.showSystem = v
 		g.users = LoadUsers(v)
 		g.selectedUser = -1
@@ -384,21 +420,21 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	})
 
 	// Toolbar buttons — Users context
-	btnAddUser := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), func() {
+	btnAddUser := widget.NewButtonWithIcon(t("btn.add"), theme.ContentAddIcon(), func() {
 		g.showAddUserDialog()
 	})
-	btnDelUser := widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), func() {
+	btnDelUser := widget.NewButtonWithIcon(t("btn.delete"), theme.DeleteIcon(), func() {
 		g.showDeleteUserDialog()
 	})
-	btnPropsUser := widget.NewButtonWithIcon("Properties", theme.DocumentCreateIcon(), func() {
+	btnPropsUser := widget.NewButtonWithIcon(t("btn.properties"), theme.DocumentCreateIcon(), func() {
 		g.showUserPropsDialog()
 	})
-	btnPasswd := widget.NewButtonWithIcon("Change Password", theme.VisibilityIcon(), func() {
+	btnPasswd := widget.NewButtonWithIcon(t("btn.password"), theme.VisibilityIcon(), func() {
 		g.showChangePasswordDialog()
 	})
-	btnRefreshUsers := widget.NewButtonWithIcon("Refresh", theme.ViewRefreshIcon(), func() {
+	btnRefreshUsers := widget.NewButtonWithIcon(t("btn.refresh"), theme.ViewRefreshIcon(), func() {
 		g.refresh()
-		g.setStatus("Refreshed")
+		g.setStatus(t("status.refreshed"))
 	})
 
 	userToolbar := container.NewHBox(
@@ -417,18 +453,18 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	// ── Groups tab ────────────────────────────────────────────────────
 	groupTable := g.buildGroupTable()
 
-	btnAddGroup := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), func() {
+	btnAddGroup := widget.NewButtonWithIcon(t("btn.add"), theme.ContentAddIcon(), func() {
 		g.showAddGroupDialog()
 	})
-	btnDelGroup := widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), func() {
+	btnDelGroup := widget.NewButtonWithIcon(t("btn.delete"), theme.DeleteIcon(), func() {
 		g.showDeleteGroupDialog()
 	})
-	btnEditMembers := widget.NewButtonWithIcon("Members", theme.AccountIcon(), func() {
+	btnEditMembers := widget.NewButtonWithIcon(t("btn.members"), theme.AccountIcon(), func() {
 		g.showEditGroupMembersDialog()
 	})
-	btnRefreshGroups := widget.NewButtonWithIcon("Refresh", theme.ViewRefreshIcon(), func() {
+	btnRefreshGroups := widget.NewButtonWithIcon(t("btn.refresh"), theme.ViewRefreshIcon(), func() {
 		g.refresh()
-		g.setStatus("Refreshed")
+		g.setStatus(t("status.refreshed"))
 	})
 
 	groupToolbar := container.NewHBox(
@@ -445,14 +481,31 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 
 	// ── Tabs ──────────────────────────────────────────────────────────
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Users", usersTab),
-		container.NewTabItem("Groups", groupsTab),
+		container.NewTabItem(t("tab.users"), usersTab),
+		container.NewTabItem(t("tab.groups"), groupsTab),
 	)
 
+	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { g.showAbout() })
+	btnAbout.Importance = widget.LowImportance
 	statusBar := container.NewVBox(
 		widget.NewSeparator(),
-		container.NewPadded(g.statusBar),
+		container.NewPadded(container.NewHBox(btnAbout, g.statusBar)),
 	)
 
 	return container.NewBorder(nil, statusBar, nil, nil, tabs)
+}
+
+// RunGUI runs the Users & Groups manager as a standalone Fyne application.
+func RunGUI() {
+	a := app.New()
+	win := a.NewWindow(t("app.window"))
+	win.SetContent(New().Content(win))
+	win.Resize(fyne.NewSize(760, 520))
+	win.SetMaster()
+	win.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) {
+		if e.Name == fyne.KeyEscape {
+			a.Quit()
+		}
+	})
+	win.ShowAndRun()
 }

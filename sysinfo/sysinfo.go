@@ -11,6 +11,7 @@ package sysinfo
 import (
 	"bufio"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,9 +19,13 @@ import (
 	"strings"
 	"syscall"
 
+	"image/color"
+
+	svman "codeberg.org/oSoWoSo/SysMan/plugin"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
@@ -37,7 +42,7 @@ func New() *Plugin { return &Plugin{} }
 
 // Name returns the plugin display name.
 // Implements api.PluginIF.
-func (p *Plugin) Name() string { return "System Info" }
+func (p *Plugin) Name() string { return t("tab.name") }
 
 // ── Native info collection ─────────────────────────────────────────────
 
@@ -57,60 +62,60 @@ func collectNative() []infoEntry {
 
 	// Hostname
 	if h, err := os.Hostname(); err == nil {
-		add("Hostname", h)
+		add(t("info.hostname"), h)
 	}
 
 	// OS / distro from /etc/os-release
 	if name, ver := readOSRelease(); name != "" {
-		add("OS", name+" "+ver)
+		add(t("info.os"), name+" "+ver)
 	} else {
-		add("OS", runtime.GOOS)
+		add(t("info.os"), runtime.GOOS)
 	}
 
 	// Kernel from /proc/version
 	if k := readKernel(); k != "" {
-		add("Kernel", k)
+		add(t("info.kernel"), k)
 	}
 
 	// Architecture
-	add("Arch", runtime.GOARCH)
+	add(t("info.arch"), runtime.GOARCH)
 
 	// CPU model and core count from /proc/cpuinfo
 	model, cores := readCPUInfo()
 	if model != "" {
-		add("CPU", model)
+		add(t("info.cpu"), model)
 	}
 	if cores > 0 {
-		add("Cores", strconv.Itoa(cores))
+		add(t("info.cores"), strconv.Itoa(cores))
 	}
 
 	// Memory from /proc/meminfo
 	if total, avail, ok := readMemInfo(); ok {
 		used := total - avail
-		add("Memory", fmt.Sprintf("%s used / %s total", formatMiB(used), formatMiB(total)))
+		add(t("info.memory"), fmt.Sprintf(t("info.memory.fmt"), formatMiB(used), formatMiB(total)))
 	}
 
 	// Uptime from /proc/uptime
 	if up := readUptime(); up != "" {
-		add("Uptime", up)
+		add(t("info.uptime"), up)
 	}
 
 	// Shell
 	if sh := os.Getenv("SHELL"); sh != "" {
-		add("Shell", filepath.Base(sh))
+		add(t("info.shell"), filepath.Base(sh))
 	}
 
 	// Desktop environment
 	for _, env := range []string{"XDG_CURRENT_DESKTOP", "DESKTOP_SESSION", "XDG_SESSION_DESKTOP"} {
 		if de := os.Getenv(env); de != "" {
-			add("Desktop", de)
+			add(t("info.desktop"), de)
 			break
 		}
 	}
 
 	// Disk usage for /
 	if used, total, ok := readDisk("/"); ok {
-		add("Disk /", fmt.Sprintf("%s used / %s total", formatGB(used), formatGB(total)))
+		add(t("info.disk"), fmt.Sprintf(t("info.disk.fmt"), formatGB(used), formatGB(total)))
 	}
 
 	return entries
@@ -330,10 +335,35 @@ func (l *fixedWidthLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	}
 }
 
+// showAbout displays the About dialog for infoman.
+func showAbout(win fyne.Window) {
+	title := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
+	title.TextSize = 26
+	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	subtitle := canvas.NewText(t("app.subtitle"), color.NRGBA{R: 0x88, G: 0x88, B: 0x88, A: 0xff})
+	subtitle.TextSize = 12
+	infoForm := widget.NewForm(
+		widget.NewFormItem(t("about.version"), widget.NewLabel(svman.Version)),
+		widget.NewFormItem(t("about.author"), widget.NewLabel(svman.AppAuthor)),
+		widget.NewFormItem(t("about.license"), widget.NewLabel(svman.AppLicense)),
+	)
+	repoURL, _ := url.Parse(svman.AppURL)
+	link := widget.NewHyperlink(svman.AppURL, repoURL)
+	content := container.NewVBox(
+		container.NewCenter(title),
+		container.NewCenter(subtitle),
+		widget.NewSeparator(),
+		infoForm,
+		container.NewCenter(link),
+	)
+	d := dialog.NewCustom(t("btn.about"), t("btn.close"), content, win)
+	d.Show()
+}
+
 // Content builds the Fyne widget tree showing system information.
 // Implements api.PluginIF.
-func (p *Plugin) Content(_ fyne.Window) fyne.CanvasObject {
-	placeholder := widget.NewLabel("Loading…")
+func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
+	placeholder := widget.NewLabel(t("status.loading"))
 
 	// infoBox holds the real content after loading; starts hidden.
 	infoBox := container.NewVBox()
@@ -358,7 +388,14 @@ func (p *Plugin) Content(_ fyne.Window) fyne.CanvasObject {
 		placeholder.Hide()
 	}()
 
-	return stack
+	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { showAbout(win) })
+	btnAbout.Importance = widget.LowImportance
+	statusBar := container.NewVBox(
+		widget.NewSeparator(),
+		container.NewPadded(container.NewHBox(btnAbout)),
+	)
+
+	return container.NewBorder(nil, statusBar, nil, nil, stack)
 }
 
 // Model returns a Bubbletea tea.Model showing system information.
@@ -408,7 +445,7 @@ func (m sysInfoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m sysInfoModel) View() string {
 	if !m.loaded {
-		return "\n  Loading system info…\n"
+		return "\n  " + t("status.loading_info") + "\n"
 	}
 
 	// Find longest key for alignment
