@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <link rel="icon" href="http://sysman.osowoso.org/favicon.png">
+    <title>Archives | SysMan</title>
+    <meta name="description" content="System Manager for Void Linux ">
+    <meta property="og:title" content="Archives">
+    <meta property="og:description" content="System Manager for Void Linux ">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="http://sysman.osowoso.org/archives/">
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Archives">
+    <meta name="twitter:description" content="System Manager for Void Linux ">
+    
+    <meta name="theme-color" content="#808080">
+    <style>
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      div.columns{display: flex; gap: min(4vw, 1.5em);}
+      div.column{flex: auto; overflow-x: auto;}
+      div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+      /* The extra [class] is a hack that increases specificity enough to
+         override a similar rule in reveal.js */
+      ul.task-list[class]{list-style: none;}
+      ul.task-list li input[type="checkbox"] {
+        font-size: inherit;
+        width: 0.8em;
+        margin: 0 0.8em 0.2em -1.6em;
+        vertical-align: middle;
+      }
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    </style>
+    <link rel="stylesheet" href="http://sysman.osowoso.org/selector.css">
+    <link rel="stylesheet" href="http://sysman.osowoso.org/css/style.css">
+    <link rel="stylesheet" href="http://sysman.osowoso.org/css/ansi.css?v=2">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="http://sysman.osowoso.org/rss.xml">
+    <script type="application/ld+json">{"@context": "https://schema.org","@type": "CollectionPage","name": "Archives","description": "System Manager for Void Linux ","url": "http://sysman.osowoso.org/archives/","isPartOf": {"@type": "WebSite","name": "SysMan","url": "http://sysman.osowoso.org"}}</script>
+    <link rel="stylesheet" href="http://sysman.osowoso.org/selector.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="site-title"><a href="http://sysman.osowoso.org/">SysMan</a></div>
+            <p>System Manager for Void Linux </p>
+            <div class="theme-selector">
+                <label for="theme-select">theme:</label>
+                <select id='theme-select' onchange='changeTheme()'>
+                                <option value='amiga500'>amiga500</option>
+                <option value='apple2'>apple2</option>
+                <option value='art-deco'>art-deco</option>
+                <option value='atarist'>atarist</option>
+                <option value='bauhaus'>bauhaus</option>
+                <option value='bbs'>bbs</option>
+                <option value='beos'>beos</option>
+                <option value='blackberry'>blackberry</option>
+                <option value='braun'>braun</option>
+                <option value='brutalist'>brutalist</option>
+                <option value='cyber-dark'>cyber-dark</option>
+                <option value='c64'>c64</option>
+                <option value='dark'>dark</option>
+                <option value='default'>default</option>
+                <option value='diary'>diary</option>
+                <option value='docs'>docs</option>
+                <option value='flat'>flat</option>
+                <option value='gameboy'>gameboy</option>
+                <option value='glassmorphism'>glassmorphism</option>
+                <option value='ios'>ios</option>
+                <option value='italy'>italy</option>
+                <option value='longform'>longform</option>
+                <option value='macclassic'>macclassic</option>
+                <option value='macos9'>macos9</option>
+                <option value='mario'>mario</option>
+                <option value='material'>material</option>
+                <option value='mid-century'>mid-century</option>
+                <option value='minimal'>minimal</option>
+                <option value='mondrian'>mondrian</option>
+                <option value='msdos'>msdos</option>
+                <option value='nes'>nes</option>
+                <option value='newspaper'>newspaper</option>
+                <option value='nextstep'>nextstep</option>
+                <option value='nordic-clean'>nordic-clean</option>
+                <option value='osowoso'>osowoso</option>
+                <option value='osx'>osx</option>
+                <option value='reader-mode'>reader-mode</option>
+                <option value='skeuomorphic'>skeuomorphic</option>
+                <option value='stefano'>stefano</option>
+                <option value='swiss-design'>swiss-design</option>
+                <option value='terminal'>terminal</option>
+                <option value='text-only'>text-only</option>
+                <option value='thoughtful'>thoughtful</option>
+                <option value='tty'>tty</option>
+                <option value='vaporwave'>vaporwave</option>
+                <option value='web1'>web1</option>
+                <option value='web2'>web2</option>
+                <option value='winxp'>winxp</option>
+                <option value='win311'>win311</option>
+                <option value='win7'>win7</option>
+                <option value='win95'>win95</option>
+                <option value='y2k'>y2k</option>
+                <option value='zxspectrum'>zxspectrum</option>
+
+                </select>
+                <link id='theme-style' rel='stylesheet' href=''>
+            </div>
+            <nav>
+                <div class="nav-left">
+                    <a href="http://sysman.osowoso.org/">Home</a> <a href="http://sysman.osowoso.org/archives/">Archives</a> <a href="http://sysman.osowoso.org/rss.xml">RSS</a>
+                </div>
+                <div class="nav-right">
+                    <a href="https://osowoso.discourse.group/">forum</a>
+                </div>
+                <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false" aria-controls="nav-left">
+                    <span class="hamburger-icon">☰</span>
+                </button>
+            </nav>
+            <script src="http://sysman.osowoso.org/theme-switcher.js" defer></script>
+            <script src="http://sysman.osowoso.org/hamburger.js" defer></script>
+            <script src="http://sysman.osowoso.org/toc.js" defer></script>
+        </header>
+        <main>
+<h1>Archives</h1>
+<div class="archives-list year-list">
+</div>
+        </main>
+        <footer>
+            <p>&copy; 2026 zenobit @ oSoWoSo.org. All rights reserved.</p>
+            <p>This site was generated with <a href="https://bssg.dragas.net">BSSG</a>, a Bash Static Site Generator.</p>
+            <p>
+                <a href="http://sysman.osowoso.org/">Home</a> &middot; <a href="http://sysman.osowoso.org/archives/">Archives</a> &middot; <a href="http://sysman.osowoso.org/rss.xml">Subscribe via RSS</a>
+            </p>
+            <p><a href="#">Back to Top</a></p>
+        </footer>
+    </div>
+</body>
+</html> 
