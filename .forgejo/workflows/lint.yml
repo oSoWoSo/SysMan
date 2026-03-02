@@ -58,7 +58,7 @@ jobs:
         run: go mod download
 
       - name: Run tests with coverage
-        run: go test -v -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -v -race -cover -coverprofile=coverage.out ./...
 
       - name: Display coverage
         run: go tool cover -func=coverage.out | tail -1
