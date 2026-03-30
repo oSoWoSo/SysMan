@@ -1,8 +1,9 @@
 // Command sysmanager is a demo system manager that embeds multiple plugins.
 //
 // Built-in plugins (always available):
-//   - Services  (svman runit service manager)
-//   - System Info (testplugin)
+//   - Services        (svman runit service manager)
+//   - XBPS Templates  (xbps-src template manager)
+//   - System Info     (testplugin)
 //
 // Dynamic plugins (optional, loaded from PLUGIN_DIR or ./plugins/):
 //
@@ -29,6 +30,7 @@ import (
 	"codeberg.org/oSoWoSo/svman/api"
 	svman "codeberg.org/oSoWoSo/svman/plugin"
 	"codeberg.org/oSoWoSo/svman/testplugin"
+	xbpssrc "codeberg.org/oSoWoSo/svman/xbps-src"
 )
 
 func main() {
@@ -59,6 +61,7 @@ func main() {
 	// Built-in plugins — always present, no rebuild needed for these.
 	plugins := []api.PluginIF{
 		svman.New(serviceDir, serviceDestDir),
+		xbpssrc.New(xbpssrc.DefaultDistDir),
 		testplugin.New(),
 	}
 
