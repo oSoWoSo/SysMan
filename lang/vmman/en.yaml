@@ -1,0 +1,46 @@
+meta:
+  code: en
+  name: English
+
+strings:
+  app.title: VMman
+  app.subtitle: Viewer Manager
+  app.window: VMman - Viewer Manager
+  tab.name: VMs
+
+  filter.all: all
+  filter.running: running
+  filter.stopped: stopped
+
+  search.placeholder: Search VMs...
+  search.active: (press Enter to search, Esc to cancel)'
+  search.clear: (Esc to clear)
+  search.hint: Press / to search
+
+  stats.fmt: "%d running / %d total (%d shown)"
+
+  vms.header: Virtual Machines
+  vms.none: No VMs found
+
+  state.running: Running
+  state.stopped: Stopped
+
+  action.boot: Boot VM
+  action.connect: Connect to VM
+
+  detail.header: VM Details
+  detail.name: Name
+  detail.state: State
+  detail.pid: PID
+  detail.spice: SPICE
+  detail.empty: "--"
+
+  status.boot: VM started
+  status.kill: VM stopped
+  status.connected: Connected to VM
+  status.err: Error
+
+  confirm.title: Confirm
+
+  help.normal: "↑↓=nav  Enter=toggle  c=connect  b=boot  k=kill  /=search  tab=filter  q=quit"
+  help.search: "Enter/esc=close  ↑↓=nav"

@@ -7,15 +7,38 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// SysManConfig holds all user-configurable settings shared across SysMan components.
-// Each program reads only the keys it understands; unknown keys are preserved on save.
 type SysManConfig struct {
-	// srcman (xbps-src template manager)
-	SrcmanDistDir      string `yaml:"srcman_dist_dir,omitempty"`
-	SrcmanSearchEngine string `yaml:"srcman_search_engine,omitempty"`
+	Svman      SvmanConfig      `yaml:"svman,omitempty"`
+	Pkgman     PkgmanConfig     `yaml:"pkgman,omitempty"`
+	Srcman     SrcmanConfig     `yaml:"srcman,omitempty"`
+	Vmman      VmmanConfig      `yaml:"vmman,omitempty"`
+	Usergroups UsergroupsConfig `yaml:"usergroups,omitempty"`
+	Sysinfo    SysinfoConfig    `yaml:"sysinfo,omitempty"`
 }
 
-// configPath returns ~/.config/sysman/sysman.conf.
+type SvmanConfig struct {
+	ServiceDir     string `yaml:"service_dir,omitempty"`
+	ServiceDestDir string `yaml:"service_dest_dir,omitempty"`
+}
+
+type PkgmanConfig struct {
+}
+
+type SrcmanConfig struct {
+	DistDir      string `yaml:"dist_dir,omitempty"`
+	SearchEngine string `yaml:"search_engine,omitempty"`
+}
+
+type VmmanConfig struct {
+	VmDir string `yaml:"vm_dir,omitempty"`
+}
+
+type UsergroupsConfig struct {
+}
+
+type SysinfoConfig struct {
+}
+
 func sysmanConfigPath() string {
 	cfg, err := os.UserConfigDir()
 	if err != nil {
@@ -24,33 +47,76 @@ func sysmanConfigPath() string {
 	return filepath.Join(cfg, "sysman", "sysman.conf")
 }
 
-// LoadSysManConfig reads sysman.conf. Returns defaults if the file does not exist.
 func LoadSysManConfig() SysManConfig {
 	var c SysManConfig
 	path := sysmanConfigPath()
 	if path == "" {
 		return c
 	}
-	data, err := os.ReadFile(path) //nolint:gosec
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return c
 	}
+
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return c
+	}
+
+	if _, hasSvman := raw["svman"]; !hasSvman {
+		if serviceDir, ok := raw["service_dir"].(string); ok {
+			c.Svman.ServiceDir = serviceDir
+		}
+		if serviceDestDir, ok := raw["service_dest_dir"].(string); ok {
+			c.Svman.ServiceDestDir = serviceDestDir
+		}
+		if srcmanDistDir, ok := raw["srcman_dist_dir"].(string); ok {
+			c.Srcman.DistDir = srcmanDistDir
+		}
+		if srcmanSearchEngine, ok := raw["srcman_search_engine"].(string); ok {
+			c.Srcman.SearchEngine = srcmanSearchEngine
+		}
+		if vmmanVmDir, ok := raw["vmman_vm_dir"].(string); ok {
+			c.Vmman.VmDir = vmmanVmDir
+		}
+		return c
+	}
+
 	_ = yaml.Unmarshal(data, &c)
 	return c
 }
 
-// SaveSysManConfig writes cfg to sysman.conf.
 func SaveSysManConfig(cfg SysManConfig) error {
 	path := sysmanConfigPath()
 	if path == "" {
 		return os.ErrNotExist
 	}
+
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
+
+	existing := LoadSysManConfig()
+
+	if cfg.Svman.ServiceDir == "" {
+		cfg.Svman.ServiceDir = existing.Svman.ServiceDir
+	}
+	if cfg.Svman.ServiceDestDir == "" {
+		cfg.Svman.ServiceDestDir = existing.Svman.ServiceDestDir
+	}
+	if cfg.Srcman.DistDir == "" {
+		cfg.Srcman.DistDir = existing.Srcman.DistDir
+	}
+	if cfg.Srcman.SearchEngine == "" {
+		cfg.Srcman.SearchEngine = existing.Srcman.SearchEngine
+	}
+	if cfg.Vmman.VmDir == "" {
+		cfg.Vmman.VmDir = existing.Vmman.VmDir
+	}
+
 	out, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, out, 0o644) //nolint:gosec
+	return os.WriteFile(path, out, 0o644)
 }

@@ -1,0 +1,46 @@
+meta:
+  code: cs
+  name: Czech
+
+strings:
+  app.title: VMman
+  app.subtitle: Správce virtuálních počítačů
+  app.window: VMman - Správce virtuálních počítačů
+  tab.name: Virtuální počítače
+
+  filter.all: všechny
+  filter.running: běžící
+  filter.stopped: zastavené
+
+  search.placeholder: Hledat VM...
+  search.active: (Enter = hledat, Esc = zrušit)'
+  search.clear: (Esc = vymazat)
+  search.hint: Stiskněte / pro hledání
+
+  stats.fmt: "%d běží / %d celkem (%d zobrazeno)"
+
+  vms.header: Virtuální počítače
+  vms.none: Nenalezeny žádné VM
+
+  state.running: Běží
+  state.stopped: Zastaven
+
+  action.boot: Spustit VM
+  action.connect: Připojit k VM
+
+  detail.header: Detail VM
+  detail.name: Název
+  detail.state: Stav
+  detail.pid: PID
+  detail.spice: SPICE
+  detail.empty: "--"
+
+  status.boot: VM spuštěn
+  status.kill: VM zastaven
+  status.connected: Připojeno k VM
+  status.err: Chyba
+
+  confirm.title: Potvrzení
+
+  help.normal: "↑↓=nav  Enter=přepnout  c=připojit  b=spustit  k=zastavit  /=hledat  tab=filtr  q=quit"
+  help.search: "Enter/esc=zavřít  ↑↓=nav"
