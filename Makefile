@@ -1,4 +1,4 @@
-VERSION  ?= 0.003 Alpha
+VERSION  ?= 0.006 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local
@@ -82,7 +82,7 @@ build-sysman-tui:
 build-svman:
 	@echo "Building svman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/svman .
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/svman .
 	@cp -r lang $(BUILD_DIR)/lang
 
 ## build-svman-tui: standalone svman TUI only (CGO-free)
@@ -112,7 +112,7 @@ build-ugman-tui:
 build-infoman:
 	@echo "Building infoman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/infoman ./cmd/infoman-gui/
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/infoman ./cmd/infoman-gui/
 	@[ -f void-transparent.png ] && cp void-transparent.png $(BUILD_DIR)/ || true
 
 ## build-infoman-tui: standalone infoman TUI only (CGO-free)
@@ -126,7 +126,7 @@ build-infoman-tui:
 build-srcman:
 	@echo "Building srcman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/srcman ./cmd/srcman-gui/
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/srcman ./cmd/srcman-gui/
 
 ## build-srcman-tui: standalone srcman TUI only (CGO-free)
 build-srcman-tui:
@@ -139,7 +139,7 @@ build-srcman-tui:
 build-pkgman:
 	@echo "Building pkgman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/pkgman ./cmd/pkgman-gui/
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/pkgman ./cmd/pkgman-gui/
 
 ## build-pkgman-tui: standalone pkgman TUI only (CGO-free)
 build-pkgman-tui:
