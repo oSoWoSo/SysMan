@@ -9,11 +9,39 @@ import (
 )
 
 func main() {
+	mode := "auto"
 	for _, arg := range os.Args[1:] {
-		if arg == "--help" || arg == "-h" {
+		switch arg {
+		case "--help", "-h":
 			fmt.Println(usergroups.Usage)
 			os.Exit(0)
+		case "--tui", "-t":
+			mode = "tui"
+		case "--gui", "-g":
+			mode = "gui"
 		}
 	}
-	usergroups.RunGUI()
+
+	hasDisplay := os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != ""
+
+	if mode == "auto" {
+		if hasDisplay {
+			mode = "gui"
+		} else {
+			mode = "tui"
+		}
+	}
+
+	// Explicit --gui with no display falls back to TUI.
+	if mode == "gui" && !hasDisplay {
+		fmt.Fprintln(os.Stderr, "ugman: no display available, falling back to TUI")
+		mode = "tui"
+	}
+
+	switch mode {
+	case "tui":
+		usergroups.RunTUI()
+	default:
+		usergroups.RunGUI()
+	}
 }

@@ -37,6 +37,15 @@ import (
 // Usage is the --help text for infoman.
 const Usage = "infoman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SYSMAN_LANG  language override (e.g. cs)"
 
+// RunTUI runs the sysinfo as a standalone Bubbletea application.
+func RunTUI() {
+	prog := tea.NewProgram(New().Model(), tea.WithAltScreen())
+	if _, err := prog.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 // Plugin displays basic system information (hostname, OS, arch, CPUs, Go version).
 type Plugin struct{}
 
