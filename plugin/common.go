@@ -14,13 +14,14 @@ import (
 // ── App metadata ─────────────────────────────────────────────────────
 
 // Version is set at build time via -ldflags "-X codeberg.org/oSoWoSo/SysMan/plugin.Version=<tag>".
-var Version = "dev"
+var Version = "0.001 Alpha"
 
 // App metadata used in the About dialog.
 const (
-	AppAuthor  = "oSoWoSo"
+	AppAuthor  = "zenobit @ oSoWoSo.org"
 	AppLicense = "MIT"
 	AppURL     = "https://codeberg.org/oSoWoSo/SysMan"
+	Usage      = "svman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SERVICEDIR      service dir (default: /etc/sv)\n  SERVICEDESTDIR  enabled services dir (default: /var/service)\n  SYSMAN_LANG  language override (e.g. cs)"
 )
 
 // ── Defaults ─────────────────────────────────────────────────────────
@@ -115,22 +116,16 @@ type ServiceStatus struct {
 	Raw     string // full sv output line
 }
 
-// GetServiceStatus runs `sv status <path>` and parses the output.
-// Only meaningful for enabled services (those with a symlink in destDir).
-func GetServiceStatus(destDir, name string) ServiceStatus {
-	path := filepath.Join(destDir, name)
-	out, _ := exec.Command("sv", "status", path).CombinedOutput()
-	line := strings.TrimSpace(string(out))
+// parseStatusLine parses a single `sv status` output line into ServiceStatus.
+func parseStatusLine(line string) ServiceStatus {
 	s := ServiceStatus{Raw: line}
 	s.Running = strings.HasPrefix(line, "run:")
-	// Extract PID: "(pid 1234)"
 	if i := strings.Index(line, "(pid "); i >= 0 {
 		rest := line[i+5:]
 		if j := strings.Index(rest, ")"); j >= 0 {
 			fmt.Sscanf(rest[:j], "%d", &s.PID) //nolint:errcheck
 		}
 	}
-	// Extract uptime: the token after ") "
 	if i := strings.LastIndex(line, ") "); i >= 0 {
 		rest := strings.TrimSpace(line[i+2:])
 		if j := strings.Index(rest, ";"); j >= 0 {
@@ -139,6 +134,40 @@ func GetServiceStatus(destDir, name string) ServiceStatus {
 		s.Uptime = strings.TrimSpace(rest)
 	}
 	return s
+}
+
+// GetServiceStatus runs `sv status <path>` for a single service.
+// Privilege escalation is used because supervise sockets require root access.
+func GetServiceStatus(destDir, name string) ServiceStatus {
+	path := filepath.Join(destDir, name)
+	args := api.Elevate("sv", "status", path)
+	out, _ := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
+	return parseStatusLine(strings.TrimSpace(string(out)))
+}
+
+// GetAllServiceStatuses fetches the status of all given service names in a
+// single elevated `sv status` invocation.  This causes only one password
+// prompt regardless of how many services are enabled.
+// Returns a map of service name → ServiceStatus.
+func GetAllServiceStatuses(destDir string, names []string) map[string]ServiceStatus {
+	result := make(map[string]ServiceStatus, len(names))
+	if len(names) == 0 {
+		return result
+	}
+	paths := make([]string, len(names))
+	for i, n := range names {
+		paths[i] = filepath.Join(destDir, n)
+	}
+	args := api.Elevate(append([]string{"sv", "status"}, paths...)...)
+	out, _ := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	// sv outputs one line per path in the same order as arguments.
+	for i, line := range lines {
+		if i < len(names) && line != "" {
+			result[names[i]] = parseStatusLine(line)
+		}
+	}
+	return result
 }
 
 // ── Backend interface ─────────────────────────────────────────────────
@@ -162,6 +191,9 @@ type Backend interface {
 	Disable(name string) error
 	// Status returns the live runtime status of an enabled service.
 	Status(name string) ServiceStatus
+	// StatusAll fetches the status of all given services in one elevated call.
+	// Keyed by service name.
+	StatusAll(names []string) map[string]ServiceStatus
 	// Start starts an enabled service.
 	Start(name string) error
 	// Stop stops a running service.
@@ -200,6 +232,9 @@ func (b *RunitBackend) Enable(name string) error {
 func (b *RunitBackend) Disable(name string) error { return DisableService(b.DestDir, name) }
 func (b *RunitBackend) Status(name string) ServiceStatus {
 	return GetServiceStatus(b.DestDir, name)
+}
+func (b *RunitBackend) StatusAll(names []string) map[string]ServiceStatus {
+	return GetAllServiceStatuses(b.DestDir, names)
 }
 func (b *RunitBackend) Start(name string) error    { return svCmd(b.DestDir, name, "start") }
 func (b *RunitBackend) Stop(name string) error     { return svCmd(b.DestDir, name, "stop") }

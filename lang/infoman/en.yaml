@@ -1,0 +1,33 @@
+meta:
+  code: en
+  name: English
+
+strings:
+  app.title: "infoman"
+  app.subtitle: "System Information"
+  app.window: "System Info"
+  tab.name: "System Info"
+
+  about.version: "Version"
+  about.author: "Author"
+  about.license: "License"
+  about.description: "Display system information at a glance.\n\nShows: hostname, OS, kernel version, architecture, CPU model,\nnumber of cores, memory usage, uptime, shell, desktop environment\nand disk usage for /."
+  btn.about: "About"
+  btn.close: "Close"
+
+  info.hostname: "Hostname"
+  info.os: "OS"
+  info.kernel: "Kernel"
+  info.arch: "Arch"
+  info.cpu: "CPU"
+  info.cores: "Cores"
+  info.memory: "Memory"
+  info.memory.fmt: "%s used / %s total"
+  info.uptime: "Uptime"
+  info.shell: "Shell"
+  info.desktop: "Desktop"
+  info.disk: "Disk /"
+  info.disk.fmt: "%s used / %s total"
+
+  status.loading: "Loading…"
+  status.loading_info: "Loading system info…"

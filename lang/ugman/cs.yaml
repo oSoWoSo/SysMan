@@ -1,0 +1,93 @@
+meta:
+  code: cs
+  name: Čeština
+
+strings:
+  app.title: "ugman"
+  app.subtitle: "Správce uživatelů a skupin"
+  app.window: "Uživatelé a skupiny"
+  tab.name: "Uživatelé a skupiny"
+
+  about.version: "Verze"
+  about.author: "Autor"
+  about.license: "Licence"
+  about.description: "Správa uživatelů a skupin v lokálním systému.\n\nDvě záložky: Uživatelé (přihlášení, UID, celé jméno, shell, domov)\na Skupiny (název, GID, členové). Akce: Přidat, Smazat, Vlastnosti,\nZměnit heslo (uživatelé); Přidat, Smazat, Upravit členy (skupiny).\nPro změny je vyžadován root."
+  btn.about: "O aplikaci"
+  btn.close: "Zavřít"
+
+  tab.users: "Uživatelé"
+  tab.groups: "Skupiny"
+
+  col.login: "Přihlášení"
+  col.uid: "UID"
+  col.fullname: "Celé jméno"
+  col.group: "Skupina"
+  col.home: "Domov"
+  col.name: "Název"
+  col.gid: "GID"
+  col.members: "Členové"
+
+  btn.add: "Přidat"
+  btn.delete: "Smazat"
+  btn.properties: "Vlastnosti"
+  btn.password: "Změnit heslo"
+  btn.refresh: "Obnovit"
+  btn.members: "Členové"
+  btn.apply: "Použít"
+  btn.cancel: "Zrušit"
+
+  chk.system_users: "Zobrazit systémové uživatele"
+
+  user.add.title: "Přidat uživatele"
+  user.add.login: "Přihlášení"
+  user.add.fullname: "Celé jméno"
+  user.add.shell: "Shell"
+  user.add.login_ph: "přihlašovací jméno"
+  user.add.fullname_ph: "Celé jméno"
+  user.add.shell_ph: "/bin/bash"
+
+  user.delete.title: "Smazat uživatele"
+  user.delete.rmhome: "Smazat domovský adresář"
+  user.delete.confirm: "Smazat uživatele: %s (UID %d)"
+
+  user.props.title: "Vlastnosti uživatele: %s"
+  user.props.fullname: "Celé jméno"
+  user.props.shell: "Shell"
+
+  user.passwd.title: "Změnit heslo: %s"
+  user.passwd.new: "Nové heslo"
+  user.passwd.confirm: "Potvrdit"
+
+  group.add.title: "Přidat skupinu"
+  group.add.name: "Název"
+  group.add.name_ph: "název skupiny"
+
+  group.delete.title: "Smazat skupinu"
+  group.delete.confirm: "Smazat skupinu: %s (GID %d)"
+
+  group.members.title: "Upravit členy: %s"
+
+  status.refreshed: "Obnoveno"
+  status.user_created: "✓ Uživatel %s vytvořen"
+  status.user_deleted: "✓ Uživatel %s smazán"
+  status.user_updated: "✓ Uživatel %s aktualizován"
+  status.passwd_changed: "✓ Heslo pro %s změněno"
+  status.group_created: "✓ Skupina %s vytvořena"
+  status.group_deleted: "✓ Skupina %s smazána"
+  status.group_updated: "✓ Členové skupiny %s aktualizováni"
+  status.no_user: "Žádný uživatel nevybrán"
+  status.no_group: "Žádná skupina nevybrána"
+  status.passwd_mismatch: "✗ Hesla se neshodují"
+  status.useradd_err: "✗ useradd: "
+  status.userdel_err: "✗ userdel: "
+  status.usermod_err: "✗ usermod: "
+  status.chpasswd_err: "✗ chpasswd: "
+  status.groupadd_err: "✗ groupadd: "
+  status.groupdel_err: "✗ groupdel: "
+  status.groupmod_err: "✗ groupmod: "
+
+  tui.tab.users: "1 Uživatelé"
+  tui.tab.groups: "2 Skupiny"
+  tui.none.users: "(žádní uživatelé)"
+  tui.none.groups: "(žádné skupiny)"
+  tui.help: "↑/↓/j/k: pohyb   r: obnovit   s: systémoví   1/2: záložka   q: konec"

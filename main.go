@@ -32,24 +32,7 @@ func main() {
 		case "--gui", "-g":
 			mode = "gui"
 		case "--help", "-h":
-			fmt.Printf(`svman — %s
-
-%s:
-  svman [--gui]   %s
-  svman --tui     %s
-
-%s:
-  SERVICEDIR      %s  (default: /etc/sv)
-  SERVICEDESTDIR  %s  (default: /var/service)
-  SVMAN_LANG      %s  (cs, en)
-`,
-				plugin.T["app.subtitle"],
-				"Usage", "GUI (default, falls back to TUI when no display)", "TUI terminal",
-				"Environment",
-				"service directory",
-				"enabled services directory",
-				"language override",
-			)
+			fmt.Println(plugin.Usage)
 			os.Exit(0)
 		}
 	}

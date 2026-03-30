@@ -61,7 +61,7 @@ type xbpsModel struct {
 // NewTuiModel creates an initialized xbps TUI model.
 func NewTuiModel(distDir string) tea.Model {
 	ti := textinput.New()
-	ti.Placeholder = "search templates..."
+	ti.Placeholder = t("tui.search.placeholder")
 	m := xbpsModel{
 		distDir: distDir,
 		search:  ti,
@@ -240,7 +240,7 @@ func (m xbpsModel) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.running = true
-		m.status = "Updating bootstrap..."
+		m.status = t("tui.status.bootstrap")
 		dir := ResolveDistDir(m.distDir)
 		return m, xbpsCmd("bootstrap-update", "", dir, "./xbps-src", "bootstrap-update")
 	}
@@ -258,32 +258,32 @@ func (m xbpsModel) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch key.String() {
 	case "b":
 		m.running = true
-		m.status = fmt.Sprintf("Building %s…", name)
+		m.status = fmt.Sprintf(t("tui.status.building"), name)
 		return m, xbpsCmd("build", name, dir, "./xbps-src", "pkg", name)
 
 	case "l":
 		m.running = true
-		m.status = fmt.Sprintf("Linting %s…", name)
+		m.status = fmt.Sprintf(t("tui.status.linting"), name)
 		return m, xbpsCmd("lint", name, dir, "xlint", name)
 
 	case "s":
 		m.running = true
-		m.status = fmt.Sprintf("Checksum %s…", name)
+		m.status = fmt.Sprintf(t("tui.status.checksum"), name)
 		return m, xbpsCmd("checksum", name, dir, "xgensum", "-i", name)
 
 	case "a":
 		m.running = true
-		m.status = fmt.Sprintf("Bumping %s…", name)
+		m.status = fmt.Sprintf(t("tui.status.bumping"), name)
 		return m, xbpsCmd("bump", name, dir, "xxautobump", name)
 
 	case "i":
 		m.running = true
-		m.status = fmt.Sprintf("Installing %s…", name)
+		m.status = fmt.Sprintf(t("tui.status.installing"), name)
 		return m, xbpsCmd("install", name, dir, "xi", name)
 
 	case "c":
 		m.running = true
-		m.status = fmt.Sprintf("Cleaning %s…", name)
+		m.status = fmt.Sprintf(t("tui.status.cleaning"), name)
 		return m, xbpsCmd("clean", name, dir, "./xbps-src", "clean", name)
 
 	case "e":
@@ -370,7 +370,7 @@ func (m xbpsModel) View() string {
 		sb.WriteString(xSubtleStyle.Render(fmt.Sprintf("  ↓ %d", remaining)) + "\n")
 	}
 	if len(list) == 0 {
-		sb.WriteString(xSubtleStyle.Render("  (no templates found)") + "\n")
+		sb.WriteString(xSubtleStyle.Render("  "+t("tui.none")) + "\n")
 	}
 	sb.WriteString(divider + "\n")
 
@@ -391,13 +391,11 @@ func (m xbpsModel) View() string {
 	// ── Help ──────────────────────────────────────────────────────────
 	switch {
 	case m.running:
-		sb.WriteString(xWarnStyle.Render("  ⏳ Running…") + "\n")
+		sb.WriteString(xWarnStyle.Render("  "+t("tui.running")) + "\n")
 	case narrow:
-		sb.WriteString(xHelpStyle.Render("  b=build  l=lint  i=install  e=edit  /=search  q=quit") + "\n")
+		sb.WriteString(xHelpStyle.Render("  "+t("tui.help.simple")) + "\n")
 	default:
-		sb.WriteString(xHelpStyle.Render(
-			"  b=build  l=lint  s=sum  a=bump  i=install  c=clean  e=edit  h=homepage  p=repology  u=update  /=search  r=reload  q=quit",
-		) + "\n")
+		sb.WriteString(xHelpStyle.Render("  "+t("tui.help.full")) + "\n")
 	}
 
 	// ── Command output (last lines) ───────────────────────────────────

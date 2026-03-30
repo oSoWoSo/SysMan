@@ -1,14 +1,4 @@
 // Command xbps is a standalone xbps-src template manager (GUI + TUI).
-//
-// Usage:
-//
-//	xbps           # GUI (default)
-//	xbps --gui     # GUI explicitly
-//	xbps --tui     # TUI (terminal)
-//
-// Environment:
-//
-//	XBPS_DISTDIR   void-packages directory (default: ~/void)
 package main
 
 import (
@@ -19,7 +9,7 @@ import (
 )
 
 func main() {
-	distDir := os.Getenv("XBPS_DISTDIR") // xbpssrc resolves ~/void if empty
+	distDir := os.Getenv("XBPS_DISTDIR")
 
 	mode := "auto"
 	for _, arg := range os.Args[1:] {
@@ -29,7 +19,7 @@ func main() {
 		case "--gui", "-g":
 			mode = "gui"
 		case "--help", "-h":
-			fmt.Printf("xbps — xbps-src template manager\n\nUsage:\n  xbps [--gui|--tui]\n\nEnvironment:\n  XBPS_DISTDIR  void-packages directory (default: ~/void)\n")
+			fmt.Println(xbpssrc.Usage)
 			os.Exit(0)
 		}
 	}
@@ -45,7 +35,7 @@ func main() {
 	}
 
 	if mode == "gui" && !hasDisplay {
-		fmt.Fprintln(os.Stderr, "xbps: no display available, falling back to TUI")
+		fmt.Fprintln(os.Stderr, "srcman: no display available, falling back to TUI")
 		mode = "tui"
 	}
 

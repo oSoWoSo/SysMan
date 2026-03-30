@@ -6,6 +6,7 @@ package xbpssrc
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +19,9 @@ import (
 
 // DefaultDistDir signals that the directory should be resolved at runtime.
 const DefaultDistDir = ""
+
+// Usage is the --help text for srcman.
+const Usage = "srcman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  XBPS_DISTDIR  void-packages dir (default: ~/void)\n  SYSMAN_LANG  language override (e.g. cs)"
 
 // Template represents a single xbps-src package template (one srcpkgs/<name>/ directory).
 type Template struct {
@@ -54,7 +58,8 @@ func ResolveDistDir(dir string) string {
 
 // ── Template loading ──────────────────────────────────────────────────
 
-// LoadTemplates scans srcpkgs/ in distDir and returns a sorted list of templates.
+// LoadTemplates scans srcpkgs/ in distDir and returns templates sorted by
+// the modification time of their template file (newest first).
 // Returns nil if the directory cannot be read.
 func LoadTemplates(distDir string) []Template {
 	srcDir := filepath.Join(ResolveDistDir(distDir), "srcpkgs")
@@ -62,13 +67,27 @@ func LoadTemplates(distDir string) []Template {
 	if err != nil {
 		return nil
 	}
-	var out []Template
+	type entry struct {
+		name    string
+		modTime int64 // Unix nano
+	}
+	var raw []entry
 	for _, e := range entries {
-		if e.IsDir() {
-			out = append(out, Template{Name: e.Name()})
+		if !e.IsDir() {
+			continue
+		}
+		tplPath := filepath.Join(srcDir, e.Name(), "template")
+		if info, err := os.Stat(tplPath); err == nil {
+			raw = append(raw, entry{e.Name(), info.ModTime().UnixNano()})
+		} else {
+			raw = append(raw, entry{e.Name(), 0})
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	sort.Slice(raw, func(i, j int) bool { return raw[i].modTime > raw[j].modTime })
+	out := make([]Template, len(raw))
+	for i, r := range raw {
+		out[i] = Template{Name: r.name}
+	}
 	return out
 }
 
@@ -142,6 +161,13 @@ func RunXbps(distDir string, args ...string) (string, error) {
 // streaming each output line to w in real-time (pass nil to skip streaming).
 // Returns combined output and any error.
 func RunXbpsStream(distDir string, w io.Writer, args ...string) (string, error) {
+	return RunXbpsStreamCtx(context.Background(), distDir, w, args...)
+}
+
+// RunXbpsStreamCtx is like RunXbpsStream but honours a context for cancellation.
+// It puts the child process in its own process group so that cancellation kills
+// the whole group (including grandchildren spawned by shell scripts).
+func RunXbpsStreamCtx(ctx context.Context, distDir string, w io.Writer, args ...string) (string, error) {
 	dir := ResolveDistDir(distDir)
 	pr, pw, err := os.Pipe()
 	if err != nil {
@@ -151,14 +177,24 @@ func RunXbpsStream(distDir string, w io.Writer, args ...string) (string, error) 
 	cmd.Dir = dir
 	cmd.Stdout = pw
 	cmd.Stderr = pw
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		pw.Close()
 		pr.Close()
 		return "", err
 	}
 	pw.Close()
+
+	// Kill the whole process group when context is cancelled.
+	pgid := cmd.Process.Pid
+	go func() {
+		<-ctx.Done()
+		_ = syscall.Kill(-pgid, syscall.SIGKILL)
+	}()
+
 	var buf strings.Builder
 	scanner := bufio.NewScanner(pr)
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		buf.WriteString(line + "\n")
@@ -168,6 +204,9 @@ func RunXbpsStream(distDir string, w io.Writer, args ...string) (string, error) 
 	}
 	pr.Close()
 	err = cmd.Wait()
+	if ctx.Err() != nil {
+		return strings.TrimSpace(buf.String()), ctx.Err()
+	}
 	return strings.TrimSpace(buf.String()), err
 }
 
@@ -187,4 +226,9 @@ func OpenEditor(distDir, name string) {
 func OpenBrowser(url string) {
 	cmd := exec.Command("xdg-open", url) //nolint:gosec
 	_ = cmd.Start()
+}
+
+// RunXlocate runs "xlocate <query>" and returns its output.
+func RunXlocate(query string) (string, error) {
+	return RunXbpsStream("", nil, "xlocate", query)
 }

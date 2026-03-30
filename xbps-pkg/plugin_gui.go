@@ -8,10 +8,15 @@ import (
 	"net/url"
 	"strings"
 
+	"image/color"
+
 	"codeberg.org/oSoWoSo/SysMan/api"
+	svman "codeberg.org/oSoWoSo/SysMan/plugin"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -19,25 +24,31 @@ import (
 
 // Content builds the Fyne widget tree for embedding in a parent application.
 // Implements api.PluginIF.
-func (p *Plugin) Content(_ fyne.Window) fyne.CanvasObject {
-	g := &pkgGuiApp{backend: p.backend}
+func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
+	g := &pkgGuiApp{win: win, backend: p.backend}
 	return g.buildContent(false)
 }
 
 // RunGUI runs the package manager as a standalone Fyne application with a header.
 func RunGUI() {
 	a := app.New()
-	win := a.NewWindow("xbps packages")
-	g := &pkgGuiApp{backend: NewXbpsBackend()}
+	win := a.NewWindow(t("app.window"))
+	g := &pkgGuiApp{win: win, backend: NewXbpsBackend()}
 	win.SetContent(g.buildContent(true))
 	win.Resize(fyne.NewSize(900, 620))
 	win.SetMaster()
+	win.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) {
+		if e.Name == fyne.KeyEscape {
+			a.Quit()
+		}
+	})
 	win.ShowAndRun()
 }
 
 // ── GUI state ──────────────────────────────────────────────────────────
 
 type pkgGuiApp struct {
+	win      fyne.Window
 	backend  PkgBackend
 	packages []Package
 	search   string
@@ -56,6 +67,34 @@ type pkgGuiApp struct {
 	statusBar     *widget.Label
 	btnInstall    *widget.Button
 	btnRemove     *widget.Button
+}
+
+func (g *pkgGuiApp) showAbout() {
+	title := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
+	title.TextSize = 26
+	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	subtitle := canvas.NewText(t("app.subtitle"), color.NRGBA{R: 0x88, G: 0x88, B: 0x88, A: 0xff})
+	subtitle.TextSize = 12
+	infoForm := widget.NewForm(
+		widget.NewFormItem(t("about.version"), widget.NewLabel(svman.Version)),
+		widget.NewFormItem(t("about.author"), widget.NewLabel(svman.AppAuthor)),
+		widget.NewFormItem(t("about.license"), widget.NewLabel(svman.AppLicense)),
+	)
+	repoURL, _ := url.Parse(svman.AppURL)
+	link := widget.NewHyperlink(svman.AppURL, repoURL)
+	descLabel := widget.NewLabel(t("about.description"))
+	descLabel.Wrapping = fyne.TextWrapWord
+	content := container.NewVBox(
+		container.NewCenter(title),
+		container.NewCenter(subtitle),
+		widget.NewSeparator(),
+		infoForm,
+		container.NewCenter(link),
+		widget.NewSeparator(),
+		descLabel,
+	)
+	d := dialog.NewCustom(t("btn.about"), t("btn.close"), content, g.win)
+	d.Show()
 }
 
 func (g *pkgGuiApp) filtered() []Package {
@@ -86,7 +125,7 @@ func (g *pkgGuiApp) reload() {
 	g.selected = -1
 	g.pkgList.Refresh()
 	g.clearDetail()
-	g.statusBar.SetText(fmt.Sprintf("%d packages", len(g.packages)))
+	g.statusBar.SetText(fmt.Sprintf(t("pkg.count"), len(g.packages)))
 }
 
 // reloadAndReselect reloads the package list and re-selects the package named
@@ -109,7 +148,7 @@ func (g *pkgGuiApp) reloadAndReselect(prevName string) {
 	if g.selected == -1 {
 		g.clearDetail()
 	}
-	g.statusBar.SetText(fmt.Sprintf("%d packages", len(g.packages)))
+	g.statusBar.SetText(fmt.Sprintf(t("pkg.count"), len(g.packages)))
 }
 
 func (g *pkgGuiApp) selectedName() string {
@@ -132,11 +171,11 @@ func (g *pkgGuiApp) showDetail(name string) {
 	if g.selected >= 0 && g.selected < len(list) {
 		pkg := list[g.selected]
 		if pkg.Installed {
-			g.detailInstall.SetText("installed")
+			g.detailInstall.SetText(t("pkg.installed"))
 			g.btnInstall.Disable()
 			g.btnRemove.Enable()
 		} else {
-			g.detailInstall.SetText("not installed")
+			g.detailInstall.SetText(t("pkg.not_installed"))
 			g.btnInstall.Enable()
 			g.btnRemove.Disable()
 		}
@@ -224,7 +263,7 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 
 	// ── Search ────────────────────────────────────────────────────────
 	search := widget.NewEntry()
-	search.SetPlaceHolder("Search packages…")
+	search.SetPlaceHolder(t("search.placeholder"))
 	search.OnChanged = func(q string) {
 		g.search = q
 		g.selected = -1
@@ -257,18 +296,21 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		g.clearDetail()
 		highlightFilter(f)
 	}
-	btnFilterAll = widget.NewButton("All", func() { applyFilter(filterAll) })
-	btnFilterInstalled = widget.NewButton("Installed", func() { applyFilter(filterInstalled) })
-	btnFilterAvailable = widget.NewButton("Available", func() { applyFilter(filterAvailable) })
+	btnFilterAll = widget.NewButton(t("filter.all"), func() { applyFilter(filterAll) })
+	btnFilterInstalled = widget.NewButton(t("filter.installed"), func() { applyFilter(filterInstalled) })
+	btnFilterAvailable = widget.NewButton(t("filter.available"), func() { applyFilter(filterAvailable) })
 	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable)
 
 	// ── Package list ──────────────────────────────────────────────────
+	installedColor := color.RGBA{R: 0x44, G: 0xDD, B: 0x77, A: 0xFF} // grn
 	g.pkgList = widget.NewList(
 		func() int { return len(g.filtered()) },
 		func() fyne.CanvasObject {
-			lbl := widget.NewLabel("package-placeholder")
-			lbl.TextStyle = fyne.TextStyle{Monospace: true}
-			return lbl
+			star := canvas.NewText("*", installedColor)
+			star.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+			name := canvas.NewText("package-placeholder", theme.ForegroundColor())
+			name.TextStyle = fyne.TextStyle{Monospace: true}
+			return container.NewHBox(star, name)
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			list := g.filtered()
@@ -276,12 +318,19 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 				return
 			}
 			pkg := list[id]
-			lbl := obj.(*widget.Label)
+			c := obj.(*fyne.Container)
+			star := c.Objects[0].(*canvas.Text)
+			name := c.Objects[1].(*canvas.Text)
 			if pkg.Installed {
-				lbl.SetText("* " + pkg.Name)
+				star.Text = "*"
+				star.Color = installedColor
 			} else {
-				lbl.SetText("  " + pkg.Name)
+				star.Text = " "
+				star.Color = color.Transparent
 			}
+			name.Text = pkg.Name
+			star.Refresh()
+			name.Refresh()
 		},
 	)
 	g.pkgList.OnSelected = func(id widget.ListItemID) {
@@ -316,29 +365,29 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	g.detailHome.Hide()
 
 	detailForm := widget.NewForm(
-		widget.NewFormItem("Name", g.detailName),
-		widget.NewFormItem("Status", g.detailInstall),
-		widget.NewFormItem("Version", g.detailVer),
-		widget.NewFormItem("Description", g.detailDesc),
-		widget.NewFormItem("Homepage", g.detailHome),
+		widget.NewFormItem(t("detail.name"), g.detailName),
+		widget.NewFormItem(t("detail.status"), g.detailInstall),
+		widget.NewFormItem(t("detail.version"), g.detailVer),
+		widget.NewFormItem(t("detail.desc"), g.detailDesc),
+		widget.NewFormItem(t("detail.homepage"), g.detailHome),
 	)
 
 	// ── Action buttons ────────────────────────────────────────────────
-	g.btnInstall = widget.NewButtonWithIcon("Install", theme.DownloadIcon(), func() {
+	g.btnInstall = widget.NewButtonWithIcon(t("btn.install"), theme.DownloadIcon(), func() {
 		if name := g.selectedName(); name != "" {
 			g.runOp("install "+name, func(w io.Writer) (string, error) { return g.backend.Install([]string{name}, w) })
 		}
 	})
 	g.btnInstall.Importance = widget.HighImportance
 
-	g.btnRemove = widget.NewButtonWithIcon("Remove", theme.DeleteIcon(), func() {
+	g.btnRemove = widget.NewButtonWithIcon(t("btn.remove"), theme.DeleteIcon(), func() {
 		if name := g.selectedName(); name != "" {
 			g.runOp("remove "+name, func(w io.Writer) (string, error) { return g.backend.Remove([]string{name}, w) })
 		}
 	})
 	g.btnRemove.Importance = widget.DangerImportance
 
-	btnUpdate := widget.NewButtonWithIcon("Update all", theme.UploadIcon(), func() {
+	btnUpdate := widget.NewButtonWithIcon(t("btn.update_all"), theme.UploadIcon(), func() {
 		g.runOp("update", func(w io.Writer) (string, error) { return g.backend.Update(w) })
 	})
 	btnUpdate.Importance = widget.MediumImportance
@@ -351,10 +400,12 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	actionRow := container.NewHBox(g.btnInstall, g.btnRemove, layout.NewSpacer(), btnUpdate)
 
 	// ── Status bar ────────────────────────────────────────────────────
-	g.statusBar = widget.NewLabel("Loading…")
+	g.statusBar = widget.NewLabel(t("pkg.loading"))
 	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
-	statusBar := container.NewHBox(btnReload, g.statusBar, layout.NewSpacer())
+	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { g.showAbout() })
+	btnAbout.Importance = widget.LowImportance
+	statusBar := container.NewHBox(btnAbout, btnReload, g.statusBar, layout.NewSpacer())
 
 	rightTop := container.NewVBox(detailForm, widget.NewSeparator(), actionRow, widget.NewSeparator())
 	rightPanel := container.NewBorder(rightTop, nil, nil, nil, g.outputScroll)
@@ -373,7 +424,7 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 
 	var header fyne.CanvasObject
 	if showHeader {
-		title := widget.NewLabel("xbps packages")
+		title := widget.NewLabel(t("app.window"))
 		title.TextStyle = fyne.TextStyle{Bold: true}
 		header = container.NewVBox(container.NewPadded(title), widget.NewSeparator())
 	}

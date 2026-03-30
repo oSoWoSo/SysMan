@@ -21,10 +21,15 @@ import (
 	"os"
 	"path/filepath"
 	goplugin "plugin"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -155,15 +160,112 @@ func runGUI(plugins []api.PluginIF) {
 	a := app.New()
 	win := a.NewWindow("System Manager")
 
-	tabs := make([]*container.TabItem, len(plugins))
+	// Build content panels for each plugin + settings.
+	contents := make([]fyne.CanvasObject, len(plugins))
 	for i, p := range plugins {
-		tabs[i] = container.NewTabItem(p.Name(), p.Content(win))
+		contents[i] = p.Content(win)
+	}
+	settingsContent := buildSettingsContent(win)
+	allContent := append(contents, settingsContent)
+
+	// Show only the active panel.
+	show := func(idx int) {
+		for i, c := range allContent {
+			if i == idx {
+				c.Show()
+			} else {
+				c.Hide()
+			}
+		}
 	}
 
-	win.SetContent(container.NewAppTabs(tabs...))
+	// Hide all except first on startup.
+	for i, c := range allContent {
+		if i != 0 {
+			c.Hide()
+		}
+	}
+	stack := container.NewStack(allContent...)
+
+	// Build tab bar: plugin buttons left, spacer, settings icon right.
+	var tabBtns []*widget.Button
+	barItems := make([]fyne.CanvasObject, 0, len(plugins)+2)
+	for i, p := range plugins {
+		idx := i
+		btn := widget.NewButton(p.Name(), func() {
+			show(idx)
+			for j, b := range tabBtns {
+				if j == idx {
+					b.Importance = widget.HighImportance
+				} else {
+					b.Importance = widget.LowImportance
+				}
+				b.Refresh()
+			}
+		})
+		if i == 0 {
+			btn.Importance = widget.HighImportance
+		} else {
+			btn.Importance = widget.LowImportance
+		}
+		tabBtns = append(tabBtns, btn)
+		barItems = append(barItems, btn)
+	}
+	settingsIdx := len(plugins)
+	btnSettingsIcon := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
+		show(settingsIdx)
+		for _, b := range tabBtns {
+			b.Importance = widget.LowImportance
+			b.Refresh()
+		}
+	})
+	btnSettingsIcon.Importance = widget.LowImportance
+	barItems = append(barItems, layout.NewSpacer(), btnSettingsIcon)
+
+	tabBar := container.NewHBox(barItems...)
+	tabBar = container.NewBorder(nil, nil, nil, nil, tabBar) // full width
+
+	win.SetContent(container.NewBorder(
+		container.NewVBox(container.NewPadded(tabBar), widget.NewSeparator()),
+		nil, nil, nil,
+		stack,
+	))
 	win.Resize(fyne.NewSize(1024, 768))
 	win.SetMaster()
 	win.ShowAndRun()
+}
+
+func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
+	cfg := svman.LoadSysManConfig()
+
+	distDirEntry := newFormEntry(cfg.SrcmanDistDir, xbpssrc.DefaultDistDir)
+	searchEngineEntry := newFormEntry(cfg.SrcmanSearchEngine, "https://duckduckgo.com/?q=")
+
+	btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
+		cfg.SrcmanDistDir = strings.TrimSpace(distDirEntry.Text)
+		cfg.SrcmanSearchEngine = strings.TrimSpace(searchEngineEntry.Text)
+		if err := svman.SaveSysManConfig(cfg); err != nil {
+			dialog.ShowError(err, win)
+		}
+	})
+	btnSave.Importance = widget.HighImportance
+
+	form := widget.NewForm(
+		widget.NewFormItem("void-packages dir", distDirEntry),
+		widget.NewFormItem("Search engine URL", searchEngineEntry),
+	)
+
+	return container.NewVBox(
+		container.NewPadded(form),
+		container.NewPadded(btnSave),
+	)
+}
+
+func newFormEntry(value, placeholder string) *widget.Entry {
+	e := widget.NewEntry()
+	e.SetPlaceHolder(placeholder)
+	e.SetText(value)
+	return e
 }
 
 // ── TUI ───────────────────────────────────────────────────────────────

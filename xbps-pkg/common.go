@@ -14,6 +14,9 @@ import (
 	"golang.org/x/term"
 )
 
+// Usage is the --help text for pkgman.
+const Usage = "pkgman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SYSMAN_LANG  language override (e.g. cs)"
+
 // isTTY reports whether stdout is connected to a terminal.
 func isTTY() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))

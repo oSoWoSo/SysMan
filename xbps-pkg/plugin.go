@@ -38,7 +38,7 @@ func NewWithBackend(b PkgBackend) *Plugin { return &Plugin{backend: b} }
 
 // Name returns the plugin display name used in system manager tabs.
 // Implements api.PluginIF.
-func (p *Plugin) Name() string { return "Packages" }
+func (p *Plugin) Name() string { return t("tab.name") }
 
 // Model returns an initialized Bubbletea tea.Model for TUI embedding.
 // Implements api.PluginIF.

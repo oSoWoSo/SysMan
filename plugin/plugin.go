@@ -35,7 +35,7 @@ type Plugin struct {
 
 // Name returns the plugin display name used in system manager tabs.
 // Implements api.PluginIF.
-func (p *Plugin) Name() string { return "Services" }
+func (p *Plugin) Name() string { return t("tab.name") }
 
 // New creates a Plugin using the default runit backend.
 // Use DefaultServiceDir and DefaultServiceDestDir for the standard paths.

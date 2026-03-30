@@ -6,6 +6,7 @@ strings:
   app.title: "svman"
   app.subtitle: "správa runit služeb - Void Linux"
   app.window: "svman — správa runit služeb"
+  tab.name: "Služby"
 
   filter.all: "Vše"
   filter.enabled: "Povolené"
@@ -33,6 +34,7 @@ strings:
   state.stopped: "zastavena"
 
   config.title: "KONFIGURACE"
+  config.reload_hint: "Stiskněte Obnovit pro načtení aktuálního stavu služeb"
 
   btn.enable: "Povolit"
   btn.disable: "Zakázat"
@@ -52,6 +54,7 @@ strings:
   about.version: "Verze"
   about.author: "Autor"
   about.license: "Licence"
+  about.description: "Správa runit služeb na Void Linuxu.\n\nLevý panel: seznam všech služeb s filtrem (Vše / Povolené / Nepovolené)\na vyhledáváním. Pravý panel: detail vybrané služby — stav, PID, uptime,\ncesta ke zdroji. Spodní panel: povolit, zakázat, spustit, zastavit,\nrestartovat, HUP, pozastavit, pokračovat, zabít."
 
   confirm.title: "Potvrdit akci"
   confirm.disable: "Opravdu zakázat '%s'?"
@@ -68,6 +71,7 @@ strings:
   status.continued: "OK: '%s' obnovena"
   status.killed: "OK: '%s' zabita"
   status.reloaded: "seznam obnoven"
+  status.no_root: "stav může být neúplný (neběží jako root)"
   status.err: "CHYBA: "
   status.already.on: "'%s' je již povolena"
   status.already.off: "'%s' není povolena"

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image/color"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -126,10 +127,11 @@ type guiApp struct {
 	win     fyne.Window
 	backend Backend
 
-	services   []Service
-	selected   int
-	searchText string
-	filter     filterMode
+	services    []Service
+	statusCache map[string]ServiceStatus // populated by reload(), read by showDetail
+	selected    int
+	searchText  string
+	filter      filterMode
 
 	serviceList   *widget.List
 	detailName    *widget.Label
@@ -175,6 +177,15 @@ func (s *guiApp) filtered() []Service {
 
 func (s *guiApp) reload() {
 	s.services = s.backend.List()
+	// Collect names of all enabled services and fetch their status in one
+	// elevated call so the user is prompted for a password only once.
+	var enabledNames []string
+	for _, svc := range s.services {
+		if svc.Enabled {
+			enabledNames = append(enabledNames, svc.Name)
+		}
+	}
+	s.statusCache = s.backend.StatusAll(enabledNames)
 	s.serviceList.Refresh()
 	s.updateCount()
 	list := s.filtered()
@@ -232,11 +243,14 @@ func (s *guiApp) showDetail(svc Service) {
 		s.btnPause.Enable()
 		s.btnContinue.Enable()
 		s.btnKill.Enable()
-		// Fetch running status asynchronously
-		go func(name string) {
-			st := s.backend.Status(name)
+		// Use cached status — populated by reload() in one elevated call.
+		if st, ok := s.statusCache[svc.Name]; ok {
 			s.updateRunningStatus(st)
-		}(svc.Name)
+		} else {
+			s.detailRunning.SetText(t("detail.empty"))
+			s.detailPID.SetText(t("detail.empty"))
+			s.detailUptime.SetText(t("detail.empty"))
+		}
 	} else {
 		s.btnDisable.Disable()
 		s.btnStart.Disable()
@@ -250,6 +264,18 @@ func (s *guiApp) showDetail(svc Service) {
 		s.detailPID.SetText(t("detail.empty"))
 		s.detailUptime.SetText(t("detail.empty"))
 	}
+}
+
+// refreshOneStatus fetches the current status for name, updates the cache,
+// and refreshes the running-status display.  Used after control actions
+// (start/stop/restart/…) where only one service changes.
+func (s *guiApp) refreshOneStatus(name string) {
+	st := s.backend.Status(name)
+	if s.statusCache == nil {
+		s.statusCache = make(map[string]ServiceStatus)
+	}
+	s.statusCache[name] = st
+	s.updateRunningStatus(st)
 }
 
 func (s *guiApp) updateRunningStatus(st ServiceStatus) {
@@ -292,12 +318,17 @@ func (s *guiApp) showAbout() {
 	repoURL, _ := url.Parse(AppURL)
 	link := widget.NewHyperlink(AppURL, repoURL)
 
+	descLabel := widget.NewLabel(t("about.description"))
+	descLabel.Wrapping = fyne.TextWrapWord
+
 	content := container.NewVBox(
 		container.NewCenter(title),
 		container.NewCenter(subtitle),
 		widget.NewSeparator(),
 		infoForm,
 		container.NewCenter(link),
+		widget.NewSeparator(),
+		descLabel,
 	)
 
 	d := dialog.NewCustom(t("menu.about"), t("btn.close"), content, s.win)
@@ -466,9 +497,17 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnDisable.Importance = widget.DangerImportance
 
-	btnReload := widget.NewButtonWithIcon(t("btn.reload"), theme.ViewRefreshIcon(), func() {
+	reloadIcon := fyne.Resource(theme.ViewRefreshIcon())
+	if os.Getuid() != 0 {
+		reloadIcon = theme.NewWarningThemedResource(theme.ViewRefreshIcon())
+	}
+	btnReload := widget.NewButtonWithIcon(t("btn.reload"), reloadIcon, func() {
 		s.reload()
-		s.setStatus(t("status.reloaded"))
+		if os.Getuid() != 0 {
+			s.setStatus(t("status.reloaded") + " ⚠ " + t("status.no_root"))
+		} else {
+			s.setStatus(t("status.reloaded"))
+		}
 	})
 
 	// ── sv control buttons ───────────────────────────────────────────
@@ -484,8 +523,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 				return
 			}
 			s.setStatus(fmt.Sprintf(t("status.started"), name))
-			st := s.backend.Status(name)
-			s.updateRunningStatus(st)
+			s.refreshOneStatus(name)
 		}()
 	})
 	s.btnStart.Importance = widget.SuccessImportance
@@ -516,7 +554,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnStop.Importance = widget.DangerImportance
 
-	s.btnRestart = widget.NewButton(t("btn.restart"), func() {
+	s.btnRestart = widget.NewButtonWithIcon(t("btn.restart"), theme.ViewRefreshIcon(), func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -528,12 +566,11 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 				return
 			}
 			s.setStatus(fmt.Sprintf(t("status.restarted"), name))
-			st := s.backend.Status(name)
-			s.updateRunningStatus(st)
+			s.refreshOneStatus(name)
 		}()
 	})
 
-	s.btnHup = widget.NewButton(t("btn.hup"), func() {
+	s.btnHup = widget.NewButtonWithIcon(t("btn.hup"), theme.MailSendIcon(), func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -545,12 +582,11 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 				return
 			}
 			s.setStatus(fmt.Sprintf(t("status.hupped"), name))
-			st := s.backend.Status(name)
-			s.updateRunningStatus(st)
+			s.refreshOneStatus(name)
 		}()
 	})
 
-	s.btnPause = widget.NewButton(t("btn.pause"), func() {
+	s.btnPause = widget.NewButtonWithIcon(t("btn.pause"), theme.MediaPauseIcon(), func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -562,12 +598,11 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 				return
 			}
 			s.setStatus(fmt.Sprintf(t("status.paused"), name))
-			st := s.backend.Status(name)
-			s.updateRunningStatus(st)
+			s.refreshOneStatus(name)
 		}()
 	})
 
-	s.btnContinue = widget.NewButton(t("btn.continue"), func() {
+	s.btnContinue = widget.NewButtonWithIcon(t("btn.continue"), theme.MediaPlayIcon(), func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -579,8 +614,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 				return
 			}
 			s.setStatus(fmt.Sprintf(t("status.continued"), name))
-			st := s.backend.Status(name)
-			s.updateRunningStatus(st)
+			s.refreshOneStatus(name)
 		}()
 	})
 
@@ -642,6 +676,10 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	configTitle := canvas.NewText(t("config.title"), colorMuted)
 	configTitle.TextStyle = fyne.TextStyle{Monospace: true}
 
+	reloadHint := widget.NewLabel(t("config.reload_hint"))
+	reloadHint.TextStyle = fyne.TextStyle{Italic: true}
+	reloadHint.Importance = widget.WarningImportance
+
 	rightPanel := container.NewVBox(
 		detailTitle,
 		widget.NewSeparator(),
@@ -652,6 +690,8 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		widget.NewSeparator(),
 		configTitle,
 		dirInfo,
+		widget.NewSeparator(),
+		reloadHint,
 	)
 
 	leftTop := container.NewVBox(search, filterRow, s.countLabel, widget.NewSeparator())
@@ -691,5 +731,10 @@ func RunGUI(serviceDir, serviceDestDir string) {
 	win.SetContent(g.buildContent(true))
 	win.Resize(fyne.NewSize(860, 560))
 	win.SetMaster()
+	win.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) {
+		if e.Name == fyne.KeyEscape {
+			a.Quit()
+		}
+	})
 	win.ShowAndRun()
 }

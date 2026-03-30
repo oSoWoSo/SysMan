@@ -1,0 +1,93 @@
+meta:
+  code: en
+  name: English
+
+strings:
+  app.title: "ugman"
+  app.subtitle: "Users & Groups Manager"
+  app.window: "Users & Groups"
+  tab.name: "Users & Groups"
+
+  about.version: "Version"
+  about.author: "Author"
+  about.license: "License"
+  about.description: "Manage users and groups on the local system.\n\nTwo tabs: Users (login, UID, full name, shell, home) and Groups\n(name, GID, members). Actions: Add, Delete, Properties, Change password\n(users); Add, Delete, Edit members (groups). Requires root for changes."
+  btn.about: "About"
+  btn.close: "Close"
+
+  tab.users: "Users"
+  tab.groups: "Groups"
+
+  col.login: "Login"
+  col.uid: "UID"
+  col.fullname: "Full Name"
+  col.group: "Group"
+  col.home: "Home"
+  col.name: "Name"
+  col.gid: "GID"
+  col.members: "Members"
+
+  btn.add: "Add"
+  btn.delete: "Delete"
+  btn.properties: "Properties"
+  btn.password: "Change Password"
+  btn.refresh: "Refresh"
+  btn.members: "Members"
+  btn.apply: "Apply"
+  btn.cancel: "Cancel"
+
+  chk.system_users: "Show system users"
+
+  user.add.title: "Add User"
+  user.add.login: "Login"
+  user.add.fullname: "Full Name"
+  user.add.shell: "Shell"
+  user.add.login_ph: "login name"
+  user.add.fullname_ph: "Full Name"
+  user.add.shell_ph: "/bin/bash"
+
+  user.delete.title: "Delete User"
+  user.delete.rmhome: "Remove home directory"
+  user.delete.confirm: "Delete user: %s (UID %d)"
+
+  user.props.title: "User Properties: %s"
+  user.props.fullname: "Full Name"
+  user.props.shell: "Shell"
+
+  user.passwd.title: "Change Password: %s"
+  user.passwd.new: "New password"
+  user.passwd.confirm: "Confirm"
+
+  group.add.title: "Add Group"
+  group.add.name: "Name"
+  group.add.name_ph: "group name"
+
+  group.delete.title: "Delete Group"
+  group.delete.confirm: "Delete group: %s (GID %d)"
+
+  group.members.title: "Edit Members: %s"
+
+  status.refreshed: "Refreshed"
+  status.user_created: "✓ User %s created"
+  status.user_deleted: "✓ User %s deleted"
+  status.user_updated: "✓ User %s updated"
+  status.passwd_changed: "✓ Password for %s changed"
+  status.group_created: "✓ Group %s created"
+  status.group_deleted: "✓ Group %s deleted"
+  status.group_updated: "✓ Group %s members updated"
+  status.no_user: "No user selected"
+  status.no_group: "No group selected"
+  status.passwd_mismatch: "✗ Passwords do not match"
+  status.useradd_err: "✗ useradd: "
+  status.userdel_err: "✗ userdel: "
+  status.usermod_err: "✗ usermod: "
+  status.chpasswd_err: "✗ chpasswd: "
+  status.groupadd_err: "✗ groupadd: "
+  status.groupdel_err: "✗ groupdel: "
+  status.groupmod_err: "✗ groupmod: "
+
+  tui.tab.users: "1 Users"
+  tui.tab.groups: "2 Groups"
+  tui.none.users: "(no users)"
+  tui.none.groups: "(no groups)"
+  tui.help: "↑/↓/j/k: navigate   r: refresh   s: toggle system   1/2: tab   q: quit"

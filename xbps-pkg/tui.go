@@ -96,7 +96,7 @@ func NewTuiModel() tea.Model {
 // Use this to embed the plugin with a custom package manager.
 func NewTuiModelWithBackend(b PkgBackend) tea.Model {
 	ti := textinput.New()
-	ti.Placeholder = "search packages..."
+	ti.Placeholder = t("tui.search.placeholder")
 	return pkgModel{
 		backend: b,
 		search:  ti,
@@ -302,7 +302,7 @@ func (m pkgModel) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "r": // reload
 		m.loading = true
-		m.status = "Reloading..."
+		m.status = t("tui.status.reloading")
 		return m, m.loadPackagesCmd()
 	}
 
@@ -317,7 +317,7 @@ func (m pkgModel) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.running = true
-		m.status = fmt.Sprintf("Installing %s…", strings.Join(names, ", "))
+		m.status = fmt.Sprintf(t("tui.status.installing"), strings.Join(names, ", "))
 		m.marked = make(map[string]bool)
 		return m, m.pkgInstallCmd(names)
 
@@ -327,13 +327,13 @@ func (m pkgModel) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.running = true
-		m.status = fmt.Sprintf("Removing %s…", strings.Join(names, ", "))
+		m.status = fmt.Sprintf(t("tui.status.removing"), strings.Join(names, ", "))
 		m.marked = make(map[string]bool)
 		return m, m.pkgRemoveCmd(names)
 
 	case "u": // update all packages
 		m.running = true
-		m.status = "Updating all packages…"
+		m.status = t("tui.status.updating")
 		return m, m.pkgUpdateCmd()
 	}
 
@@ -417,10 +417,10 @@ func (m pkgModel) View() string {
 	divider := pSubtleStyle.Render(strings.Repeat("─", w))
 
 	// ── Title ─────────────────────────────────────────────────────────
-	title := pTitleStyle.Render("xbps packages")
+	title := pTitleStyle.Render(t("app.window"))
 	title += "  " + pSubtleStyle.Render("["+m.filter.String()+"]")
 	if m.loading {
-		title += "  " + pWarnStyle.Render("loading…")
+		title += "  " + pWarnStyle.Render(t("tui.loading"))
 	}
 	if m.searchMode {
 		title += "  " + m.search.View()
@@ -428,7 +428,7 @@ func (m pkgModel) View() string {
 		title += "  " + pSubtleStyle.Render("/"+m.search.Value())
 	}
 	if len(m.marked) > 0 {
-		title += "  " + pWarnStyle.Render(fmt.Sprintf("[%d marked]", len(m.marked)))
+		title += "  " + pWarnStyle.Render(fmt.Sprintf(t("tui.marked"), len(m.marked)))
 	}
 
 	var sb strings.Builder
@@ -490,7 +490,7 @@ func (m pkgModel) View() string {
 		sb.WriteString(pSubtleStyle.Render(fmt.Sprintf("  ↓ %d", remaining)) + "\n")
 	}
 	if len(list) == 0 && !m.loading {
-		sb.WriteString(pSubtleStyle.Render("  (no packages found)") + "\n")
+		sb.WriteString(pSubtleStyle.Render("  "+t("tui.none")) + "\n")
 	}
 	sb.WriteString(divider + "\n")
 
@@ -498,7 +498,7 @@ func (m pkgModel) View() string {
 	if m.detail.Name != "" {
 		installed := ""
 		if pkg, ok := m.selectedPkg(); ok && pkg.Installed {
-			installed = "  " + pSuccessStyle.Render("[installed]")
+			installed = "  " + pSuccessStyle.Render(t("tui.installed"))
 		}
 		detail := pTitleStyle.Render(m.detail.Name)
 		if m.detail.Version != "" {
@@ -518,13 +518,11 @@ func (m pkgModel) View() string {
 	// ── Help ──────────────────────────────────────────────────────────
 	switch {
 	case m.running:
-		sb.WriteString(pWarnStyle.Render("  ⏳ Running…") + "\n")
+		sb.WriteString(pWarnStyle.Render("  "+t("tui.running")) + "\n")
 	case narrow:
-		sb.WriteString(pHelpStyle.Render("  i=install  d=remove  u=update all  space=mark  tab=filter  /=search  q=quit") + "\n")
+		sb.WriteString(pHelpStyle.Render("  "+t("tui.help.simple")) + "\n")
 	default:
-		sb.WriteString(pHelpStyle.Render(
-			"  i=install  d=remove  u=update all  space=mark  tab=filter  /=search  h=homepage  r=reload  q=quit",
-		) + "\n")
+		sb.WriteString(pHelpStyle.Render("  "+t("tui.help.full")) + "\n")
 	}
 
 	// ── Output (last command) ─────────────────────────────────────────

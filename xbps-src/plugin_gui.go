@@ -11,6 +11,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	g := &xbpsGuiApp{
 		win:      win,
 		distDir:  p.distDir,
+		cfg:      LoadConfig(),
 		selected: -1,
 	}
 	g.templates = LoadTemplates(p.distDir)

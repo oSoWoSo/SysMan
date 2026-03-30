@@ -1,9 +1,19 @@
-// Command xbps is a standalone Void Linux package manager TUI.
-// It provides package search, install, and removal via xbps-query/xbps-install/xbps-remove.
+// Command pkgman-tui is a standalone TUI for the xbps package manager.
 package main
 
-import xbpspkg "codeberg.org/oSoWoSo/SysMan/xbps-pkg"
+import (
+	"fmt"
+	"os"
+
+	xbpspkg "codeberg.org/oSoWoSo/SysMan/xbps-pkg"
+)
 
 func main() {
+	for _, arg := range os.Args[1:] {
+		if arg == "--help" || arg == "-h" {
+			fmt.Println(xbpspkg.Usage)
+			os.Exit(0)
+		}
+	}
 	xbpspkg.RunTUI()
 }
