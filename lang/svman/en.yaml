@@ -87,3 +87,15 @@ strings:
 
   action.enable: "enter/space = enable"
   action.disable: "enter/space = disable"
+
+  tooltip.enable: "Enable service to start on boot"
+  tooltip.disable: "Disable service from starting on boot"
+  tooltip.reload: "Reload service list"
+  tooltip.start: "Start the service"
+  tooltip.stop: "Stop the service"
+  tooltip.restart: "Restart the service"
+  tooltip.hup: "Send HUP signal to reload configuration"
+  tooltip.pause: "Pause the service"
+  tooltip.continue: "Continue the service"
+  tooltip.kill: "Kill the service (SIGKILL)"
+  tooltip.about: "About this application"

@@ -48,3 +48,9 @@ strings:
   tui.status.updating: "Updating all packages…"
   tui.help.simple: "i=install  d=remove  u=update all  space=mark  tab=filter  /=search  q=quit"
   tui.help.full: "i=install  d=remove  u=update all  space=mark  tab=filter  /=search  h=homepage  r=reload  q=quit"
+
+  tooltip.install: "Install selected package"
+  tooltip.remove: "Remove selected package"
+  tooltip.update_all: "Update all packages"
+  tooltip.reload: "Reload package database"
+  tooltip.about: "About this application"

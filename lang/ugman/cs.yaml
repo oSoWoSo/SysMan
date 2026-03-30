@@ -91,3 +91,13 @@ strings:
   tui.none.users: "(žádní uživatelé)"
   tui.none.groups: "(žádné skupiny)"
   tui.help: "↑/↓/j/k: pohyb   r: obnovit   s: systémoví   1/2: záložka   q: konec"
+
+  tooltip.add_user: "Přidat nového uživatele"
+  tooltip.delete_user: "Smazat vybraného uživatele"
+  tooltip.user_properties: "Upravit vlastnosti uživatele"
+  tooltip.change_password: "Změnit heslo uživatele"
+  tooltip.add_group: "Přidat novou skupinu"
+  tooltip.delete_group: "Smazat vybranou skupinu"
+  tooltip.edit_members: "Upravit členy skupiny"
+  tooltip.refresh: "Obnovit seznam uživatelů a skupin"
+  tooltip.about: "O této aplikaci"
