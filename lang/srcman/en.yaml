@@ -21,6 +21,8 @@ strings:
   detail.desc: "Description"
 
   btn.build: "Build"
+  btn.build_q: "Qbuild"
+  btn.build_c: "Cbuild"
   btn.stop: "Stop"
   btn.install: "Install"
   btn.clean: "Clean"
@@ -69,3 +71,12 @@ strings:
   tui.running: "⏳ Running…"
   tui.help.simple: "b=build  l=lint  i=install  e=edit  /=search  q=quit"
   tui.help.full: "b=build  l=lint  s=sum  a=bump  i=install  c=clean  e=edit  h=homepage  p=repology  u=update  /=search  r=reload  q=quit"
+
+  tooltip.build: "Build package (select mode with radio buttons above)"
+  tooltip.build_q: "Build with tests (-Q flag)"
+  tooltip.build_c: "Build with confpkg (-C flag)"
+  tooltip.clean: "Clean build artifacts"
+  tooltip.install: "Install package with xi"
+  tooltip.homepage: "Open package homepage in browser"
+  tooltip.repology: "Search package on repology.org"
+  tooltip.bootstrap: "Update void-packages bootstrap"

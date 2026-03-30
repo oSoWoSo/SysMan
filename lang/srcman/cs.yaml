@@ -21,6 +21,8 @@ strings:
   detail.desc: "Popis"
 
   btn.build: "Sestavit"
+  btn.build_q: "Qsestavit"
+  btn.build_c: "Csestavit"
   btn.stop: "Zastavit"
   btn.install: "Instalovat"
   btn.clean: "Vyčistit"
@@ -69,3 +71,12 @@ strings:
   tui.running: "⏳ Probíhá…"
   tui.help.simple: "b=sestavit  l=lint  i=instalovat  e=editovat  /=hledat  q=konec"
   tui.help.full: "b=sestavit  l=lint  s=součet  a=zvýšit  i=instalovat  c=vyčistit  e=editovat  h=web  p=repology  u=aktualizovat  /=hledat  r=obnovit  q=konec"
+
+  tooltip.build: "Sestavit balíček (vyberte režim pomocí radio tlačítek)"
+  tooltip.build_q: "Sestavit s testy (příznak -Q)"
+  tooltip.build_c: "Sestavit s confpkg (příznak -C)"
+  tooltip.clean: "Vyčistit build artefakty"
+  tooltip.install: "Instalovat balíček pomocí xi"
+  tooltip.homepage: "Otevřít domovskou stránku balíčku v prohlížeči"
+  tooltip.repology: "Hledat balíček na repology.org"
+  tooltip.bootstrap: "Aktualizovat void-packages bootstrap"

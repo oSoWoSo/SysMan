@@ -44,6 +44,7 @@ type xbpsGuiApp struct {
 	btnBuild   *widget.Button
 	btnInstall *widget.Button
 	btnClean   *widget.Button
+	buildMode  string // "" = default, "-Q" = with tests, "-C" = with confpkg
 	btnBack    *widget.Button
 	btnFwd     *widget.Button
 
@@ -545,6 +546,23 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		widget.NewFormItem(t("detail.desc"), g.detailDesc),
 	)
 
+	// Build mode selection: default, -Q (with tests), -C (confpkg)
+	buildModes := []string{"", "-Q", "-C"}
+	buildModeLabels := []string{t("btn.build"), "Qbuild", "Cbuild"}
+	buildModeGroup := &widget.RadioGroup{}
+	buildModeGroup.Options = buildModeLabels
+	buildModeGroup.Horizontal = true
+	buildModeGroup.OnChanged = func(selected string) {
+		for i, l := range buildModeLabels {
+			if l == selected {
+				g.buildMode = buildModes[i]
+				break
+			}
+		}
+	}
+	buildModeGroup.SetSelected(buildModeLabels[0])
+
+	// Build button
 	g.btnBuild = widget.NewButtonWithIcon(t("btn.build"), theme.MediaPlayIcon(), func() {
 		if g.buildCancel != nil {
 			g.buildCancel()
@@ -554,19 +572,26 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		if name == "" {
 			return
 		}
-		g.runCmdCtx(true, "build", "./xbps-src", "pkg", name)
+		args := []string{"./xbps-src", "pkg"}
+		if g.buildMode != "" {
+			args = append(args, g.buildMode)
+		}
+		args = append(args, name)
+		g.runCmdCtx(true, "build", args...)
 	})
 	g.btnBuild.Importance = widget.HighImportance
 
-	g.btnInstall = widget.NewButtonWithIcon(t("btn.install"), theme.DownloadIcon(), func() {
-		if name := g.selectedName(); name != "" {
-			g.runCmd("install", "xi", name)
-		}
-	})
-
+	// Clean button
 	g.btnClean = widget.NewButtonWithIcon(t("btn.clean"), theme.DeleteIcon(), func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("clean", "./xbps-src", "clean", name)
+		}
+	})
+
+	// Install button - moved after Clean
+	g.btnInstall = widget.NewButtonWithIcon(t("btn.install"), theme.DownloadIcon(), func() {
+		if name := g.selectedName(); name != "" {
+			g.runCmd("install", "xi", name)
 		}
 	})
 
@@ -593,7 +618,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	btnBootstrap.Importance = widget.LowImportance
 
 	actionRow1 := container.NewHBox(btnBootstrap, layout.NewSpacer(), btnHomepage, btnRepology)
-	actionRow2 := container.NewHBox(g.btnBuild, layout.NewSpacer(), g.btnInstall, g.btnClean)
+	actionRow2 := container.NewHBox(buildModeGroup, g.btnBuild, layout.NewSpacer(), g.btnClean, g.btnInstall)
 
 	g.output = newOutputPanel(func(sel string, pos fyne.Position) { g.showSelectionMenu(sel, pos) })
 
@@ -714,10 +739,11 @@ func RunGUI(distDir string) {
 	a := app.New()
 	win := a.NewWindow(t("app.window"))
 	g := &xbpsGuiApp{
-		win:      win,
-		distDir:  distDir,
-		cfg:      LoadConfig(),
-		selected: -1,
+		win:       win,
+		distDir:   distDir,
+		cfg:       LoadConfig(),
+		selected:  -1,
+		buildMode: "",
 	}
 	g.templates = LoadTemplates(distDir)
 	win.SetContent(g.buildContent())
