@@ -21,8 +21,6 @@ strings:
   detail.desc: "Popis"
 
   btn.build: "Sestavit"
-  btn.build_q: "Qsestavit"
-  btn.build_c: "Csestavit"
   btn.stop: "Zastavit"
   btn.install: "Instalovat"
   btn.clean: "Vyčistit"

@@ -21,8 +21,6 @@ strings:
   detail.desc: "Description"
 
   btn.build: "Build"
-  btn.build_q: "Qbuild"
-  btn.build_c: "Cbuild"
   btn.stop: "Stop"
   btn.install: "Install"
   btn.clean: "Clean"
