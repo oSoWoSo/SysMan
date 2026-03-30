@@ -546,21 +546,23 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		widget.NewFormItem(t("detail.desc"), g.detailDesc),
 	)
 
-	// Build mode selection: default, -Q (with tests), -C (confpkg)
-	buildModes := []string{"", "-Q", "-C"}
-	buildModeLabels := []string{t("btn.build"), "Qbuild", "Cbuild"}
-	buildModeGroup := &widget.RadioGroup{}
-	buildModeGroup.Options = buildModeLabels
-	buildModeGroup.Horizontal = true
-	buildModeGroup.OnChanged = func(selected string) {
-		for i, l := range buildModeLabels {
-			if l == selected {
-				g.buildMode = buildModes[i]
-				break
-			}
+	// Build options: -Q (with tests), -C (confpkg) - can be used together
+	checkQ := widget.NewCheck("Qbuild", func(checked bool) {
+		if checked {
+			g.buildMode = g.buildMode + " -Q"
+		} else {
+			g.buildMode = strings.ReplaceAll(g.buildMode, " -Q", "")
 		}
-	}
-	buildModeGroup.SetSelected(buildModeLabels[0])
+		g.buildMode = strings.TrimSpace(g.buildMode)
+	})
+	checkC := widget.NewCheck("Cbuild", func(checked bool) {
+		if checked {
+			g.buildMode = g.buildMode + " -C"
+		} else {
+			g.buildMode = strings.ReplaceAll(g.buildMode, " -C", "")
+		}
+		g.buildMode = strings.TrimSpace(g.buildMode)
+	})
 
 	// Build button
 	g.btnBuild = widget.NewButtonWithIcon(t("btn.build"), theme.MediaPlayIcon(), func() {
@@ -573,8 +575,12 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 			return
 		}
 		args := []string{"./xbps-src", "pkg"}
-		if g.buildMode != "" {
-			args = append(args, g.buildMode)
+		// Add flags if any are checked
+		if strings.Contains(g.buildMode, "-Q") {
+			args = append(args, "-Q")
+		}
+		if strings.Contains(g.buildMode, "-C") {
+			args = append(args, "-C")
 		}
 		args = append(args, name)
 		g.runCmdCtx(true, "build", args...)
@@ -618,7 +624,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	btnBootstrap.Importance = widget.LowImportance
 
 	actionRow1 := container.NewHBox(btnBootstrap, layout.NewSpacer(), btnHomepage, btnRepology)
-	actionRow2 := container.NewHBox(buildModeGroup, g.btnBuild, layout.NewSpacer(), g.btnClean, g.btnInstall)
+	actionRow2 := container.NewHBox(checkQ, checkC, g.btnBuild, layout.NewSpacer(), g.btnClean, g.btnInstall)
 
 	g.output = newOutputPanel(func(sel string, pos fyne.Position) { g.showSelectionMenu(sel, pos) })
 
