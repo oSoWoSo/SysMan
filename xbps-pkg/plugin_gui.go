@@ -66,8 +66,8 @@ type pkgGuiApp struct {
 	outputScroll  *container.Scroll
 	highlighter   *api.Highlighter
 	statusBar     *widget.Label
-	btnInstall    *widget.Button
-	btnRemove     *widget.Button
+	btnInstall    *tui.HoverableButton
+	btnRemove     *tui.HoverableButton
 }
 
 func (g *pkgGuiApp) showAbout() {
@@ -367,39 +367,39 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		widget.NewFormItem(t("detail.homepage"), g.detailHome),
 	)
 
-	// ── Action buttons ────────────────────────────────────────────────
-	g.btnInstall = widget.NewButtonWithIcon(t("btn.install"), theme.DownloadIcon(), func() {
-		if name := g.selectedName(); name != "" {
-			g.runOp("install "+name, func(w io.Writer) (string, error) { return g.backend.Install([]string{name}, w) })
-		}
-	})
-	g.btnInstall.Importance = widget.HighImportance
-
-	g.btnRemove = widget.NewButtonWithIcon(t("btn.remove"), theme.DeleteIcon(), func() {
-		if name := g.selectedName(); name != "" {
-			g.runOp("remove "+name, func(w io.Writer) (string, error) { return g.backend.Remove([]string{name}, w) })
-		}
-	})
-	g.btnRemove.Importance = widget.DangerImportance
-
-	btnUpdate := widget.NewButtonWithIcon(t("btn.update_all"), theme.UploadIcon(), func() {
-		g.runOp("update", func(w io.Writer) (string, error) { return g.backend.Update(w) })
-	})
-	btnUpdate.Importance = widget.MediumImportance
-
-	btnReload := widget.NewButtonWithIcon("", theme.ViewRefreshIcon(), func() {
-		g.reload()
-	})
-	btnReload.Importance = widget.LowImportance
-
-	actionRow := container.NewHBox(g.btnInstall, g.btnRemove, layout.NewSpacer(), btnUpdate)
-
 	// ── Status bar ────────────────────────────────────────────────────
 	g.statusBar = widget.NewLabel(t("pkg.loading"))
 	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
-	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { g.showAbout() })
-	btnAbout.Importance = widget.LowImportance
+	// ── Action buttons ────────────────────────────────────────────────
+	g.btnInstall = tui.NewHoverableButton(t("btn.install"), theme.DownloadIcon(), t("tooltip.install"), g.statusBar, func() {
+		if name := g.selectedName(); name != "" {
+			g.runOp("install "+name, func(w io.Writer) (string, error) { return g.backend.Install([]string{name}, w) })
+		}
+	})
+	g.btnInstall.Button.Importance = widget.HighImportance
+
+	g.btnRemove = tui.NewHoverableButton(t("btn.remove"), theme.DeleteIcon(), t("tooltip.remove"), g.statusBar, func() {
+		if name := g.selectedName(); name != "" {
+			g.runOp("remove "+name, func(w io.Writer) (string, error) { return g.backend.Remove([]string{name}, w) })
+		}
+	})
+	g.btnRemove.Button.Importance = widget.DangerImportance
+
+	btnUpdate := tui.NewHoverableButton(t("btn.update_all"), theme.UploadIcon(), t("tooltip.update_all"), g.statusBar, func() {
+		g.runOp("update", func(w io.Writer) (string, error) { return g.backend.Update(w) })
+	})
+	btnUpdate.Button.Importance = widget.MediumImportance
+
+	btnReload := tui.NewHoverableButton("", theme.ViewRefreshIcon(), t("tooltip.reload"), g.statusBar, func() {
+		g.reload()
+	})
+	btnReload.Button.Importance = widget.LowImportance
+
+	actionRow := container.NewHBox(g.btnInstall, g.btnRemove, layout.NewSpacer(), btnUpdate)
+
+	btnAbout := tui.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
+	btnAbout.Button.Importance = widget.LowImportance
 	statusBar := container.NewHBox(btnAbout, btnReload, g.statusBar, layout.NewSpacer())
 
 	rightTop := container.NewVBox(detailForm, widget.NewSeparator(), actionRow, widget.NewSeparator())

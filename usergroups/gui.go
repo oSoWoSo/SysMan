@@ -15,10 +15,39 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
+
+// hoverableButton wraps a button with hover status text functionality.
+type hoverableButton struct {
+	*widget.Button
+	StatusText string
+	statusBar  *widget.Label
+}
+
+func newHoverableButton(label string, icon fyne.Resource, statusText string, statusBar *widget.Label, tapped func()) *hoverableButton {
+	btn := widget.NewButtonWithIcon(label, icon, tapped)
+	return &hoverableButton{
+		Button:     btn,
+		StatusText: statusText,
+		statusBar:  statusBar,
+	}
+}
+
+func (b *hoverableButton) MouseIn(e *desktop.MouseEvent) {
+	if b.statusBar != nil && b.StatusText != "" {
+		b.statusBar.SetText(b.StatusText)
+	}
+}
+
+func (b *hoverableButton) MouseOut() {
+	if b.statusBar != nil {
+		b.statusBar.SetText("")
+	}
+}
 
 // ── GUI state ─────────────────────────────────────────────────────────
 
@@ -424,19 +453,19 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	})
 
 	// Toolbar buttons — Users context
-	btnAddUser := widget.NewButtonWithIcon(t("btn.add"), theme.ContentAddIcon(), func() {
+	btnAddUser := newHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.add_user"), g.statusBar, func() {
 		g.showAddUserDialog()
 	})
-	btnDelUser := widget.NewButtonWithIcon(t("btn.delete"), theme.DeleteIcon(), func() {
+	btnDelUser := newHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.delete_user"), g.statusBar, func() {
 		g.showDeleteUserDialog()
 	})
-	btnPropsUser := widget.NewButtonWithIcon(t("btn.properties"), theme.DocumentCreateIcon(), func() {
+	btnPropsUser := newHoverableButton(t("btn.properties"), theme.DocumentCreateIcon(), t("tooltip.user_properties"), g.statusBar, func() {
 		g.showUserPropsDialog()
 	})
-	btnPasswd := widget.NewButtonWithIcon(t("btn.password"), theme.VisibilityIcon(), func() {
+	btnPasswd := newHoverableButton(t("btn.password"), theme.VisibilityIcon(), t("tooltip.change_password"), g.statusBar, func() {
 		g.showChangePasswordDialog()
 	})
-	btnRefreshUsers := widget.NewButtonWithIcon(t("btn.refresh"), theme.ViewRefreshIcon(), func() {
+	btnRefreshUsers := newHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.refresh"), g.statusBar, func() {
 		g.refresh()
 		g.setStatus(t("status.refreshed"))
 	})
@@ -457,16 +486,16 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	// ── Groups tab ────────────────────────────────────────────────────
 	groupTable := g.buildGroupTable()
 
-	btnAddGroup := widget.NewButtonWithIcon(t("btn.add"), theme.ContentAddIcon(), func() {
+	btnAddGroup := newHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.add_group"), g.statusBar, func() {
 		g.showAddGroupDialog()
 	})
-	btnDelGroup := widget.NewButtonWithIcon(t("btn.delete"), theme.DeleteIcon(), func() {
+	btnDelGroup := newHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.delete_group"), g.statusBar, func() {
 		g.showDeleteGroupDialog()
 	})
-	btnEditMembers := widget.NewButtonWithIcon(t("btn.members"), theme.AccountIcon(), func() {
+	btnEditMembers := newHoverableButton(t("btn.members"), theme.AccountIcon(), t("tooltip.edit_members"), g.statusBar, func() {
 		g.showEditGroupMembersDialog()
 	})
-	btnRefreshGroups := widget.NewButtonWithIcon(t("btn.refresh"), theme.ViewRefreshIcon(), func() {
+	btnRefreshGroups := newHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.refresh"), g.statusBar, func() {
 		g.refresh()
 		g.setStatus(t("status.refreshed"))
 	})
@@ -489,8 +518,8 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 		container.NewTabItem(t("tab.groups"), groupsTab),
 	)
 
-	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { g.showAbout() })
-	btnAbout.Importance = widget.LowImportance
+	btnAbout := newHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
+	btnAbout.Button.Importance = widget.LowImportance
 	statusBar := container.NewVBox(
 		widget.NewSeparator(),
 		container.NewPadded(container.NewHBox(btnAbout, g.statusBar)),

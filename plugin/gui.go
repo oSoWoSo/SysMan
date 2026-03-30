@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -136,17 +137,45 @@ type guiApp struct {
 	detailUptime  *widget.Label
 	detailSrc     *widget.Label
 	detailDst     *widget.Label
-	btnEnable     *widget.Button
-	btnDisable    *widget.Button
-	btnStart      *widget.Button
-	btnStop       *widget.Button
-	btnRestart    *widget.Button
-	btnHup        *widget.Button
-	btnPause      *widget.Button
-	btnContinue   *widget.Button
-	btnKill       *widget.Button
+	btnEnable     *hoverableButton
+	btnDisable    *hoverableButton
+	btnStart      *hoverableButton
+	btnStop       *hoverableButton
+	btnRestart    *hoverableButton
+	btnHup        *hoverableButton
+	btnPause      *hoverableButton
+	btnContinue   *hoverableButton
+	btnKill       *hoverableButton
 	statusBar     *widget.Label
 	countLabel    *widget.Label
+}
+
+// hoverableButton wraps a button with hover status text functionality.
+type hoverableButton struct {
+	*widget.Button
+	StatusText string
+	statusBar  *widget.Label
+}
+
+func newHoverableButton(label string, icon fyne.Resource, statusText string, statusBar *widget.Label, tapped func()) *hoverableButton {
+	btn := widget.NewButtonWithIcon(label, icon, tapped)
+	return &hoverableButton{
+		Button:     btn,
+		StatusText: statusText,
+		statusBar:  statusBar,
+	}
+}
+
+func (b *hoverableButton) MouseIn(e *desktop.MouseEvent) {
+	if b.statusBar != nil && b.StatusText != "" {
+		b.statusBar.SetText(b.StatusText)
+	}
+}
+
+func (b *hoverableButton) MouseOut() {
+	if b.statusBar != nil {
+		b.statusBar.SetText("")
+	}
 }
 
 func (s *guiApp) filtered() []Service {
@@ -438,7 +467,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	)
 
 	// ── Action buttons ───────────────────────────────────────────────
-	s.btnEnable = widget.NewButtonWithIcon(t("btn.enable"), theme.ConfirmIcon(), func() {
+	s.btnEnable = newHoverableButton(t("btn.enable"), theme.ConfirmIcon(), t("tooltip.enable"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -453,9 +482,9 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 			s.serviceList.Select(s.selected)
 		}
 	})
-	s.btnEnable.Importance = widget.HighImportance
+	s.btnEnable.Button.Importance = widget.HighImportance
 
-	s.btnDisable = widget.NewButtonWithIcon(t("btn.disable"), theme.DeleteIcon(), func() {
+	s.btnDisable = newHoverableButton(t("btn.disable"), theme.DeleteIcon(), t("tooltip.disable"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -494,7 +523,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 
 	// ── sv control buttons ───────────────────────────────────────────
-	s.btnStart = widget.NewButtonWithIcon(t("btn.start"), theme.MediaPlayIcon(), func() {
+	s.btnStart = newHoverableButton(t("btn.start"), theme.MediaPlayIcon(), t("tooltip.start"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -509,9 +538,9 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 			s.refreshOneStatus(name)
 		}()
 	})
-	s.btnStart.Importance = widget.SuccessImportance
+	s.btnStart.Button.Importance = widget.SuccessImportance
 
-	s.btnStop = widget.NewButtonWithIcon(t("btn.stop"), theme.MediaStopIcon(), func() {
+	s.btnStop = newHoverableButton(t("btn.stop"), theme.MediaStopIcon(), t("tooltip.stop"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -535,9 +564,9 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 				}()
 			}, s.win)
 	})
-	s.btnStop.Importance = widget.DangerImportance
+	s.btnStop.Button.Importance = widget.DangerImportance
 
-	s.btnRestart = widget.NewButtonWithIcon(t("btn.restart"), theme.ViewRefreshIcon(), func() {
+	s.btnRestart = newHoverableButton(t("btn.restart"), theme.ViewRefreshIcon(), t("tooltip.restart"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -553,7 +582,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnHup = widget.NewButtonWithIcon(t("btn.hup"), theme.MailSendIcon(), func() {
+	s.btnHup = newHoverableButton(t("btn.hup"), theme.MailSendIcon(), t("tooltip.hup"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -569,7 +598,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnPause = widget.NewButtonWithIcon(t("btn.pause"), theme.MediaPauseIcon(), func() {
+	s.btnPause = newHoverableButton(t("btn.pause"), theme.MediaPauseIcon(), t("tooltip.pause"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -585,7 +614,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnContinue = widget.NewButtonWithIcon(t("btn.continue"), theme.MediaPlayIcon(), func() {
+	s.btnContinue = newHoverableButton(t("btn.continue"), theme.MediaPlayIcon(), t("tooltip.continue"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -601,7 +630,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnKill = widget.NewButtonWithIcon(t("btn.kill"), theme.DeleteIcon(), func() {
+	s.btnKill = newHoverableButton(t("btn.kill"), theme.DeleteIcon(), t("tooltip.kill"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
