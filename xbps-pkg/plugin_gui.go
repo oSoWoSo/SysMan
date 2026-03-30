@@ -98,26 +98,13 @@ func (g *pkgGuiApp) showAbout() {
 }
 
 func (g *pkgGuiApp) filtered() []Package {
-	q := strings.ToLower(g.search)
-	var out []Package
-	for _, pkg := range g.packages {
-		switch g.filter {
-		case filterInstalled:
-			if !pkg.Installed {
-				continue
-			}
-		case filterAvailable:
-			if pkg.Installed {
-				continue
-			}
-		}
-		if q != "" && !strings.Contains(strings.ToLower(pkg.Name), q) &&
-			!strings.Contains(strings.ToLower(pkg.ShortDesc), q) {
-			continue
-		}
-		out = append(out, pkg)
-	}
-	return out
+	return Filter(g.packages, g.filter, g.search,
+		func(p Package) bool { return p.Installed },
+		func(p Package, q string) bool {
+			return strings.Contains(strings.ToLower(p.Name), q) ||
+				strings.Contains(strings.ToLower(p.ShortDesc), q)
+		},
+	)
 }
 
 func (g *pkgGuiApp) reload() {
@@ -259,7 +246,7 @@ func (g *pkgGuiApp) runOp(label string, fn func(w io.Writer) (string, error)) {
 }
 
 func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
-	g.filter = filterAll
+	g.filter = FilterAll
 
 	// ── Search ────────────────────────────────────────────────────────
 	search := widget.NewEntry()
@@ -278,9 +265,9 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		btnFilterInstalled.Importance = widget.MediumImportance
 		btnFilterAvailable.Importance = widget.MediumImportance
 		switch f {
-		case filterInstalled:
+		case FilterInstalled:
 			btnFilterInstalled.Importance = widget.HighImportance
-		case filterAvailable:
+		case FilterAvailable:
 			btnFilterAvailable.Importance = widget.HighImportance
 		default:
 			btnFilterAll.Importance = widget.HighImportance
@@ -296,9 +283,9 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		g.clearDetail()
 		highlightFilter(f)
 	}
-	btnFilterAll = widget.NewButton(t("filter.all"), func() { applyFilter(filterAll) })
-	btnFilterInstalled = widget.NewButton(t("filter.installed"), func() { applyFilter(filterInstalled) })
-	btnFilterAvailable = widget.NewButton(t("filter.available"), func() { applyFilter(filterAvailable) })
+	btnFilterAll = widget.NewButton(t("filter.all"), func() { applyFilter(FilterAll) })
+	btnFilterInstalled = widget.NewButton(t("filter.installed"), func() { applyFilter(FilterInstalled) })
+	btnFilterAvailable = widget.NewButton(t("filter.available"), func() { applyFilter(FilterAvailable) })
 	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable)
 
 	// ── Package list ──────────────────────────────────────────────────
@@ -416,7 +403,7 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	)
 	split.SetOffset(0.38)
 
-	highlightFilter(filterAll) // highlight "All" button (detail widgets now initialized)
+	highlightFilter(FilterAll) // highlight "All" button (detail widgets now initialized)
 	g.clearDetail()
 
 	// Load packages asynchronously.

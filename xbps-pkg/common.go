@@ -29,6 +29,44 @@ type Package struct {
 	ShortDesc string // short description, may be populated lazily
 }
 
+// FilterMode represents the filter state for package lists.
+type FilterMode int
+
+const (
+	FilterAll FilterMode = iota
+	FilterInstalled
+	FilterAvailable
+)
+
+// Filter filters items by state and search query.
+func Filter[T any](
+	items []T,
+	mode FilterMode,
+	search string,
+	isInstalled func(T) bool,
+	matchesSearch func(T, string) bool,
+) []T {
+	var out []T
+	q := strings.ToLower(search)
+	for _, item := range items {
+		switch mode {
+		case FilterInstalled:
+			if !isInstalled(item) {
+				continue
+			}
+		case FilterAvailable:
+			if isInstalled(item) {
+				continue
+			}
+		}
+		if q != "" && !matchesSearch(item, q) {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
 // PackageDetail holds extended metadata for a single package.
 type PackageDetail struct {
 	Name         string

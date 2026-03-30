@@ -62,13 +62,8 @@ func (th darkIndustrialTheme) Color(name fyne.ThemeColorName, variant fyne.Theme
 
 // ── Filter ───────────────────────────────────────────────────────────
 
-type filterMode int
-
-const (
-	filterAll filterMode = iota
-	filterEnabled
-	filterDisabled
-)
+// filterMode is an alias for FilterMode for the GUI.
+type filterMode = FilterMode
 
 // ── Detail state widget ──────────────────────────────────────────────
 
@@ -155,24 +150,12 @@ type guiApp struct {
 }
 
 func (s *guiApp) filtered() []Service {
-	var out []Service
-	for _, svc := range s.services {
-		switch s.filter {
-		case filterEnabled:
-			if !svc.Enabled {
-				continue
-			}
-		case filterDisabled:
-			if svc.Enabled {
-				continue
-			}
-		}
-		if s.searchText != "" && !strings.Contains(strings.ToLower(svc.Name), strings.ToLower(s.searchText)) {
-			continue
-		}
-		out = append(out, svc)
-	}
-	return out
+	return Filter(s.services, s.filter, s.searchText,
+		func(svc Service) bool { return svc.Enabled },
+		func(svc Service, q string) bool {
+			return strings.Contains(strings.ToLower(svc.Name), q)
+		},
+	)
 }
 
 func (s *guiApp) reload() {
@@ -414,9 +397,9 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		btnFilterEnabled.Importance = widget.MediumImportance
 		btnFilterDisabled.Importance = widget.MediumImportance
 		switch f {
-		case filterEnabled:
+		case FilterEnabled:
 			btnFilterEnabled.Importance = widget.HighImportance
-		case filterDisabled:
+		case FilterDisabled:
 			btnFilterDisabled.Importance = widget.HighImportance
 		default:
 			btnFilterAll.Importance = widget.HighImportance
@@ -426,9 +409,9 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		btnFilterDisabled.Refresh()
 	}
 
-	btnFilterAll = widget.NewButton(t("filter.all"), func() { applyFilter(filterAll) })
-	btnFilterEnabled = widget.NewButton(t("filter.enabled"), func() { applyFilter(filterEnabled) })
-	btnFilterDisabled = widget.NewButton(t("filter.disabled"), func() { applyFilter(filterDisabled) })
+	btnFilterAll = widget.NewButton(t("filter.all"), func() { applyFilter(FilterAll) })
+	btnFilterEnabled = widget.NewButton(t("filter.enabled"), func() { applyFilter(FilterEnabled) })
+	btnFilterDisabled = widget.NewButton(t("filter.disabled"), func() { applyFilter(FilterDisabled) })
 	filterRow := container.NewHBox(btnFilterAll, btnFilterEnabled, btnFilterDisabled)
 
 	// ── Detail panel ─────────────────────────────────────────────────
@@ -708,7 +691,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	)
 
 	// Set default filter (after all widgets are initialized)
-	applyFilter(filterAll)
+	applyFilter(FilterAll)
 
 	return root
 }

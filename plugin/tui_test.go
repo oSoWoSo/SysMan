@@ -38,7 +38,7 @@ func TestFiltered_Enabled(t *testing.T) {
 		{Name: "alpha", Enabled: true},
 		{Name: "beta", Enabled: false},
 	})
-	m.filter = tuiFilterEnabled
+	m.filter = FilterEnabled
 	got := m.filtered()
 	if len(got) != 1 || got[0].Name != "alpha" {
 		t.Errorf("expected only 'alpha', got %v", got)
@@ -50,7 +50,7 @@ func TestFiltered_Disabled(t *testing.T) {
 		{Name: "alpha", Enabled: true},
 		{Name: "beta", Enabled: false},
 	})
-	m.filter = tuiFilterDisabled
+	m.filter = FilterDisabled
 	got := m.filtered()
 	if len(got) != 1 || got[0].Name != "beta" {
 		t.Errorf("expected only 'beta', got %v", got)
@@ -106,7 +106,7 @@ func TestFiltered_EnabledFilterWithSearch(t *testing.T) {
 		{Name: "ntpd", Enabled: true},
 		{Name: "sshd", Enabled: false},
 	})
-	m.filter = tuiFilterEnabled
+	m.filter = FilterEnabled
 	m.search.SetValue("ng")
 	got := m.filtered()
 	if len(got) != 1 || got[0].Name != "nginx" {
@@ -250,21 +250,21 @@ func TestUpdate_KeyTab_CyclesFilter(t *testing.T) {
 	// All → Enabled
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	tm := updated.(tuiModel)
-	if tm.filter != tuiFilterEnabled {
+	if tm.filter != FilterEnabled {
 		t.Errorf("expected filterEnabled after tab, got %d", tm.filter)
 	}
 
 	// Enabled → Disabled
 	updated, _ = tm.Update(tea.KeyMsg{Type: tea.KeyTab})
 	tm = updated.(tuiModel)
-	if tm.filter != tuiFilterDisabled {
+	if tm.filter != FilterDisabled {
 		t.Errorf("expected filterDisabled after second tab, got %d", tm.filter)
 	}
 
 	// Disabled → All
 	updated, _ = tm.Update(tea.KeyMsg{Type: tea.KeyTab})
 	tm = updated.(tuiModel)
-	if tm.filter != tuiFilterAll {
+	if tm.filter != FilterAll {
 		t.Errorf("expected filterAll after third tab, got %d", tm.filter)
 	}
 }
@@ -380,21 +380,21 @@ func TestView_WithTerminalSize(t *testing.T) {
 // ── filter label ─────────────────────────────────────────────────────
 
 func TestFilterLabel_All(t *testing.T) {
-	f := tuiFilterAll
+	f := FilterAll
 	if f.label() == "" {
 		t.Error("expected non-empty label for filterAll")
 	}
 }
 
 func TestFilterLabel_Enabled(t *testing.T) {
-	f := tuiFilterEnabled
+	f := FilterEnabled
 	if f.label() == "" {
 		t.Error("expected non-empty label for filterEnabled")
 	}
 }
 
 func TestFilterLabel_Disabled(t *testing.T) {
-	f := tuiFilterDisabled
+	f := FilterDisabled
 	if f.label() == "" {
 		t.Error("expected non-empty label for filterDisabled")
 	}

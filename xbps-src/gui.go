@@ -48,15 +48,15 @@ type xbpsGuiApp struct {
 	btnFwd     *widget.Button
 
 	// always-visible inline editor
-	editorEntry    *focusEntry
-	editorPath     string // path of the file currently loaded
-	editorTop      *fyne.Container // toolbar+separators
-	editorBtnSave  *widget.Button
-	editorBtnLint  *widget.Button
-	editorBtnSum   *widget.Button
-	editorBtnBump  *widget.Button
-	editorTitle    *widget.Label
-	outerSplit     *container.Split
+	editorEntry   *focusEntry
+	editorPath    string          // path of the file currently loaded
+	editorTop     *fyne.Container // toolbar+separators
+	editorBtnSave *widget.Button
+	editorBtnLint *widget.Button
+	editorBtnSum  *widget.Button
+	editorBtnBump *widget.Button
+	editorTitle   *widget.Label
+	outerSplit    *container.Split
 
 	logHistory []string // past command outputs (oldest first)
 	logHistIdx int      // index while browsing; -1 = showing logLive
@@ -66,17 +66,7 @@ type xbpsGuiApp struct {
 }
 
 func (g *xbpsGuiApp) filtered() []Template {
-	q := strings.ToLower(g.search)
-	if q == "" {
-		return g.templates
-	}
-	var out []Template
-	for _, tmpl := range g.templates {
-		if strings.Contains(strings.ToLower(tmpl.Name), q) {
-			out = append(out, tmpl)
-		}
-	}
-	return out
+	return Filter(g.templates, g.search)
 }
 
 func (g *xbpsGuiApp) reload() {

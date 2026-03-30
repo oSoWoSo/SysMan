@@ -40,6 +40,48 @@ type Service struct {
 	Enabled bool   // true if symlink exists in destination directory
 }
 
+// FilterMode represents the filter state for service/package lists.
+type FilterMode int
+
+const (
+	FilterAll FilterMode = iota
+	FilterEnabled
+	FilterDisabled
+)
+
+// Filter filters items by state and search query.
+// Use FilterAll to show all items, FilterEnabled to show only enabled/installed,
+// FilterDisabled to show only disabled/available.
+// The isEnabled function should return true for enabled/installed items.
+// The matchesSearch function should return true if the item matches the search query.
+func Filter[T any](
+	items []T,
+	mode FilterMode,
+	search string,
+	isEnabled func(T) bool,
+	matchesSearch func(T, string) bool,
+) []T {
+	var out []T
+	q := strings.ToLower(search)
+	for _, item := range items {
+		switch mode {
+		case FilterEnabled:
+			if !isEnabled(item) {
+				continue
+			}
+		case FilterDisabled:
+			if isEnabled(item) {
+				continue
+			}
+		}
+		if q != "" && !matchesSearch(item, q) {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
 // ── Utilities ────────────────────────────────────────────────────────
 
 // isSymlink checks whether the given path is a symbolic link.

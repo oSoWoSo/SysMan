@@ -31,6 +31,28 @@ type Template struct {
 	Bumped, Checksummed, Linted, Built, Installed bool
 }
 
+// FilterMode represents the filter state for template lists.
+type FilterMode int
+
+const (
+	FilterAll FilterMode = iota
+)
+
+// Filter filters templates by search query.
+func Filter(templates []Template, search string) []Template {
+	q := strings.ToLower(search)
+	if q == "" {
+		return templates
+	}
+	var out []Template
+	for _, tmpl := range templates {
+		if strings.Contains(strings.ToLower(tmpl.Name), q) {
+			out = append(out, tmpl)
+		}
+	}
+	return out
+}
+
 // TemplateMeta holds human-readable metadata read from srcpkgs/<name>/template.
 type TemplateMeta struct {
 	Version  string

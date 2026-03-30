@@ -71,17 +71,7 @@ func NewTuiModel(distDir string) tea.Model {
 }
 
 func (m xbpsModel) filtered() []Template {
-	q := strings.ToLower(m.search.Value())
-	if q == "" {
-		return m.templates
-	}
-	var out []Template
-	for _, tmpl := range m.templates {
-		if strings.Contains(strings.ToLower(tmpl.Name), q) {
-			out = append(out, tmpl)
-		}
-	}
-	return out
+	return Filter(m.templates, m.search.Value())
 }
 
 func (m xbpsModel) clampCursor() xbpsModel {

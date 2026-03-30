@@ -42,21 +42,15 @@ var (
 
 // ── Filter ───────────────────────────────────────────────────────────
 
-// tuiFilter represents the current filter state for the service list.
-type tuiFilter int
-
-const (
-	tuiFilterAll      tuiFilter = iota // show all services
-	tuiFilterEnabled                   // show only enabled services
-	tuiFilterDisabled                  // show only disabled services
-)
+// tuiFilter is an alias for FilterMode for the TUI.
+type tuiFilter = FilterMode
 
 // label returns the translated label for the filter state.
 func (f tuiFilter) label() string {
 	switch f {
-	case tuiFilterEnabled:
+	case FilterEnabled:
 		return t("filter.enabled")
-	case tuiFilterDisabled:
+	case FilterDisabled:
 		return t("filter.disabled")
 	default:
 		return t("filter.all")
@@ -132,25 +126,10 @@ func NewTuiModel(b Backend) tea.Model {
 
 // filtered returns the service list filtered by current filter and search query.
 func (m tuiModel) filtered() []Service {
-	var out []Service
-	q := strings.ToLower(m.search.Value())
-	for _, svc := range m.services {
-		switch m.filter {
-		case tuiFilterEnabled:
-			if !svc.Enabled {
-				continue
-			}
-		case tuiFilterDisabled:
-			if svc.Enabled {
-				continue
-			}
-		}
-		if q != "" && !strings.Contains(strings.ToLower(svc.Name), q) {
-			continue
-		}
-		out = append(out, svc)
-	}
-	return out
+	return Filter(m.services, m.filter, m.search.Value(),
+		func(svc Service) bool { return svc.Enabled },
+		func(svc Service, q string) bool { return strings.Contains(strings.ToLower(svc.Name), q) },
+	)
 }
 
 // clampCursor ensures the cursor position is valid for the current filtered list.
@@ -393,7 +372,7 @@ func (m tuiModel) View() string {
 	}
 
 	// Filter tabs — active one highlighted.
-	filters := []tuiFilter{tuiFilterAll, tuiFilterEnabled, tuiFilterDisabled}
+	filters := []tuiFilter{FilterAll, FilterEnabled, FilterDisabled}
 	filterRow := ""
 	for _, f := range filters {
 		if f == m.filter {

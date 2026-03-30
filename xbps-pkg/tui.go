@@ -43,19 +43,14 @@ type pkgDoneMsg struct {
 
 // ── Filter ────────────────────────────────────────────────────────────
 
-type pkgFilter int
-
-const (
-	filterAll       pkgFilter = iota // show all packages
-	filterInstalled                  // show only installed
-	filterAvailable                  // show only not installed
-)
+// pkgFilter is an alias for FilterMode for the TUI.
+type pkgFilter = FilterMode
 
 func (f pkgFilter) String() string {
 	switch f {
-	case filterInstalled:
+	case FilterInstalled:
 		return "installed"
-	case filterAvailable:
+	case FilterAvailable:
 		return "available"
 	default:
 		return "all"
@@ -106,26 +101,13 @@ func NewTuiModelWithBackend(b PkgBackend) tea.Model {
 }
 
 func (m pkgModel) filtered() []Package {
-	q := strings.ToLower(m.search.Value())
-	var out []Package
-	for _, p := range m.packages {
-		switch m.filter {
-		case filterInstalled:
-			if !p.Installed {
-				continue
-			}
-		case filterAvailable:
-			if p.Installed {
-				continue
-			}
-		}
-		if q != "" && !strings.Contains(strings.ToLower(p.Name), q) &&
-			!strings.Contains(strings.ToLower(p.ShortDesc), q) {
-			continue
-		}
-		out = append(out, p)
-	}
-	return out
+	return Filter(m.packages, m.filter, m.search.Value(),
+		func(p Package) bool { return p.Installed },
+		func(p Package, q string) bool {
+			return strings.Contains(strings.ToLower(p.Name), q) ||
+				strings.Contains(strings.ToLower(p.ShortDesc), q)
+		},
+	)
 }
 
 func (m pkgModel) clampCursor() pkgModel {
@@ -342,7 +324,7 @@ func (m pkgModel) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // targetNames returns the names to act on.
 // If there are marked packages, use those; otherwise use the current selection.
-// filterInstalled: true = only non-installed (for install), false = only installed (for remove).
+// FilterInstalled: true = only non-installed (for install), false = only installed (for remove).
 func (m pkgModel) targetNames(forInstall bool) []string {
 	if len(m.marked) > 0 {
 		var names []string
