@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/oSoWoSo/SysMan/plugin"
+	"codeberg.org/oSoWoSo/SysMan/src/plugin"
 )
 
 // main is the application entry point.

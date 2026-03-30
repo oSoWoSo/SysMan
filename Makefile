@@ -2,7 +2,7 @@ VERSION  ?= 0.007 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local
-LDFLAGS   = -s -w -X 'codeberg.org/oSoWoSo/SysMan/plugin.Version=$(VERSION)'
+LDFLAGS   = -s -w -X 'codeberg.org/oSoWoSo/SysMan/src/plugin.Version=$(VERSION)'
 
 # add PIE flags for cgo builds
 CGO_ENABLED ?= 1
@@ -66,8 +66,8 @@ build-tui: build-sysman-tui build-svman-tui build-ugman-tui \
 build-sysman:
 	@echo "Building sysman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/sysman ./cmd/sysmanager/
-	@cp -r lang $(BUILD_DIR)/lang
+	go build -buildmode=pie -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/sysman ./src/cmd/sysmanager/
+	@cp -r src/lang $(BUILD_DIR)/lang
 	@[ -f void-transparent.png ] && cp void-transparent.png $(BUILD_DIR)/ || true
 
 ## build-sysman-tui: TUI-only system manager (CGO-free)
@@ -75,23 +75,23 @@ build-sysman-tui:
 	@echo "Building sysman-tui..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/sysman-tui ./cmd/sysmanager/
-	@cp -r lang $(BUILD_DIR)/lang
+		-o $(BUILD_DIR)/sysman-tui ./src/cmd/sysmanager/
+	@cp -r src/lang $(BUILD_DIR)/lang
 
 ## build-svman: standalone svman GUI (also supports --tui)
 build-svman:
 	@echo "Building svman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/svman .
-	@cp -r lang $(BUILD_DIR)/lang
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/svman ./src/plugin
+	@cp -r src/lang $(BUILD_DIR)/lang
 
 ## build-svman-tui: standalone svman TUI only (CGO-free)
 build-svman-tui:
 	@echo "Building svman-tui..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/svman-tui ./cmd/svman-tui/
-	@cp -r lang $(BUILD_DIR)/lang
+		-o $(BUILD_DIR)/svman-tui ./src/cmd/svman-tui/
+	@cp -r src/lang $(BUILD_DIR)/lang
 
 ## build-ugman: standalone ugman GUI
 build-ugman:
@@ -99,20 +99,20 @@ build-ugman:
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=$(CGO_ENABLED) CC=$(CC) \
 		go build -trimpath -ldflags="$(PIE_LDFLAGS)" \
-		-o $(BUILD_DIR)/ugman ./cmd/ugman-gui/
+		-o $(BUILD_DIR)/ugman ./src/cmd/ugman-gui/
 
 ## build-ugman-tui: standalone ugman TUI only (CGO-free)
 build-ugman-tui:
 	@echo "Building ugman-tui..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/ugman-tui ./cmd/ugman-tui/
+		-o $(BUILD_DIR)/ugman-tui ./src/cmd/ugman-tui/
 
 ## build-infoman: standalone infoman GUI (also supports --tui)
 build-infoman:
 	@echo "Building infoman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/infoman ./cmd/infoman-gui/
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/infoman ./src/cmd/infoman-gui/
 	@[ -f void-transparent.png ] && cp void-transparent.png $(BUILD_DIR)/ || true
 
 ## build-infoman-tui: standalone infoman TUI only (CGO-free)
@@ -120,42 +120,42 @@ build-infoman-tui:
 	@echo "Building infoman-tui..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/infoman-tui ./cmd/infoman-tui/
+		-o $(BUILD_DIR)/infoman-tui ./src/cmd/infoman-tui/
 
 ## build-srcman: standalone srcman GUI (also supports --tui)
 build-srcman:
 	@echo "Building srcman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/srcman ./cmd/srcman-gui/
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/srcman ./src/cmd/srcman-gui/
 
 ## build-srcman-tui: standalone srcman TUI only (CGO-free)
 build-srcman-tui:
 	@echo "Building srcman-tui..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/srcman-tui ./cmd/srcman-tui/
+		-o $(BUILD_DIR)/srcman-tui ./src/cmd/srcman-tui/
 
 ## build-pkgman: standalone pkgman GUI
 build-pkgman:
 	@echo "Building pkgman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/pkgman ./cmd/pkgman-gui/
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/pkgman ./src/cmd/pkgman-gui/
 
 ## build-pkgman-tui: standalone pkgman TUI only (CGO-free)
 build-pkgman-tui:
 	@echo "Building pkgman-tui..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/pkgman-tui ./cmd/xbps-pkg/
+		-o $(BUILD_DIR)/pkgman-tui ./src/cmd/xbps_pkg/
 
 ## build-plugins: build all dynamic plugin .so files
 build-plugins:
 	@echo "Building dynamic plugins..."
 	@mkdir -p $(BUILD_DIR)/plugins
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/svman.so    ./pluginentry/svman/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/xbps-src.so ./pluginentry/xbps-src/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/xbps-pkg.so ./pluginentry/xbps-pkg/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/sysinfo.so  ./pluginentry/sysinfo/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/svman.so    ./src/pluginentry/svman/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/xbps-src.so ./src/pluginentry/xbps_src/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/xbps-pkg.so ./src/pluginentry/xbps_pkg/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/sysinfo.so  ./src/pluginentry/sysinfo/
 	@echo "Plugins ready in $(BUILD_DIR)/plugins/"
 
 ## install: build and install all GUI binaries and data files
@@ -169,7 +169,7 @@ install: build
 	done
 	@echo "Installing lang files to $(DESTDIR)$(PREFIX)/share/SysMan/lang/ ..."
 	install -d $(DESTDIR)$(PREFIX)/share/SysMan/lang
-	cp -r lang/. $(DESTDIR)$(PREFIX)/share/SysMan/lang/
+	cp -r src/lang/. $(DESTDIR)$(PREFIX)/share/SysMan/lang/
 	@[ -f void-transparent.png ] && \
 	    install -Dm644 void-transparent.png $(DESTDIR)$(PREFIX)/share/SysMan/ || true
 	@echo "Done. highlight.conf is created in ~/.config/SysMan/ on first run."
@@ -185,7 +185,7 @@ install-tui: build-tui
 	done
 	@echo "Installing lang files to $(DESTDIR)$(PREFIX)/share/SysMan/lang/ ..."
 	install -d $(DESTDIR)$(PREFIX)/share/SysMan/lang
-	cp -r lang/. $(DESTDIR)$(PREFIX)/share/SysMan/lang/
+	cp -r src/lang/. $(DESTDIR)$(PREFIX)/share/SysMan/lang/
 	@echo "Done."
 
 ## uninstall: remove installed GUI binaries and data files
