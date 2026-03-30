@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+
+	"github.com/creack/pty"
 )
 
 // DefaultDistDir signals that the directory should be resolved at runtime.
@@ -184,6 +186,70 @@ func RunXbps(distDir string, args ...string) (string, error) {
 // Returns combined output and any error.
 func RunXbpsStream(distDir string, w io.Writer, args ...string) (string, error) {
 	return RunXbpsStreamCtx(context.Background(), distDir, w, args...)
+}
+
+// RunXbpsPty executes a command with distDir as the working directory using a PTY.
+// This enables ANSI color codes in the output (xbps-src checks for TTY with test -t 1).
+// Returns combined stdout+stderr output and any error.
+func RunXbpsPty(distDir string, w io.Writer, args ...string) (string, error) {
+	return RunXbpsPtyCtx(context.Background(), distDir, w, args...)
+}
+
+// RunXbpsPtyCtx is like RunXbpsPty but honours a context for cancellation.
+func RunXbpsPtyCtx(ctx context.Context, distDir string, w io.Writer, args ...string) (string, error) {
+	pty, tty, err := newPty()
+	if err != nil {
+		return "", err
+	}
+	defer pty.Close()
+	defer tty.Close()
+
+	dir := ResolveDistDir(distDir)
+	cmd := exec.Command(args[0], args[1:]...) //nolint:gosec
+	cmd.Dir = dir
+	cmd.Stdout = tty
+	cmd.Stderr = tty
+	cmd.Stdin = tty
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+	tty.Close()
+
+	// Kill the whole process group when context is cancelled.
+	pgid := cmd.Process.Pid
+	go func() {
+		<-ctx.Done()
+		_ = syscall.Kill(-pgid, syscall.SIGKILL)
+	}()
+
+	var buf strings.Builder
+	scanner := bufio.NewScanner(pty)
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			break
+		default:
+		}
+		line := scanner.Text()
+		buf.WriteString(line + "\n")
+		if w != nil {
+			_, _ = io.WriteString(w, line+"\n")
+		}
+	}
+	pty.Close()
+	err = cmd.Wait()
+	if ctx.Err() != nil {
+		return strings.TrimSpace(buf.String()), ctx.Err()
+	}
+	return strings.TrimSpace(buf.String()), err
+}
+
+// newPty creates a new PTY pair. Returns the master pty, slave tty, and any error.
+func newPty() (*os.File, *os.File, error) {
+	return pty.Open()
 }
 
 // RunXbpsStreamCtx is like RunXbpsStream but honours a context for cancellation.

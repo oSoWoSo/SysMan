@@ -412,7 +412,7 @@ func (g *xbpsGuiApp) runCmdCtx(cancellable bool, label string, args ...string) {
 			g.output.Append(string(p))
 			return len(p), nil
 		})
-		_, err := RunXbpsStreamCtx(ctx, g.distDir, w, args...)
+		_, err := RunXbpsPtyCtx(ctx, g.distDir, w, args...)
 		if cancellable {
 			g.setBuildRunning(false)
 		}

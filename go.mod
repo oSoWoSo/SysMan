@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/bubbles v0.18.0
 	github.com/charmbracelet/bubbletea v0.26.1
 	github.com/charmbracelet/lipgloss v0.11.0
+	github.com/creack/pty v1.1.24
 	github.com/fsnotify/fsnotify v1.6.0
 	golang.org/x/term v0.19.0
 	gopkg.in/yaml.v3 v3.0.1
