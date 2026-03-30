@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/oSoWoSo/SysMan/api"
 	svman "codeberg.org/oSoWoSo/SysMan/plugin"
+	"codeberg.org/oSoWoSo/SysMan/tui"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -214,8 +215,15 @@ func (sw *streamWriter) Write(p []byte) (int, error) {
 }
 
 // setOutput renders text into outputRich with highlighting and scrolls to bottom.
+// It automatically detects ANSI escape sequences and renders them with colors,
+// otherwise falls back to the Highlighter regex-based coloring.
 func (g *pkgGuiApp) setOutput(text string) {
-	segs := g.highlighter.RichSegments(text)
+	var segs []widget.RichTextSegment
+	if tui.HasAnsiCodes(text) {
+		segs = tui.AnsiToRichSegments(text)
+	} else {
+		segs = g.highlighter.RichSegments(text)
+	}
 	g.outputRich.Segments = segs
 	g.outputRich.Refresh()
 	g.outputScroll.ScrollToBottom()

@@ -11,18 +11,28 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"codeberg.org/oSoWoSo/SysMan/tui"
 )
 
 // outputPanel is a selectable, scrollable output area with an inline find bar.
 //
 // It uses a disabled multiline Entry for native OS-level text selection and
-// right-click support. Right-clicking while text is selected fires
-// onSecondaryTap so the caller can show a context menu.
+// right-click support. When ANSI escape codes are detected, it switches to
+// RichText for proper color rendering. Right-clicking while text is selected
+// fires onSecondaryTap so the caller can show a context menu.
 type outputPanel struct {
-	outer fyne.CanvasObject // border: entry + find bar
+	outer fyne.CanvasObject // border: entryContainer + find bar
 
 	entry *selEntry
 	plain strings.Builder
+
+	// RichText for ANSI content
+	rich       *widget.RichText
+	richScroll *container.Scroll
+
+	// Container for switching between Entry and RichText
+	content *fyne.Container
 
 	// find bar
 	findEntry   *widget.Entry
@@ -38,6 +48,17 @@ func newOutputPanel(onSecondaryTap func(sel string, pos fyne.Position)) *outputP
 
 	// widget.Entry has its own internal scroll — no container.Scroll needed.
 	p.entry = newSelEntry(onSecondaryTap)
+
+	// RichText for ANSI content with scroll container
+	p.rich = widget.NewRichText()
+	p.rich.Wrapping = fyne.TextWrapOff
+	p.richScroll = container.NewScroll(p.rich)
+	p.richScroll.SetMinSize(fyne.NewSize(0, 100))
+
+	// Content stack - we'll show/hide based on ANSI detection
+	p.content = container.NewStack(p.entry, p.richScroll)
+	// Start with Entry visible
+	p.richScroll.Hide()
 
 	// ── Find bar (hidden by default) ──────────────────────────────────
 	p.findEntry = widget.NewEntry()
@@ -59,7 +80,7 @@ func newOutputPanel(onSecondaryTap func(sel string, pos fyne.Position)) *outputP
 	p.findBar = container.NewHBox(findEntryWrap, findRight)
 	p.findBar.Hide()
 
-	p.outer = container.NewBorder(nil, p.findBar, nil, nil, p.entry)
+	p.outer = container.NewBorder(nil, p.findBar, nil, nil, p.content)
 	return p
 }
 
@@ -88,21 +109,43 @@ func (p *outputPanel) HideFind() {
 	p.findLabel.SetText("")
 }
 
-// scrollToBottom moves the cursor to the last line, triggering the Entry's
+// scrollToBottom moves the cursor to the last line, triggering the widget's
 // internal scroll to follow.
 func (p *outputPanel) scrollToBottom() {
 	lines := strings.Count(p.plain.String(), "\n")
 	if lines < 0 {
 		lines = 0
 	}
-	p.entry.CursorRow = lines
-	p.entry.Refresh()
+	// Scroll the active widget
+	if p.richScroll.Visible() {
+		p.richScroll.ScrollToBottom()
+	} else {
+		p.entry.CursorRow = lines
+		p.entry.Refresh()
+	}
+}
+
+// renderContent updates the output based on whether ANSI codes are present.
+func (p *outputPanel) renderContent() {
+	content := p.plain.String()
+	if tui.HasAnsiCodes(content) {
+		// Switch to RichText for ANSI content
+		p.entry.Hide()
+		p.richScroll.Show()
+		p.rich.Segments = tui.AnsiToRichSegments(content)
+		p.rich.Refresh()
+	} else {
+		// Use plain Entry for non-ANSI content
+		p.richScroll.Hide()
+		p.entry.Show()
+		p.entry.SetText(content)
+	}
 }
 
 // Append appends text to the output.
 func (p *outputPanel) Append(text string) {
 	p.plain.WriteString(text)
-	p.entry.SetText(p.plain.String())
+	p.renderContent()
 	p.scrollToBottom()
 }
 
@@ -110,7 +153,7 @@ func (p *outputPanel) Append(text string) {
 func (p *outputPanel) SetText(text string) {
 	p.plain.Reset()
 	p.plain.WriteString(text)
-	p.entry.SetText(text)
+	p.renderContent()
 	p.scrollToBottom()
 }
 
