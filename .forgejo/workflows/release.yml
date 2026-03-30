@@ -6,49 +6,8 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  release-linux-amd64:
     runs-on: codeberg-medium
-
-    strategy:
-      matrix:
-        include:
-          # Full GUI+TUI binary — requires CGO and OpenGL headers (linux/amd64 only)
-          - goos: linux
-            goarch: amd64
-            cgo: "1"
-            tags: ""
-            pkg: "."
-          # TUI-only binaries — CGO-free, cross-compilable to any platform
-          - goos: linux
-            goarch: arm64
-            cgo: "0"
-            tags: tui_only
-            pkg: ./cmd/svman-tui/
-          - goos: linux
-            goarch: "386"
-            cgo: "0"
-            tags: tui_only
-            pkg: ./cmd/svman-tui/
-          - goos: freebsd
-            goarch: amd64
-            cgo: "0"
-            tags: tui_only
-            pkg: ./cmd/svman-tui/
-          - goos: freebsd
-            goarch: arm64
-            cgo: "0"
-            tags: tui_only
-            pkg: ./cmd/svman-tui/
-          - goos: openbsd
-            goarch: amd64
-            cgo: "0"
-            tags: tui_only
-            pkg: ./cmd/svman-tui/
-          - goos: openbsd
-            goarch: arm64
-            cgo: "0"
-            tags: tui_only
-            pkg: ./cmd/svman-tui/
 
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +19,6 @@ jobs:
           go-version: '1.21'
 
       - name: Install CGO dependencies
-        if: matrix.cgo == '1'
         run: sudo apt-get update -qq && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
 
       - name: Get version from tag
@@ -70,32 +28,14 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Build binary
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: ${{ matrix.cgo }}
-        run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
-          NAME=svman-${{ matrix.goos }}-${{ matrix.goarch }}
-          mkdir -p build
-          TAGS="${{ matrix.tags }}"
-          TAG_FLAG=""
-          if [ -n "$TAGS" ]; then TAG_FLAG="-tags $TAGS"; fi
-          go build $TAG_FLAG \
-            -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=${VERSION}" \
-            -o build/${NAME} \
-            ${{ matrix.pkg }}
-          cd build
-          sha256sum ${NAME} > ${NAME}.sha256
-          tar czf ${NAME}.tar.gz ${NAME}
+      - name: Build and package all binaries
+        run: VERSION=${{ steps.version.outputs.VERSION }} make release
 
       - name: Create release and upload assets
         env:
           CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          NAME=svman-${{ matrix.goos }}-${{ matrix.goarch }}
           REPO="${{ github.repository }}"
           API="https://codeberg.org/api/v1"
 
@@ -112,7 +52,86 @@ jobs:
             -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"${CHANGELOG}\",\"draft\":false}" \
             || true
 
-          for f in build/${NAME} build/${NAME}.sha256 build/${NAME}.tar.gz; do
+          for f in build/*.tar.gz build/*.sha256; do
+            [ -f "$f" ] || continue
+            curl -s -X POST "${API}/repos/${REPO}/releases/tags/${VERSION}/assets" \
+              -H "Authorization: token ${CODEBERG_TOKEN}" \
+              -F "attachment=@${f}"
+          done
+
+  release-cross:
+    runs-on: codeberg-medium
+
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: arm64
+          - goos: linux
+            goarch: "386"
+          - goos: freebsd
+            goarch: amd64
+          - goos: freebsd
+            goarch: arm64
+          - goos: openbsd
+            goarch: amd64
+          - goos: openbsd
+            goarch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build TUI binaries (CGO-free)
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: make build-tui
+
+      - name: Package TUI binaries
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          cd build
+          for bin in sysman-tui svman-tui ugman-tui infoman-tui srcman-tui pkgman-tui; do
+            [ -f "$bin" ] || continue
+            name="${bin}-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
+            cp "$bin" "$name"
+            sha256sum "$name" > "${name}.sha256"
+            tar czf "${name}.tar.gz" "$name" lang/ 2>/dev/null || tar czf "${name}.tar.gz" "$name"
+            rm "$name"
+          done
+
+      - name: Upload assets
+        env:
+          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          REPO="${{ github.repository }}"
+          API="https://codeberg.org/api/v1"
+
+          # Ensure release exists (linux/amd64 job may still be running)
+          curl -s -X POST "${API}/repos/${REPO}/releases" \
+            -H "Authorization: token ${CODEBERG_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"draft\":false}" \
+            || true
+
+          for f in build/*.tar.gz build/*.sha256; do
+            [ -f "$f" ] || continue
             curl -s -X POST "${API}/repos/${REPO}/releases/tags/${VERSION}/assets" \
               -H "Authorization: token ${CODEBERG_TOKEN}" \
               -F "attachment=@${f}"

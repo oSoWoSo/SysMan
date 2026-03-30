@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <link rel="icon" href="http://localhost:8000/favicon.png">
+    <title>Home | SysMan</title>
+    <meta name="description" content="System Manager for Void Linux ">
+    <meta property="og:title" content="Home">
+    <meta property="og:description" content="System Manager for Void Linux ">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="http://localhost:8000/">
+    
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Home">
+    <meta name="twitter:description" content="System Manager for Void Linux ">
+    
+    <meta name="theme-color" content="#808080">
+    <style>
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      div.columns{display: flex; gap: min(4vw, 1.5em);}
+      div.column{flex: auto; overflow-x: auto;}
+      div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+      /* The extra [class] is a hack that increases specificity enough to
+         override a similar rule in reveal.js */
+      ul.task-list[class]{list-style: none;}
+      ul.task-list li input[type="checkbox"] {
+        font-size: inherit;
+        width: 0.8em;
+        margin: 0 0.8em 0.2em -1.6em;
+        vertical-align: middle;
+      }
+      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    </style>
+    <link rel="stylesheet" href="http://localhost:8000/selector.css">
+    <link rel="stylesheet" href="http://localhost:8000/link.css">
+    <link rel="stylesheet" href="http://localhost:8000/css/style.css">
+    <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="http://localhost:8000/rss.xml">
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "SysMan",
+  "description": "System Manager for Void Linux ",
+  "url": "http://localhost:8000/",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "http://localhost:8000/search?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "SysMan",
+    "url": "http://localhost:8000"
+  }
+}
+</script>
+    <link rel="stylesheet" href="http://localhost:8000/selector.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="site-title"><a href="http://localhost:8000/">SysMan</a></div>
+            <p>System Manager for Void Linux </p>
+            <div class="theme-selector">
+                <label for="theme-select">theme:</label>
+                <select id='theme-select' onchange='changeTheme()'>
+                                <option value='amiga500'>amiga500</option>
+                <option value='apple2'>apple2</option>
+                <option value='art-deco'>art-deco</option>
+                <option value='atarist'>atarist</option>
+                <option value='bauhaus'>bauhaus</option>
+                <option value='bbs'>bbs</option>
+                <option value='beos'>beos</option>
+                <option value='blackberry'>blackberry</option>
+                <option value='braun'>braun</option>
+                <option value='brutalist'>brutalist</option>
+                <option value='cyber-dark'>cyber-dark</option>
+                <option value='c64'>c64</option>
+                <option value='dark'>dark</option>
+                <option value='default'>default</option>
+                <option value='diary'>diary</option>
+                <option value='docs'>docs</option>
+                <option value='flat'>flat</option>
+                <option value='gameboy'>gameboy</option>
+                <option value='glassmorphism'>glassmorphism</option>
+                <option value='ios'>ios</option>
+                <option value='italy'>italy</option>
+                <option value='longform'>longform</option>
+                <option value='macclassic'>macclassic</option>
+                <option value='macos9'>macos9</option>
+                <option value='mario'>mario</option>
+                <option value='material'>material</option>
+                <option value='mid-century'>mid-century</option>
+                <option value='minimal'>minimal</option>
+                <option value='mondrian'>mondrian</option>
+                <option value='msdos'>msdos</option>
+                <option value='nes'>nes</option>
+                <option value='newspaper'>newspaper</option>
+                <option value='nextstep'>nextstep</option>
+                <option value='nordic-clean'>nordic-clean</option>
+                <option value='osowoso'>osowoso</option>
+                <option value='osx'>osx</option>
+                <option value='reader-mode'>reader-mode</option>
+                <option value='skeuomorphic'>skeuomorphic</option>
+                <option value='stefano'>stefano</option>
+                <option value='swiss-design'>swiss-design</option>
+                <option value='terminal'>terminal</option>
+                <option value='text-only'>text-only</option>
+                <option value='thoughtful'>thoughtful</option>
+                <option value='tty'>tty</option>
+                <option value='vaporwave'>vaporwave</option>
+                <option value='web1'>web1</option>
+                <option value='web2'>web2</option>
+                <option value='winxp'>winxp</option>
+                <option value='win311'>win311</option>
+                <option value='win7'>win7</option>
+                <option value='win95'>win95</option>
+                <option value='y2k'>y2k</option>
+                <option value='zxspectrum'>zxspectrum</option>
+
+                </select>
+                <link id='theme-style' rel='stylesheet' href=''>
+            </div>
+            <nav>
+                <div class="nav-left">
+                    <a href="http://localhost:8000/">Home</a> <a href="http://localhost:8000/archives/">Archives</a> <a href="http://localhost:8000/rss.xml">RSS</a>
+                </div>
+                <div class="nav-right">
+                    <a href="https://osowoso.discourse.group/">forum</a>
+                </div>
+                <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false" aria-controls="nav-left">
+                    <span class="hamburger-icon">☰</span>
+                </button>
+            </nav>
+            <script src="http://localhost:8000/theme-switcher.js" defer></script>
+            <script src="http://localhost:8000/hamburger.js" defer></script>
+            <script src="http://localhost:8000/toc.js" defer></script>
+        </header>
+        <main>
+<div id="TOC" role="doc-toc"><ol>
+<li><a href="#quick-start">Quick start</a><ol>
+<li><a href="#standalone-binaries">Standalone binaries</a></li>
+</ol>
+</li>
+<li><a href="#usage">Usage</a><ol>
+<li><a href="#environment-variables">Environment variables</a></li>
+</ol>
+</li>
+<li><a href="#controls">Controls</a><ol>
+<li><a href="#tui-services-tab">TUI — Services tab</a></li>
+<li><a href="#tui-users-groups-tab">TUI — Users &amp; Groups tab</a></li>
+<li><a href="#tui-tab-switching-sysman">TUI — tab switching (sysman)</a></li>
+<li><a href="#gui-all-standalone-windows">GUI — all standalone windows</a></li>
+</ol>
+</li>
+<li><a href="#project-structure">Project structure</a></li>
+<li><a href="#plugin-api">Plugin API</a><ol>
+<li><a href="#custom-backend-services">Custom backend (Services)</a></li>
+<li><a href="#dynamic-plugin-loading">Dynamic plugin loading</a></li>
+</ol>
+</li>
+<li><a href="#makefile-targets">Makefile targets</a></li>
+<li><a href="#security">Security</a></li>
+<li><a href="#dependencies">Dependencies</a></li>
+<li><a href="#license">License</a></li>
+<li><a href="#author">Author</a><ol>
+<li><a href="#source">Source</a></li>
+<li><a href="#mirrors">Mirrors</a></li>
+</ol>
+</li>
+</ol></div>
+<h2 id="quick-start">Quick start</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://codeberg.org/oSoWoSo/SysMan</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> SysMan</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build-sysman   <span class="co"># builds build/sysman</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">./build/sysman</span>      <span class="co"># GUI (auto-detects display)</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">./build/sysman</span> <span class="at">--tui</span></span></code></pre></div>
+<h3 id="standalone-binaries">Standalone binaries</h3>
+<p>Each plugin can also run independently:</p>
+<table>
+<thead>
+<tr>
+<th>Binary</th>
+<th>Description</th>
+<th>CGO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sysman</code></td>
+<td>Full system manager (all plugins, GUI + TUI)</td>
+<td>required</td>
+</tr>
+<tr>
+<td><code>sysman-tui</code></td>
+<td>Full system manager (TUI entry)</td>
+<td>required</td>
+</tr>
+<tr>
+<td><code>svman</code></td>
+<td>Services manager (GUI + TUI)</td>
+<td>required</td>
+</tr>
+<tr>
+<td><code>svman-tui</code></td>
+<td>Services manager (TUI only)</td>
+<td>free</td>
+</tr>
+<tr>
+<td><code>ugman</code></td>
+<td>Users &amp; Groups manager (GUI + TUI)</td>
+<td>required</td>
+</tr>
+<tr>
+<td><code>ugman-tui</code></td>
+<td>Users &amp; Groups manager (TUI only)</td>
+<td>free</td>
+</tr>
+<tr>
+<td><code>infoman</code></td>
+<td>System info (GUI + TUI)</td>
+<td>required</td>
+</tr>
+<tr>
+<td><code>infoman-tui</code></td>
+<td>System info (TUI only)</td>
+<td>free</td>
+</tr>
+<tr>
+<td><code>srcman</code></td>
+<td>xbps-src template manager (GUI + TUI)</td>
+<td>required</td>
+</tr>
+<tr>
+<td><code>srcman-tui</code></td>
+<td>xbps-src template manager (TUI only)</td>
+<td>free</td>
+</tr>
+<tr>
+<td><code>pkgman</code></td>
+<td>Package manager (GUI + TUI)</td>
+<td>required</td>
+</tr>
+<tr>
+<td><code>pkgman-tui</code></td>
+<td>Package manager (TUI only)</td>
+<td>free</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build          <span class="co"># build all 12 binaries</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build-svman    <span class="co"># build/svman only</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build-svman-tui</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># … see Makefile targets below</span></span></code></pre></div>
+<h3 id="cgo-dependencies-required-for-gui-builds">CGO dependencies
+(required for GUI builds)</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Void Linux</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> xbps-install gcc pkg-config libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-devel</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Debian / Ubuntu</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt-get install <span class="at">-y</span> gcc libgl1-mesa-dev xorg-dev</span></code></pre></div>
+<hr />
+<h2 id="usage">Usage</h2>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">sysman</span>              <span class="co"># GUI (default when display available)</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">sysman</span> <span class="at">--tui</span>        <span class="co"># TUI</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">sysman</span> <span class="at">--help</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">svman</span>               <span class="co"># Services GUI</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="ex">svman</span> <span class="at">--tui</span>         <span class="co"># Services TUI</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ex">ugman</span>               <span class="co"># Users &amp; Groups GUI</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="ex">ugman-tui</span>           <span class="co"># Users &amp; Groups TUI only</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ex">infoman</span>             <span class="co"># SysInfo GUI</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="ex">infoman-tui</span>         <span class="co"># SysInfo TUI only</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="ex">srcman</span>              <span class="co"># Templates GUI (reads $XBPS_DISTDIR)</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="ex">srcman-tui</span>          <span class="co"># Templates TUI only</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="ex">pkgman</span>              <span class="co"># Packages GUI</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="ex">pkgman-tui</span>          <span class="co"># Packages TUI only</span></span></code></pre></div>
+<h3 id="environment-variables">Environment variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SERVICEDIR</code></td>
+<td>runit service definitions</td>
+<td><code>/etc/sv</code></td>
+</tr>
+<tr>
+<td><code>SERVICEDESTDIR</code></td>
+<td>enabled services directory</td>
+<td><code>/var/service</code></td>
+</tr>
+<tr>
+<td><code>SVMAN_LANG</code></td>
+<td>language override (<code>cs</code>, <code>en</code>)</td>
+<td>auto from <code>LANG</code></td>
+</tr>
+<tr>
+<td><code>XBPS_DISTDIR</code></td>
+<td>path to void-packages clone</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>PLUGIN_DIR</code></td>
+<td>directory for dynamic <code>.so</code> plugins</td>
+<td><code>./plugins</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="controls">Controls</h2>
+<h3 id="tui-services-tab">TUI — Services tab</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>↑</code> / <code>k</code></td>
+<td>Move up</td>
+</tr>
+<tr>
+<td><code>↓</code> / <code>j</code></td>
+<td>Move down</td>
+</tr>
+<tr>
+<td><code>Enter</code> / <code>Space</code></td>
+<td>Enable / disable</td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td>Start</td>
+</tr>
+<tr>
+<td><code>x</code></td>
+<td>Stop</td>
+</tr>
+<tr>
+<td><code>t</code></td>
+<td>Restart</td>
+</tr>
+<tr>
+<td><code>l</code></td>
+<td>Reload (HUP)</td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td>Pause (SIGSTOP)</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>Continue (SIGCONT)</td>
+</tr>
+<tr>
+<td><code>K</code></td>
+<td>Kill (SIGKILL)</td>
+</tr>
+<tr>
+<td><code>/</code></td>
+<td>Search</td>
+</tr>
+<tr>
+<td><code>Tab</code></td>
+<td>Cycle filter (All / Enabled / Disabled)</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>Reload list</td>
+</tr>
+<tr>
+<td><code>q</code> / <code>Esc</code></td>
+<td>Quit</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tui-users-groups-tab">TUI — Users &amp; Groups tab</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>↑</code> / <code>k</code></td>
+<td>Move up</td>
+</tr>
+<tr>
+<td><code>↓</code> / <code>j</code></td>
+<td>Move down</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Users tab</td>
+</tr>
+<tr>
+<td><code>2</code></td>
+<td>Groups tab</td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td>Toggle system users</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>Refresh</td>
+</tr>
+<tr>
+<td><code>q</code> / <code>Esc</code></td>
+<td>Quit</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tui-tab-switching-sysman">TUI — tab switching (sysman)</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1</code></td>
+<td>SysInfo</td>
+</tr>
+<tr>
+<td><code>2</code></td>
+<td>Packages</td>
+</tr>
+<tr>
+<td><code>3</code></td>
+<td>Templates</td>
+</tr>
+<tr>
+<td><code>4</code></td>
+<td>Services</td>
+</tr>
+<tr>
+<td><code>5</code></td>
+<td>Users &amp; Groups</td>
+</tr>
+<tr>
+<td><code>Ctrl+C</code></td>
+<td>Quit</td>
+</tr>
+</tbody>
+</table>
+<h3 id="gui-all-standalone-windows">GUI — all standalone windows</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Esc</code></td>
+<td>Quit</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="project-structure">Project structure</h2>
+<pre><code>SysMan/
+├── main.go                    # svman entry point (Services standalone)
+├── Makefile
+├── lang/                      # Translation files (cs, en)
+├── api/
+│   └── plugin.go              # PluginIF interface
+├── plugin/                    # Services plugin (runit via sv)
+│   ├── plugin.go              # Plugin, New, NewRunit, NewWithBackend
+│   ├── plugin_gui.go          # Content / ShowAbout
+│   ├── gui.go                 # Fyne GUI
+│   ├── tui.go                 # Bubbletea TUI
+│   ├── common.go              # Service, Backend interface, RunitBackend
+│   └── i18n.go                # Translations
+├── xbps-pkg/                  # Packages plugin (xbps)
+│   ├── plugin.go
+│   ├── common.go              # PkgBackend interface, XbpsBackend
+│   ├── plugin_gui.go          # Content
+│   └── tui.go                 # Bubbletea TUI
+├── xbps-src/                  # Templates plugin (xbps-src)
+├── sysinfo/                   # SysInfo plugin (fastfetch)
+├── usergroups/                # Users &amp; Groups plugin
+│   ├── plugin.go
+│   ├── gui.go                 # Fyne GUI + RunGUI
+│   ├── tui.go                 # Bubbletea TUI + RunTUI
+│   └── users.go               # User/Group loading
+├── cmd/
+│   ├── sysmanager/            # sysman / sysman-tui
+│   ├── svman-tui/             # svman-tui (CGO-free)
+│   ├── ugman-gui/             # ugman
+│   ├── ugman-tui/             # ugman-tui (CGO-free)
+│   ├── pkgman-gui/            # pkgman
+│   ├── infoman-gui/           # infoman
+│   ├── infoman-tui/           # infoman-tui (CGO-free)
+│   ├── srcman-gui/            # srcman
+│   └── srcman-tui/            # srcman-tui (CGO-free)
+└── pluginentry/               # Dynamic .so entry points
+    ├── svman/
+    ├── xbps-pkg/
+    ├── xbps-src/
+    └── sysinfo/</code></pre>
+<hr />
+<h2 id="plugin-api">Plugin API</h2>
+<p>Every plugin implements <code>api.PluginIF</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode go"><code class="sourceCode go"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> PluginIF <span class="kw">interface</span> <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    Name<span class="op">()</span> <span class="dt">string</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    Content<span class="op">(</span>win fyne<span class="op">.</span>Window<span class="op">)</span> fyne<span class="op">.</span>CanvasObject  <span class="co">// GUI</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    Model<span class="op">()</span> tea<span class="op">.</span>Model                            <span class="co">// TUI</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="embedding-services-in-a-fyne-application">Embedding Services in
+a Fyne application</h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode go"><code class="sourceCode go"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> svman <span class="st">&quot;codeberg.org/oSoWoSo/SysMan/plugin&quot;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>svman<span class="op">.</span>InitI18n<span class="op">()</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>p <span class="op">:=</span> svman<span class="op">.</span>New<span class="op">(</span><span class="st">&quot;/etc/sv&quot;</span><span class="op">,</span> <span class="st">&quot;/var/service&quot;</span><span class="op">)</span>   <span class="co">// runit backend</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">// or with a custom backend:</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>p <span class="op">=</span> svman<span class="op">.</span>NewWithBackend<span class="op">(&amp;</span>MyOpenRCBackend<span class="op">{})</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>tabs <span class="op">:=</span> container<span class="op">.</span>NewAppTabs<span class="op">(</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    container<span class="op">.</span>NewTabItem<span class="op">(</span>p<span class="op">.</span>Name<span class="op">(),</span> p<span class="op">.</span>Content<span class="op">(</span>win<span class="op">)),</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span></code></pre></div>
+<h3 id="embedding-packages-in-a-fyne-application">Embedding Packages in
+a Fyne application</h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode go"><code class="sourceCode go"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> xbpspkg <span class="st">&quot;codeberg.org/oSoWoSo/SysMan/xbps-pkg&quot;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>p <span class="op">:=</span> xbpspkg<span class="op">.</span>New<span class="op">()</span>                         <span class="co">// xbps backend</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">// or with a custom backend:</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>p <span class="op">=</span> xbpspkg<span class="op">.</span>NewWithBackend<span class="op">(&amp;</span>MyAptBackend<span class="op">{})</span></span></code></pre></div>
+<h3 id="embedding-users-groups-in-a-fyne-application">Embedding Users
+&amp; Groups in a Fyne application</h3>
+<div class="sourceCode" id="cb9"><pre class="sourceCode go"><code class="sourceCode go"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="st">&quot;codeberg.org/oSoWoSo/SysMan/usergroups&quot;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>p <span class="op">:=</span> usergroups<span class="op">.</span>New<span class="op">()</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>tabs <span class="op">:=</span> container<span class="op">.</span>NewAppTabs<span class="op">(</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    container<span class="op">.</span>NewTabItem<span class="op">(</span>p<span class="op">.</span>Name<span class="op">(),</span> p<span class="op">.</span>Content<span class="op">(</span>win<span class="op">)),</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="co">// TUI:</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>_ <span class="op">=</span> p<span class="op">.</span>Model<span class="op">()</span></span></code></pre></div>
+<h3 id="custom-backend-services">Custom backend (Services)</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode go"><code class="sourceCode go"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> MyOpenRCBackend <span class="kw">struct</span><span class="op">{}</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Dirs<span class="op">()</span> <span class="op">(</span><span class="dt">string</span><span class="op">,</span> <span class="dt">string</span><span class="op">)</span>                         <span class="op">{</span> <span class="cf">return</span> <span class="st">&quot;/etc/init.d&quot;</span><span class="op">,</span> <span class="st">&quot;/etc/runlevels/default&quot;</span> <span class="op">}</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> List<span class="op">()</span> <span class="op">[]</span>plugin<span class="op">.</span>Service                         <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Enable<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> <span class="dt">error</span>                       <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Disable<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> <span class="dt">error</span>                      <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Status<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> plugin<span class="op">.</span>ServiceStatus        <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> StatusAll<span class="op">(</span>names <span class="op">[]</span><span class="dt">string</span><span class="op">)</span> <span class="kw">map</span><span class="op">[</span><span class="dt">string</span><span class="op">]</span>plugin<span class="op">.</span>ServiceStatus <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Start<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> <span class="dt">error</span>                        <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Stop<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> <span class="dt">error</span>                         <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Restart<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> <span class="dt">error</span>                      <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Reload<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> <span class="dt">error</span>                       <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Pause<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> <span class="dt">error</span>                        <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Continue<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> <span class="dt">error</span>                     <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> <span class="op">(</span>b <span class="op">*</span>MyOpenRCBackend<span class="op">)</span> Kill<span class="op">(</span>name <span class="dt">string</span><span class="op">)</span> <span class="dt">error</span>                         <span class="op">{</span> … <span class="op">}</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>p <span class="op">:=</span> svman<span class="op">.</span>NewWithBackend<span class="op">(&amp;</span>MyOpenRCBackend<span class="op">{})</span></span></code></pre></div>
+<h3 id="dynamic-plugin-loading">Dynamic plugin loading</h3>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build-plugins              <span class="co"># build/plugins/*.so</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="va">PLUGIN_DIR</span><span class="op">=</span>./build/plugins <span class="ex">./build/sysman</span></span></code></pre></div>
+<p>Custom <code>.so</code> plugin:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode go"><code class="sourceCode go"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">// myplugin/main.go</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">package</span> main</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="st">&quot;codeberg.org/oSoWoSo/SysMan/api&quot;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="kw">func</span> New<span class="op">()</span> api<span class="op">.</span>PluginIF <span class="op">{</span> <span class="cf">return</span> <span class="op">&amp;</span>myPlugin<span class="op">{}</span> <span class="op">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">go</span> build <span class="at">-buildmode</span><span class="op">=</span>plugin <span class="at">-o</span> plugins/myplugin.so ./myplugin/</span></code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> Go plugins require the same Go version and
+module dependencies as the host binary. Dynamic loading is
+Linux-only.</p>
+</blockquote>
+<hr />
+<h2 id="makefile-targets">Makefile targets</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Target</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>make build</code></td>
+<td>all 12 binaries</td>
+</tr>
+<tr>
+<td><code>make build-sysman</code></td>
+<td><code>build/sysman</code> — full system manager</td>
+</tr>
+<tr>
+<td><code>make build-sysman-tui</code></td>
+<td><code>build/sysman-tui</code> — full system manager (TUI entry)</td>
+</tr>
+<tr>
+<td><code>make build-svman</code></td>
+<td><code>build/svman</code> — Services standalone</td>
+</tr>
+<tr>
+<td><code>make build-svman-tui</code></td>
+<td><code>build/svman-tui</code> — Services TUI (CGO-free)</td>
+</tr>
+<tr>
+<td><code>make build-ugman</code></td>
+<td><code>build/ugman</code> — Users &amp; Groups standalone</td>
+</tr>
+<tr>
+<td><code>make build-ugman-tui</code></td>
+<td><code>build/ugman-tui</code> — Users &amp; Groups TUI
+(CGO-free)</td>
+</tr>
+<tr>
+<td><code>make build-infoman</code></td>
+<td><code>build/infoman</code> — SysInfo standalone</td>
+</tr>
+<tr>
+<td><code>make build-infoman-tui</code></td>
+<td><code>build/infoman-tui</code> — SysInfo TUI (CGO-free)</td>
+</tr>
+<tr>
+<td><code>make build-srcman</code></td>
+<td><code>build/srcman</code> — Templates standalone</td>
+</tr>
+<tr>
+<td><code>make build-srcman-tui</code></td>
+<td><code>build/srcman-tui</code> — Templates TUI (CGO-free)</td>
+</tr>
+<tr>
+<td><code>make build-pkgman</code></td>
+<td><code>build/pkgman</code> — Packages standalone</td>
+</tr>
+<tr>
+<td><code>make build-pkgman-tui</code></td>
+<td><code>build/pkgman-tui</code> — Packages TUI (CGO-free)</td>
+</tr>
+<tr>
+<td><code>make build-plugins</code></td>
+<td><code>build/plugins/*.so</code> — dynamic plugins</td>
+</tr>
+<tr>
+<td><code>make test</code></td>
+<td>run tests with race detector</td>
+</tr>
+<tr>
+<td><code>make lint</code></td>
+<td><code>go vet</code> + golangci-lint</td>
+</tr>
+<tr>
+<td><code>make fmt</code></td>
+<td><code>gofmt -s</code></td>
+</tr>
+<tr>
+<td><code>make install</code></td>
+<td>install all binaries + lang files</td>
+</tr>
+<tr>
+<td><code>make uninstall</code></td>
+<td>remove installed files</td>
+</tr>
+<tr>
+<td><code>make release</code></td>
+<td>per-binary tarballs with sha256 checksums</td>
+</tr>
+<tr>
+<td><code>make clean</code></td>
+<td>remove <code>build/</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="security">Security</h2>
+<p>Service operations (<code>sv</code>, symlink enable/disable) require
+elevated privileges and are run via <code>pkexec</code>,
+<code>doas</code>, or <code>sudo</code> (whichever is available).</p>
+<p>Optional passwordless rules (add via <code>visudo</code> or
+<code>/etc/doas.conf</code>):</p>
+<pre class="sudoers"><code># sudo
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/ln -s /etc/sv/* /var/service/*
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/rm /var/service/*
+%wheel ALL=(ALL) NOPASSWD: /usr/bin/sv * /var/service/*</code></pre>
+<pre><code># doas (/etc/doas.conf)
+permit nopass :wheel cmd ln
+permit nopass :wheel cmd rm
+permit nopass :wheel cmd sv</code></pre>
+<hr />
+<h2 id="dependencies">Dependencies</h2>
+<pre><code>fyne.io/fyne/v2                    GUI framework (CGO required)
+github.com/charmbracelet/bubbletea TUI framework
+github.com/charmbracelet/lipgloss  Terminal styling
+github.com/charmbracelet/bubbles   TUI components
+gopkg.in/yaml.v3                   YAML parsing</code></pre>
+<hr />
+<h2 id="license">License</h2>
+<p>MIT — see <a href="LICENSE">LICENSE</a></p>
+<h2 id="author">Author</h2>
+<p>zenobit @ <a href="https://oSoWoSo.org">oSoWoSo</a></p>
+<h3 id="source">Source</h3>
+<p><a href="https://codeberg.org/oSoWoSo/SysMan">Codeberg</a></p>
+<h3 id="mirrors">Mirrors</h3>
+<p><a href="https://github.com/oSoWoSo/SysMan">GitHub</a></p>
+        </main>
+        <footer>
+            <p>&copy; 2026 zenobit @ oSoWoSo.org. All rights reserved.</p>
+            <p>This site was generated with <a href="https://bssg.dragas.net">BSSG</a>, a Bash Static Site Generator.</p>
+            <p>
+                <a href="http://localhost:8000/">Home</a> &middot; <a href="http://localhost:8000/archives/">Archives</a> &middot; <a href="http://localhost:8000/rss.xml">Subscribe via RSS</a>
+            </p>
+            <p><a href="#">Back to Top</a></p>
+        </footer>
+    </div>
+</body>
+</html> 

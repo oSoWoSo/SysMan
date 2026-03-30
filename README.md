@@ -365,4 +365,12 @@ MIT — see [LICENSE](LICENSE)
 
 ## Author
 
-[oSoWoSo](https://codeberg.org/oSoWoSo)
+zenobit @ [oSoWoSo](https://oSoWoSo.org)
+
+### Source
+
+[Codeberg](https://codeberg.org/oSoWoSo/SysMan)
+
+### Mirrors
+
+[GitHub](https://github.com/oSoWoSo/SysMan)
