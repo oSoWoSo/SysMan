@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            artifact_name: svman-linux-amd64
+          - goos: linux
+            goarch: arm64
+            artifact_name: svman-linux-arm64
+          - goos: linux
+            goarch: 386
+            artifact_name: svman-linux-386
+          - goos: freebsd
+            goarch: amd64
+            artifact_name: svman-freebsd-amd64
+          - goos: freebsd
+            goarch: arm64
+            artifact_name: svman-freebsd-arm64
+          - goos: openbsd
+            goarch: amd64
+            artifact_name: svman-openbsd-amd64
+          - goos: openbsd
+            goarch: arm64
+            artifact_name: svman-openbsd-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Get version from tag
+        id: tag_name
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p build
+          go build \
+            -ldflags="-s -w -X main.Version=${{ steps.tag_name.outputs.VERSION }}" \
+            -o build/${{ matrix.artifact_name }} \
+            .
+
+      - name: Create checksum
+        run: |
+          cd build
+          sha256sum ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
+
+      - name: Compress binary
+        run: |
+          cd build
+          tar czf ${{ matrix.artifact_name }}.tar.gz ${{ matrix.artifact_name }}
+          zip -q ${{ matrix.artifact_name }}.zip ${{ matrix.artifact_name }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-${{ matrix.artifact_name }}
+          path: |
+            build/${{ matrix.artifact_name }}
+            build/${{ matrix.artifact_name }}.sha256
+            build/${{ matrix.artifact_name }}.tar.gz
+            build/${{ matrix.artifact_name }}.zip
+
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          git log --oneline --no-decorate $(git describe --tags --abbrev=0 HEAD^)..HEAD > CHANGELOG.txt || echo "Initial release" > CHANGELOG.txt
+          cat CHANGELOG.txt
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          release_name: Release ${{ steps.version.outputs.VERSION }}
+          body_path: CHANGELOG.txt
+          draft: false
+          prerelease: false
+
+      - name: Upload release assets
+        run: |
+          cd artifacts
+          for dir in */; do
+            for file in "$dir"*; do
+              if [ -f "$file" ]; then
+                echo "Uploading $file"
+                # Forgejo API
+                curl -X POST \
+                  -H "Authorization: token ${{ secrets.CODEBERG_TOKEN }}" \
+                  -F "attachment=@$file" \
+                  "https://codeberg.org/api/v1/repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.VERSION }}/assets"
+              fi
+            done
+          done

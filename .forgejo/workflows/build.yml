@@ -1,0 +1,71 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        goos: [linux, freebsd, openbsd]
+        goarch: [amd64, arm64, 386]
+        exclude:
+          # FreeBSD/OpenBSD on 386 not supported
+          - goos: freebsd
+            goarch: 386
+          - goos: openbsd
+            goarch: 386
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run linter (golangci-lint)
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --timeout=5m
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.out
+          flags: unittests
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          mkdir -p build
+          go build \
+            -ldflags="-s -w -X main.Version=${{ github.sha }}" \
+            -o build/svman-${{ matrix.goos }}-${{ matrix.goarch }} \
+            .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: svman-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: build/svman-${{ matrix.goos }}-${{ matrix.goarch }}
+          retention-days: 7
