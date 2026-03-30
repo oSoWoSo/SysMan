@@ -45,7 +45,7 @@ func main() {
 		serviceDestDir = svman.DefaultServiceDestDir
 	}
 
-	mode := "gui"
+	mode := "auto"
 	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "--tui", "-t":
@@ -56,6 +56,22 @@ func main() {
 			fmt.Printf("sysmanager [--gui|--tui]\n\nPlugin dir: %s\n", pluginDir())
 			os.Exit(0)
 		}
+	}
+
+	hasDisplay := os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != ""
+
+	if mode == "auto" {
+		if hasDisplay {
+			mode = "gui"
+		} else {
+			mode = "tui"
+		}
+	}
+
+	// Explicit --gui with no display falls back to TUI.
+	if mode == "gui" && !hasDisplay {
+		fmt.Fprintln(os.Stderr, "sysmanager: no display available, falling back to TUI")
+		mode = "tui"
 	}
 
 	// Built-in plugins — always present, no rebuild needed for these.

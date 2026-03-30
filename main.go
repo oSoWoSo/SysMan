@@ -24,7 +24,7 @@ func main() {
 	}
 
 	// Parse command-line arguments and select UI mode.
-	mode := "gui"
+	mode := "auto"
 	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "--tui", "-t":
@@ -44,7 +44,7 @@ func main() {
   SVMAN_LANG      %s  (cs, en)
 `,
 				plugin.T["app.subtitle"],
-				"Usage", "GUI (default)", "TUI terminal",
+				"Usage", "GUI (default, falls back to TUI when no display)", "TUI terminal",
 				"Environment",
 				"service directory",
 				"enabled services directory",
@@ -52,6 +52,23 @@ func main() {
 			)
 			os.Exit(0)
 		}
+	}
+
+	hasDisplay := os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != ""
+
+	// Auto-detect: prefer GUI when a display server is available.
+	if mode == "auto" {
+		if hasDisplay {
+			mode = "gui"
+		} else {
+			mode = "tui"
+		}
+	}
+
+	// Explicit --gui with no display falls back to TUI.
+	if mode == "gui" && !hasDisplay {
+		fmt.Fprintln(os.Stderr, "svman: no display available, falling back to TUI")
+		mode = "tui"
 	}
 
 	// Launch the selected UI mode.

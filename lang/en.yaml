@@ -19,6 +19,9 @@ strings:
   detail.title: "SERVICE DETAIL"
   detail.name: "name"
   detail.state: "state"
+  detail.running: "running"
+  detail.pid: "pid"
+  detail.uptime: "uptime"
   detail.source: "source"
   detail.symlink: "symlink"
   detail.empty: "---"
@@ -26,12 +29,18 @@ strings:
 
   state.enabled: "enabled"
   state.disabled: "disabled"
+  state.running: "running"
+  state.stopped: "stopped"
 
   config.title: "CONFIGURATION"
 
   btn.enable: "Enable"
   btn.disable: "Disable"
   btn.reload: "Reload"
+  btn.start: "Start"
+  btn.stop: "Stop"
+  btn.restart: "Restart"
+  btn.hup: "Reload (HUP)"
   btn.close: "Close"
 
   menu.help: "Help"
@@ -43,9 +52,14 @@ strings:
 
   confirm.title: "Disable service"
   confirm.disable: "Really disable '%s'?"
+  confirm.stop: "Really stop '%s'?"
 
   status.enabled: "OK: '%s' enabled"
   status.disabled: "OK: '%s' disabled"
+  status.started: "OK: '%s' started"
+  status.stopped: "OK: '%s' stopped"
+  status.restarted: "OK: '%s' restarted"
+  status.hupped: "OK: '%s' reloaded (HUP)"
   status.reloaded: "list reloaded"
   status.err: "ERROR: "
   status.already.on: "'%s' is already enabled"
@@ -54,7 +68,7 @@ strings:
   count.fmt: "enabled %d/%d  shown %d"
   stats.fmt: "enabled: %d/%d  shown: %d"
 
-  help.normal: "jk/arrows=move  enter/space=toggle  /=search  tab=filter  r=reload  q/esc=quit"
+  help.normal: "jk/arrows=move  enter/space=toggle  s=start  x=stop  t=restart  l=hup  /=search  tab=filter  r=reload  q/esc=quit"
   help.search: "type=filter  up/down=move  enter=ok  esc=cancel"
 
   services.none: "(no services)"

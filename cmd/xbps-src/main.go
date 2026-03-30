@@ -21,7 +21,7 @@ import (
 func main() {
 	distDir := os.Getenv("XBPS_DISTDIR") // xbpssrc resolves ~/void if empty
 
-	mode := "gui"
+	mode := "auto"
 	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "--tui", "-t":
@@ -32,6 +32,21 @@ func main() {
 			fmt.Printf("xbps — xbps-src template manager\n\nUsage:\n  xbps [--gui|--tui]\n\nEnvironment:\n  XBPS_DISTDIR  void-packages directory (default: ~/void)\n")
 			os.Exit(0)
 		}
+	}
+
+	hasDisplay := os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != ""
+
+	if mode == "auto" {
+		if hasDisplay {
+			mode = "gui"
+		} else {
+			mode = "tui"
+		}
+	}
+
+	if mode == "gui" && !hasDisplay {
+		fmt.Fprintln(os.Stderr, "xbps: no display available, falling back to TUI")
+		mode = "tui"
 	}
 
 	switch mode {

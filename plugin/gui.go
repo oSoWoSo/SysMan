@@ -132,15 +132,22 @@ type guiApp struct {
 	searchText string
 	filter     filterMode
 
-	serviceList *widget.List
-	detailName  *widget.Label
-	detailState *detailStateWidget
-	detailSrc   *widget.Label
-	detailDst   *widget.Label
-	btnEnable   *widget.Button
-	btnDisable  *widget.Button
-	statusBar   *widget.Label
-	countLabel  *widget.Label
+	serviceList   *widget.List
+	detailName    *widget.Label
+	detailState   *detailStateWidget
+	detailRunning *widget.Label
+	detailPID     *widget.Label
+	detailUptime  *widget.Label
+	detailSrc     *widget.Label
+	detailDst     *widget.Label
+	btnEnable     *widget.Button
+	btnDisable    *widget.Button
+	btnStart      *widget.Button
+	btnStop       *widget.Button
+	btnRestart    *widget.Button
+	btnHup        *widget.Button
+	statusBar     *widget.Label
+	countLabel    *widget.Label
 }
 
 func (s *guiApp) filtered() []Service {
@@ -190,10 +197,17 @@ func (s *guiApp) updateCount() {
 func (s *guiApp) clearDetail() {
 	s.detailName.SetText(t("detail.empty"))
 	s.detailState.clear()
+	s.detailRunning.SetText(t("detail.empty"))
+	s.detailPID.SetText(t("detail.empty"))
+	s.detailUptime.SetText(t("detail.empty"))
 	s.detailSrc.SetText(t("detail.empty"))
 	s.detailDst.SetText(t("detail.empty"))
 	s.btnEnable.Disable()
 	s.btnDisable.Disable()
+	s.btnStart.Disable()
+	s.btnStop.Disable()
+	s.btnRestart.Disable()
+	s.btnHup.Disable()
 }
 
 func (s *guiApp) showDetail(svc Service) {
@@ -205,8 +219,42 @@ func (s *guiApp) showDetail(svc Service) {
 	s.btnDisable.Enable()
 	if svc.Enabled {
 		s.btnEnable.Disable()
+		s.btnStart.Enable()
+		s.btnStop.Enable()
+		s.btnRestart.Enable()
+		s.btnHup.Enable()
+		// Fetch running status asynchronously
+		go func(name string) {
+			st := GetServiceStatus(s.serviceDestDir, name)
+			s.updateRunningStatus(st)
+		}(svc.Name)
 	} else {
 		s.btnDisable.Disable()
+		s.btnStart.Disable()
+		s.btnStop.Disable()
+		s.btnRestart.Disable()
+		s.btnHup.Disable()
+		s.detailRunning.SetText(t("detail.empty"))
+		s.detailPID.SetText(t("detail.empty"))
+		s.detailUptime.SetText(t("detail.empty"))
+	}
+}
+
+func (s *guiApp) updateRunningStatus(st ServiceStatus) {
+	if st.Running {
+		s.detailRunning.SetText(t("state.running"))
+	} else {
+		s.detailRunning.SetText(t("state.stopped"))
+	}
+	if st.PID > 0 {
+		s.detailPID.SetText(fmt.Sprintf("%d", st.PID))
+	} else {
+		s.detailPID.SetText(t("detail.empty"))
+	}
+	if st.Uptime != "" {
+		s.detailUptime.SetText(st.Uptime)
+	} else {
+		s.detailUptime.SetText(t("detail.empty"))
 	}
 }
 
@@ -341,6 +389,10 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	s.detailName = widget.NewLabel(t("detail.empty"))
 	s.detailName.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 	s.detailState = newDetailStateWidget()
+	s.detailRunning = widget.NewLabel(t("detail.empty"))
+	s.detailPID = widget.NewLabel(t("detail.empty"))
+	s.detailPID.TextStyle = fyne.TextStyle{Monospace: true}
+	s.detailUptime = widget.NewLabel(t("detail.empty"))
 	s.detailSrc = widget.NewLabel(t("detail.empty"))
 	s.detailSrc.Wrapping = fyne.TextWrapBreak
 	s.detailDst = widget.NewLabel(t("detail.empty"))
@@ -349,6 +401,9 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	detailForm := widget.NewForm(
 		widget.NewFormItem(t("detail.name"), s.detailName),
 		widget.NewFormItem(t("detail.state"), s.detailState.box),
+		widget.NewFormItem(t("detail.running"), s.detailRunning),
+		widget.NewFormItem(t("detail.pid"), s.detailPID),
+		widget.NewFormItem(t("detail.uptime"), s.detailUptime),
 		widget.NewFormItem(t("detail.source"), s.detailSrc),
 		widget.NewFormItem(t("detail.symlink"), s.detailDst),
 	)
@@ -401,9 +456,95 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		s.setStatus(t("status.reloaded"))
 	})
 
+	// ── sv control buttons ───────────────────────────────────────────
+	s.btnStart = widget.NewButtonWithIcon(t("btn.start"), theme.MediaPlayIcon(), func() {
+		list := s.filtered()
+		if s.selected < 0 || s.selected >= len(list) {
+			return
+		}
+		name := list[s.selected].Name
+		go func() {
+			if err := StartService(s.serviceDestDir, name); err != nil {
+				s.setStatus(t("status.err") + err.Error())
+				return
+			}
+			s.setStatus(fmt.Sprintf(t("status.started"), name))
+			st := GetServiceStatus(s.serviceDestDir, name)
+			s.updateRunningStatus(st)
+		}()
+	})
+	s.btnStart.Importance = widget.SuccessImportance
+
+	s.btnStop = widget.NewButtonWithIcon(t("btn.stop"), theme.MediaStopIcon(), func() {
+		list := s.filtered()
+		if s.selected < 0 || s.selected >= len(list) {
+			return
+		}
+		name := list[s.selected].Name
+		dialog.ShowConfirm(
+			t("confirm.title"),
+			fmt.Sprintf(t("confirm.stop"), name),
+			func(ok bool) {
+				if !ok {
+					return
+				}
+				go func() {
+					if err := StopService(s.serviceDestDir, name); err != nil {
+						s.setStatus(t("status.err") + err.Error())
+						return
+					}
+					s.setStatus(fmt.Sprintf(t("status.stopped"), name))
+					st := GetServiceStatus(s.serviceDestDir, name)
+					s.updateRunningStatus(st)
+				}()
+			}, s.win)
+	})
+	s.btnStop.Importance = widget.DangerImportance
+
+	s.btnRestart = widget.NewButton(t("btn.restart"), func() {
+		list := s.filtered()
+		if s.selected < 0 || s.selected >= len(list) {
+			return
+		}
+		name := list[s.selected].Name
+		go func() {
+			if err := RestartService(s.serviceDestDir, name); err != nil {
+				s.setStatus(t("status.err") + err.Error())
+				return
+			}
+			s.setStatus(fmt.Sprintf(t("status.restarted"), name))
+			st := GetServiceStatus(s.serviceDestDir, name)
+			s.updateRunningStatus(st)
+		}()
+	})
+
+	s.btnHup = widget.NewButton(t("btn.hup"), func() {
+		list := s.filtered()
+		if s.selected < 0 || s.selected >= len(list) {
+			return
+		}
+		name := list[s.selected].Name
+		go func() {
+			if err := ReloadService(s.serviceDestDir, name); err != nil {
+				s.setStatus(t("status.err") + err.Error())
+				return
+			}
+			s.setStatus(fmt.Sprintf(t("status.hupped"), name))
+			st := GetServiceStatus(s.serviceDestDir, name)
+			s.updateRunningStatus(st)
+		}()
+	})
+
 	s.btnEnable.Disable()
 	s.btnDisable.Disable()
-	buttons := container.NewHBox(s.btnEnable, s.btnDisable, layout.NewSpacer(), btnReload)
+	s.btnStart.Disable()
+	s.btnStop.Disable()
+	s.btnRestart.Disable()
+	s.btnHup.Disable()
+
+	toggleRow := container.NewHBox(s.btnEnable, s.btnDisable)
+	controlRow := container.NewHBox(s.btnStart, s.btnStop, s.btnRestart, s.btnHup, layout.NewSpacer(), btnReload)
+	buttons := container.NewVBox(toggleRow, controlRow)
 
 	// ── Status bar ───────────────────────────────────────────────────
 	s.statusBar = widget.NewLabel("")

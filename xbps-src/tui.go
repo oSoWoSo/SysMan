@@ -435,5 +435,6 @@ func RunTUI(distDir string) {
 	p := tea.NewProgram(NewTuiModel(distDir), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
+		os.Exit(1)
 	}
 }
