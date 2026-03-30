@@ -1,4 +1,5 @@
 name: Build
+
 on:
   push:
     branches:
@@ -12,51 +13,40 @@ jobs:
   build:
     runs-on: codeberg-medium
 
-    strategy:
-      matrix:
-        goos: [linux, freebsd, openbsd]
-        goarch: [amd64, arm64, 386]
-        exclude:
-          - goos: freebsd
-            goarch: 386
-          - goos: openbsd
-            goarch: 386
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
           cache: true
 
-      # Fyne requires graphics libraries — native linux/amd64 only
-      - name: Install system dependencies
-        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            gcc pkg-config \
-            libgl1-mesa-dev \
-            libx11-dev libxrandr-dev libxinerama-dev \
-            libxcursor-dev libxi-dev libxxf86vm-dev
+      - name: Install CGO dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
 
       - name: Download dependencies
         run: go mod download
 
-      - name: Run tests (native only)
-        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-        run: go test -v ./...
+      - name: Build svman (GUI+TUI)
+        run: |
+          mkdir -p build
+          go build \
+            -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=${{ github.sha }}" \
+            -o build/svman .
 
-      - name: Build binary
+      - name: Build svman-tui (TUI-only, CGO-free)
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
+        run: |
+          go build -tags tui_only \
+            -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=${{ github.sha }}" \
+            -o build/svman-tui ./cmd/svman-tui/
+
+      - name: Build sysmanager
         run: |
           go build \
             -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=${{ github.sha }}" \
-            -o build/svman-${{ matrix.goos }}-${{ matrix.goarch }} \
-            .
+            -o build/sysmanager ./cmd/sysmanager/
+
+      - name: Build testplugin
+        run: go build -o build/testplugin ./cmd/testplugin/

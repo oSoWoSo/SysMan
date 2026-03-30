@@ -12,31 +12,56 @@ jobs:
     strategy:
       matrix:
         include:
+          # Full GUI+TUI binary — requires CGO and OpenGL headers (linux/amd64 only)
           - goos: linux
             goarch: amd64
+            cgo: "1"
+            tags: ""
+            pkg: "."
+          # TUI-only binaries — CGO-free, cross-compilable to any platform
           - goos: linux
             goarch: arm64
+            cgo: "0"
+            tags: tui_only
+            pkg: ./cmd/svman-tui/
           - goos: linux
-            goarch: 386
+            goarch: "386"
+            cgo: "0"
+            tags: tui_only
+            pkg: ./cmd/svman-tui/
           - goos: freebsd
             goarch: amd64
+            cgo: "0"
+            tags: tui_only
+            pkg: ./cmd/svman-tui/
           - goos: freebsd
             goarch: arm64
+            cgo: "0"
+            tags: tui_only
+            pkg: ./cmd/svman-tui/
           - goos: openbsd
             goarch: amd64
+            cgo: "0"
+            tags: tui_only
+            pkg: ./cmd/svman-tui/
           - goos: openbsd
             goarch: arm64
+            cgo: "0"
+            tags: tui_only
+            pkg: ./cmd/svman-tui/
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
+
+      - name: Install CGO dependencies
+        if: matrix.cgo == '1'
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
 
       - name: Get version from tag
         id: version
@@ -49,15 +74,18 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: ${{ matrix.cgo }}
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           NAME=svman-${{ matrix.goos }}-${{ matrix.goarch }}
           mkdir -p build
-          go build \
+          TAGS="${{ matrix.tags }}"
+          TAG_FLAG=""
+          if [ -n "$TAGS" ]; then TAG_FLAG="-tags $TAGS"; fi
+          go build $TAG_FLAG \
             -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=${VERSION}" \
             -o build/${NAME} \
-            .
+            ${{ matrix.pkg }}
           cd build
           sha256sum ${NAME} > ${NAME}.sha256
           tar czf ${NAME}.tar.gz ${NAME}
@@ -71,7 +99,6 @@ jobs:
           REPO="${{ github.repository }}"
           API="https://codeberg.org/api/v1"
 
-          # Generate changelog since last tag
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           if [ -n "${PREV_TAG}" ]; then
             CHANGELOG=$(git log --oneline --no-decorate ${PREV_TAG}..HEAD)
@@ -79,14 +106,12 @@ jobs:
             CHANGELOG="Initial release"
           fi
 
-          # Create release (ignore error if already exists from another matrix job)
           curl -s -X POST "${API}/repos/${REPO}/releases" \
             -H "Authorization: token ${CODEBERG_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"${CHANGELOG}\",\"draft\":false}" \
             || true
 
-          # Upload assets
           for f in build/${NAME} build/${NAME}.sha256 build/${NAME}.tar.gz; do
             curl -s -X POST "${API}/repos/${REPO}/releases/tags/${VERSION}/assets" \
               -H "Authorization: token ${CODEBERG_TOKEN}" \

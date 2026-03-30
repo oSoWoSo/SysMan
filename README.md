@@ -1,162 +1,263 @@
-# svman – Service Manager for runit
+# svman – runit Service Manager
 
-**svman** is a simple service manager for systems using the **runit** init system. It offers a graphical (GUI) and text (TUI) interface for convenient management of symlinks in `/var/service`.
+**svman** is a service manager for systems running the **runit** init system.
+It provides a graphical (GUI) and terminal (TUI) interface for managing symlinks in `/var/service`.
+
+svman is also an **embeddable plugin** — it can be dropped into any Fyne or Bubbletea application as a tab or panel without modifying its source code.
 
 ---
 
-## Installation
+## Features
 
-### Prerequisites
-- Go 1.18+
-- runit installed and configured
-- `sudo` for running commands with elevated privileges
+- Load and display services from the runit directory
+- Enable / disable services via `sudo`
+- Filter by state (All / Enabled / Disabled)
+- Real-time search
+- Detail panel for the selected service
+- About dialog with version info
+- Czech and English interface (auto-detected from `LANG`)
+- Adaptive colors (light / dark terminal)
+- Embeddable plugin API for system managers
+- TUI-only binary for cross-platform use (no CGO / no Fyne)
 
-### Compilation
+---
+
+## Quick start
 
 ```bash
-git clone <repository>
+git clone https://codeberg.org/oSoWoSo/svman
 cd svman
-go build -o svman
+make build          # builds build/svman
+./build/svman       # launches GUI (default)
+./build/svman --tui # launches TUI
 ```
 
 ### System installation
 
 ```bash
-sudo cp svman /usr/local/bin/
+sudo cp build/svman /usr/local/bin/
 sudo mkdir -p /usr/local/share/svman/lang
 sudo cp lang/*.yaml /usr/local/share/svman/lang/
+```
+
+### CGO dependencies (required for GUI build)
+
+```bash
+# Debian / Ubuntu / Void
+sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
+# Arch
+sudo pacman -S gcc mesa libxcursor libxrandr libxinerama libxi
 ```
 
 ---
 
 ## Usage
 
-### GUI mode (default)
-
 ```bash
-svman
-# or explicitly:
-svman --gui
-# or shortened:
-svman -g
+svman           # GUI (default)
+svman --gui     # GUI explicitly
+svman --tui     # TUI (terminal)
+svman --help    # help
 ```
 
-### TUI mode (terminal)
+### Environment variables
+
+| Variable | Description | Default |
+|---|---|---|
+| `SERVICEDIR` | Service definition directory | `/etc/sv` |
+| `SERVICEDESTDIR` | Enabled services symlink directory | `/var/service` |
+| `SVMAN_LANG` | Language override (`cs`, `en`) | auto from `LANG` |
 
 ```bash
-svman --tui
-# or shortened:
-svman -t
-```
-
-### Help
-
-```bash
-svman --help
-# or shortened:
-svman -h
+SERVICEDIR=/home/user/sv SVMAN_LANG=en svman --tui
 ```
 
 ---
 
 ## Controls
 
-### GUI mode
-- **Click on a service** – turns the service on/off
-- **Right click** – displays details
-- **Refresh** – reloads the list of services
-
-### TUI mode
+### TUI
 
 | Key | Action |
-|---------|------|
+|---|---|
 | `↑` / `k` | Move up |
 | `↓` / `j` | Move down |
-| `Enter` / `Space` | Turn service on/off |
-| `/` | Start search |
-| `Tab` | Toggle filters (All / On / Off) |
+| `Enter` / `Space` | Enable / disable service |
+| `/` | Search |
+| `Esc` | Clear search / cancel |
+| `Tab` | Cycle filters (All → Enabled → Disabled) |
 | `r` | Reload service list |
-| `Esc` / `q` / `Ctrl+C` | Exit application |
+| `q` / `Ctrl+C` / `Esc` | Quit |
+
+### GUI
+
+- **Click** on a service row to enable / disable it
+- **ⓘ** button (bottom-left) opens the About dialog
+- **Refresh** button reloads the list
 
 ---
 
-## Environment variables
+## Build modes
 
-| Variable | Description | Default |
-|----------|-------|---------|
-| `SERVICEDIR` | Path to service resources | `/etc/sv` |
-| `SERVICEDESTDIR` | Path to enabled services | `/var/service` |
-| `SVMAN_LANG` | Interface language (cs, en) | Detects from `LANG` |
-| `LANGUAGE`, `LANG`, `LC_ALL`, `LC_MESSAGES` | Standard localization | – |
-
-### Examples
+| Binary | CGO | Fyne | Platforms |
+|---|---|---|---|
+| `build/svman` | required | ✓ | linux/amd64 |
+| `build/svman-tui` | not needed | ✗ | any |
 
 ```bash
-# Custom service directory
-SERVICEDIR=/home/user/services svman
+make build          # GUI+TUI binary (requires CGO)
+make build-tui      # TUI-only binary, cross-compilable
 
-# Czech language settings
-SVMAN_LANG=cs svman
-
-# Combination
-SERVICEDIR=/opt/sv SVMAN_LANG=en svman --tui
+# Cross-compile TUI for arm64
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+  go build -tags tui_only -o svman-arm64 ./cmd/svman-tui/
 ```
 
 ---
 
-## Architecture
+## Plugin API
 
-### Modules
+svman exposes an embeddable `plugin.Plugin` type that implements `api.PluginIF`:
 
-- **main.go** – Entry point, argument parsing
-- **i18n.go** – Internationalization (Czech, English)
-- **services.go** – Loading and managing services
-- **gui.go** – Graphical interface (Fyne)
-- **tui.go** – Text interface (Bubble Tea)
-- **lang/*.yaml** – Language files
+```go
+import svman "codeberg.org/oSoWoSo/svman/plugin"
 
-### Data flow
-
+p := svman.New(serviceDir, serviceDestDir)
+p.Name()          // "Services"
+p.Content(win)    // fyne.CanvasObject — embed in any container
+p.Model()         // tea.Model — wrap in your own tea.Program
+p.ShowAbout(win)  // show About dialog
 ```
-1. initI18n()        – Loads language files and detects language
-2. loadServices()    – Scans SERVICEDIR and checks symlinks
-3. GUI/TUI          – Displays list and waits for interaction
-4. enableService()   – Creates symlink (sudo ln -s)
-5. disableService()  – Deletes symlink (sudo rm)
-6. Reload           – Reloads list
+
+### Embedding in a Fyne application
+
+```go
+svman.InitI18n()
+p := svman.New("/etc/sv", "/var/service")
+tabs := container.NewAppTabs(
+    container.NewTabItem(p.Name(), p.Content(win)),
+)
+```
+
+### Embedding in a Bubbletea application
+
+```go
+svman.InitI18n()
+p := svman.New("/etc/sv", "/var/service")
+program := tea.NewProgram(p.Model(), tea.WithAltScreen())
 ```
 
 ---
 
-## Features
+## System Manager demo
 
-### ✅ Implemented
-- Loading services from the runit directory
-- Service status detection (on/off)
-- Enabling/disabling services via sudo
-- Filtering (All / On / Off)
-- Real-time search
-- Two language interfaces (Czech, English)
-- Adaptive colors (light/dark mode)
+`cmd/sysmanager` is a demo application that embeds multiple plugins in one window.
 
-### 🔄 Future extensions
-- Direct administration without sudo (for privileged users)
-- Displaying service logs
-- Restarting/stopping/starting individual services
-- Configuration via GUI
-- Additional languages
+```bash
+make build-sysmanager
+./build/sysmanager          # GUI with tabs
+./build/sysmanager --tui    # TUI with F1/F2 tab switching
+```
+
+Built-in plugins: **Services** (svman) + **System Info** (testplugin).
+
+### Adding plugins without rebuilding
+
+Plugins are loaded at runtime from `$PLUGIN_DIR` (default: `./plugins/`).
+Each `.so` file must export `func New() api.PluginIF`.
+
+```bash
+# Build .so plugins
+make build-plugins
+
+# Run system manager with dynamic plugins
+PLUGIN_DIR=./build/plugins ./build/sysmanager
+```
+
+Build your own plugin:
+```go
+// myplugin/main.go (compiled with -buildmode=plugin)
+package main
+
+import "codeberg.org/oSoWoSo/svman/api"
+
+func New() api.PluginIF { return &myPlugin{} }
+
+type myPlugin struct{}
+func (p *myPlugin) Name() string                              { return "My Plugin" }
+func (p *myPlugin) Content(win fyne.Window) fyne.CanvasObject { ... }
+func (p *myPlugin) Model() tea.Model                          { ... }
+```
+
+```bash
+go build -buildmode=plugin -o plugins/myplugin.so ./myplugin/
+```
+
+> **Note:** Go plugins require matching Go version and dependencies between host and plugin.
+> Dynamic loading is supported on Linux only.
+
+---
+
+## Project structure
+
+```
+svman/
+├── main.go                    # svman entry point (GUI+TUI)
+├── Makefile
+├── lang/                      # Translation files (cs, en)
+├── api/
+│   └── plugin.go              # PluginIF interface
+├── plugin/                    # Embeddable svman plugin library
+│   ├── plugin.go              # Plugin struct, Name / New / Model
+│   ├── plugin_gui.go          # Content / ShowAbout  (!tui_only)
+│   ├── gui.go                 # Fyne GUI              (!tui_only)
+│   ├── tui.go                 # Bubbletea TUI
+│   ├── common.go              # Service, LoadServices, Enable/Disable
+│   └── i18n.go                # Translations
+├── testplugin/                # Demo "System Info" plugin
+├── cmd/
+│   ├── svman-tui/             # TUI-only binary (CGO-free)
+│   ├── sysmanager/            # Demo system manager
+│   └── testplugin/            # testplugin standalone binary
+└── pluginentry/               # .so entry points for dynamic loading
+    ├── svman/
+    └── testplugin/
+```
+
+---
+
+## Makefile targets
+
+| Target | Description |
+|---|---|
+| `make build` | Build `build/svman` (GUI+TUI) |
+| `make build-sysmanager` | Build `build/sysmanager` |
+| `make build-testplugin` | Build `build/testplugin` |
+| `make build-plugins` | Build `build/plugins/*.so` |
+| `make test` | Run tests with race detector |
+| `make lint` | `go vet` + golangci-lint |
+| `make fmt` | Format code with `gofmt` |
+| `make release` | Release binary + sha256 + tar.gz |
+| `make clean` | Remove `build/` |
+
+---
+
+## Dependencies
+
+```
+fyne.io/fyne/v2                    GUI framework (CGO required)
+github.com/charmbracelet/bubbletea TUI framework
+github.com/charmbracelet/lipgloss  Terminal styling
+github.com/charmbracelet/bubbles   TUI components
+gopkg.in/yaml.v3                   YAML parsing
+```
 
 ---
 
 ## Security
 
-**svman** uses `sudo` for operations requiring elevated privileges:
-- Creating symlinks in `/var/service`
-- Deleting symlinks
-
-### (Not) Recommended sudo configuration
-
-Add to `/etc/sudoers` (using `visudo`):
+svman uses `sudo` for symlink operations in `/var/service`.
+Optional passwordless sudo rules (add via `visudo`):
 
 ```sudoers
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/ln -s /etc/sv/* /var/service/*
@@ -165,81 +266,10 @@ Add to `/etc/sudoers` (using `visudo`):
 
 ---
 
-## Troubleshooting
-
-### Application launches without GUI
-Check that you have Fyne support installed:
-```bash
-go get fyne.io/fyne/v2
-```
-
-### Error: "Permission denied"
-Check the sudo configuration and directory permissions.
-
-### Services are not loading
-Verify that `SERVICEDIR` points to the correct directory:
-```bash
-ls /etc/sv
-```
-
-### Language has not changed
-Set `SVMAN_LANG` explicitly:
-```bash
-SVMAN_LANG=en svman
-```
-
----
-
-## Development
-
-### Project structure
-
-```
-svman/
-├── main.go           # Entry point
-├── i18n.go           # Translations
-├── services.go       # Service management
-├── gui.go            # Fyne GUI
-├── tui.go            # Bubble Tea TUI
-├── lang/
-│   ├── cs.yaml       # Czech translations
-│   └── en.yaml       # English translations
-├── go.mod
-├── go.sum
-└── README.md
-```
-
-### Dependencies
-
-```go
-github.com/charmbracelet/bubbletea    // TUI framework
-github.com/charmbracelet/lipgloss      // Terminal styling
-github.com/charmbracelet/bubbles       // TUI components
-fyne.io/fyne/v2                        // GUI framework
-gopkg.in/yaml.v3                       // YAML parsing
-```
-
-### Installing dependencies
-
-```bash
-go mod download
-go mod tidy
-```
-
----
-
 ## License
 
-MIT License – see LICENSE file
+MIT — see [LICENSE](LICENSE)
 
----
+## Author
 
-## Contributions
-
-Pull requests are welcome. For major changes, open an issue and discuss the changes in advance.
-
----
-
-## Contact
-
-Have a question or suggestion? Open a Codeberg issue.
+[oSoWoSo](https://codeberg.org/oSoWoSo)
