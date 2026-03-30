@@ -6,7 +6,8 @@ GOARCH ?= amd64
 
 build:
 	@echo "Building svman ($(GOOS)/$(GOARCH))..."
-	go build -ldflags="-s -w -X main.Version=$(VERSION)" -o build/svman .
+	go build -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=$(VERSION)" -o build/svman .
+	cp -r lang build/lang
 
 test:
 	@echo "Running tests..."
@@ -14,12 +15,13 @@ test:
 
 lint:
 	@echo "Running linter..."
+	go vet ./...
+	@which golangci-lint > /dev/null 2>&1 || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	golangci-lint run ./...
 
 fmt:
 	@echo "Formatting code..."
-	go fmt ./...
-	goimports -w .
+	gofmt -s -w .
 
 clean:
 	@echo "Cleaning..."
@@ -27,10 +29,13 @@ clean:
 	go clean
 
 release:
-	@echo "Building release binaries..."
-	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.Version=$(VERSION)" -o build/svman-linux-amd64 .
-	GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.Version=$(VERSION)" -o build/svman-linux-arm64 .
-	GOOS=freebsd GOARCH=amd64 go build -ldflags="-s -w -X main.Version=$(VERSION)" -o build/svman-freebsd-amd64 .
-	@echo "✅ Release binaries ready in build/"
+	@echo "Building release binary ($(GOOS)/$(GOARCH))..."
+	@mkdir -p build
+	go build -ldflags="-s -w -X codeberg.org/oSoWoSo/svman/plugin.Version=$(VERSION)" \
+		-o build/svman-$(GOOS)-$(GOARCH) .
+	cp -r lang build/lang
+	cd build && sha256sum svman-$(GOOS)-$(GOARCH) > svman-$(GOOS)-$(GOARCH).sha256
+	cd build && tar czf svman-$(GOOS)-$(GOARCH).tar.gz svman-$(GOOS)-$(GOARCH)
+	@echo "Release binary ready in build/"
 
 all: clean lint test build

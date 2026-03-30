@@ -1,4 +1,4 @@
-package main
+package plugin
 
 import (
 	"fmt"
@@ -67,9 +67,8 @@ const (
 	filterDisabled
 )
 
-// ── Detail state widget — color state with icon ──────────────────────
+// ── Detail state widget ──────────────────────────────────────────────
 
-// stateLabel is widget.Label with text color set by canvas ────────────
 type stateLabel struct {
 	widget.Label
 }
@@ -138,8 +137,8 @@ type guiApp struct {
 	detailDst   *widget.Label
 	btnEnable   *widget.Button
 	btnDisable  *widget.Button
-	statusBar  *widget.Label
-	countLabel *widget.Label
+	statusBar   *widget.Label
+	countLabel  *widget.Label
 }
 
 func (s *guiApp) filtered() []Service {
@@ -164,7 +163,7 @@ func (s *guiApp) filtered() []Service {
 }
 
 func (s *guiApp) reload() {
-	s.services = loadServices(s.serviceDir, s.serviceDestDir)
+	s.services = LoadServices(s.serviceDir, s.serviceDestDir)
 	s.serviceList.Refresh()
 	s.updateCount()
 	list := s.filtered()
@@ -209,7 +208,7 @@ func (s *guiApp) showDetail(svc Service) {
 	}
 }
 
-func (s *guiApp) setStatus(msg string, _ bool) {
+func (s *guiApp) setStatus(msg string) {
 	s.statusBar.SetText(msg)
 }
 
@@ -224,12 +223,12 @@ func (s *guiApp) showAbout() {
 
 	infoForm := widget.NewForm(
 		widget.NewFormItem(t("about.version"), widget.NewLabel(Version)),
-		widget.NewFormItem(t("about.author"), widget.NewLabel(appAuthor)),
-		widget.NewFormItem(t("about.license"), widget.NewLabel(appLicense)),
+		widget.NewFormItem(t("about.author"), widget.NewLabel(AppAuthor)),
+		widget.NewFormItem(t("about.license"), widget.NewLabel(AppLicense)),
 	)
 
-	repoURL, _ := url.Parse(appURL)
-	link := widget.NewHyperlink(appURL, repoURL)
+	repoURL, _ := url.Parse(AppURL)
+	link := widget.NewHyperlink(AppURL, repoURL)
 
 	content := container.NewVBox(
 		container.NewCenter(title),
@@ -243,7 +242,10 @@ func (s *guiApp) showAbout() {
 	d.Show()
 }
 
-func (s *guiApp) buildUI() {
+// buildContent builds the full widget tree and returns it as a CanvasObject.
+// It does NOT call SetContent on the window — the caller is responsible for that.
+// This allows the panel to be embedded in a parent application.
+func (s *guiApp) buildContent() fyne.CanvasObject {
 	// ── Header ───────────────────────────────────────────────────────
 	titleText := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
 	titleText.TextSize = 22
@@ -303,8 +305,7 @@ func (s *guiApp) buildUI() {
 		}
 	}
 
-	// ── Filter toggle buttons (after serviceList initialization) ─────
-	// Three buttons instead of RadioGroup — consistent, no drift ──────
+	// ── Filter toggle buttons ────────────────────────────────────────
 	var btnFilterAll, btnFilterEnabled, btnFilterDisabled *widget.Button
 
 	applyFilter := func(f filterMode) {
@@ -313,7 +314,6 @@ func (s *guiApp) buildUI() {
 		s.serviceList.Refresh()
 		s.updateCount()
 		s.clearDetail()
-		// Highlight active button ─────────────────────────────────────
 		btnFilterAll.Importance = widget.MediumImportance
 		btnFilterEnabled.Importance = widget.MediumImportance
 		btnFilterDisabled.Importance = widget.MediumImportance
@@ -351,18 +351,18 @@ func (s *guiApp) buildUI() {
 		widget.NewFormItem(t("detail.symlink"), s.detailDst),
 	)
 
-	// ── Buttons ──────────────────────────────────────────────────────
+	// ── Action buttons ───────────────────────────────────────────────
 	s.btnEnable = widget.NewButtonWithIcon(t("btn.enable"), theme.ConfirmIcon(), func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
 		}
 		svc := list[s.selected]
-		if err := enableService(s.serviceDir, s.serviceDestDir, svc.Name); err != nil {
+		if err := EnableService(s.serviceDir, s.serviceDestDir, svc.Name); err != nil {
 			dialog.ShowError(err, s.win)
-			s.setStatus(t("status.err")+err.Error(), true)
+			s.setStatus(t("status.err") + err.Error())
 		} else {
-			s.setStatus(fmt.Sprintf(t("status.enabled"), svc.Name), false)
+			s.setStatus(fmt.Sprintf(t("status.enabled"), svc.Name))
 			s.reload()
 			s.serviceList.Select(s.selected)
 		}
@@ -382,11 +382,11 @@ func (s *guiApp) buildUI() {
 				if !ok {
 					return
 				}
-				if err := disableService(s.serviceDestDir, svc.Name); err != nil {
+				if err := DisableService(s.serviceDestDir, svc.Name); err != nil {
 					dialog.ShowError(err, s.win)
-					s.setStatus(t("status.err")+err.Error(), true)
+					s.setStatus(t("status.err") + err.Error())
 				} else {
-					s.setStatus(fmt.Sprintf(t("status.disabled"), svc.Name), false)
+					s.setStatus(fmt.Sprintf(t("status.disabled"), svc.Name))
 					s.reload()
 					s.serviceList.Select(s.selected)
 				}
@@ -396,7 +396,7 @@ func (s *guiApp) buildUI() {
 
 	btnReload := widget.NewButtonWithIcon(t("btn.reload"), theme.ViewRefreshIcon(), func() {
 		s.reload()
-		s.setStatus(t("status.reloaded"), false)
+		s.setStatus(t("status.reloaded"))
 	})
 
 	s.btnEnable.Disable()
@@ -445,26 +445,29 @@ func (s *guiApp) buildUI() {
 		split,
 	)
 
-	// All widgets initialized - set default filter ────────────────────
+	// Set default filter (after all widgets are initialized)
 	applyFilter(filterAll)
 
-	s.win.SetContent(root)
-	s.win.Resize(fyne.NewSize(860, 560))
-	s.win.SetMaster()
+	return root
 }
 
-func runGUI(serviceDir, serviceDestDir string) {
-	initI18n()
+// ── Standalone runner ────────────────────────────────────────────────
+
+// RunGUI runs svman as a standalone Fyne GUI application.
+func RunGUI(serviceDir, serviceDestDir string) {
+	InitI18n()
 	a := app.New()
-	a.Settings().SetTheme(darkIndustrialTheme{theme.DarkTheme()})
+	a.Settings().SetTheme(darkIndustrialTheme{theme.DefaultTheme()})
+	win := a.NewWindow(t("app.window"))
 	g := &guiApp{
-		win:            a.NewWindow(t("app.window")),
+		win:            win,
 		serviceDir:     serviceDir,
 		serviceDestDir: serviceDestDir,
 		selected:       -1,
 	}
-
-	g.services = loadServices(serviceDir, serviceDestDir)
-	g.buildUI()
-	g.win.ShowAndRun()
+	g.services = LoadServices(serviceDir, serviceDestDir)
+	win.SetContent(g.buildContent())
+	win.Resize(fyne.NewSize(860, 560))
+	win.SetMaster()
+	win.ShowAndRun()
 }

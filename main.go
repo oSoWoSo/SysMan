@@ -3,26 +3,27 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"codeberg.org/oSoWoSo/svman/plugin"
 )
-
-// ── Utilities ────────────────────────────────────────────────────────
-
-// errorWriter returns the standard error stream for logging errors.
-func errorWriter() *os.File { return os.Stderr }
-
-// ── Main ─────────────────────────────────────────────────────────────
 
 // main is the application entry point.
 // It initializes translations, parses command-line arguments,
 // reads environment configuration, and launches the selected UI mode.
 func main() {
-	initI18n()
+	plugin.InitI18n()
 
-	// Read service directories from environment or use defaults ────────
-	serviceDir := getEnv("SERVICEDIR", defaultServiceDir)
-	serviceDestDir := getEnv("SERVICEDESTDIR", defaultServiceDestDir)
+	// Read service directories from environment or use defaults.
+	serviceDir := os.Getenv("SERVICEDIR")
+	if serviceDir == "" {
+		serviceDir = plugin.DefaultServiceDir
+	}
+	serviceDestDir := os.Getenv("SERVICEDESTDIR")
+	if serviceDestDir == "" {
+		serviceDestDir = plugin.DefaultServiceDestDir
+	}
 
-	// Parse command-line arguments and select UI mode ──────────────────
+	// Parse command-line arguments and select UI mode.
 	mode := "gui"
 	for _, arg := range os.Args[1:] {
 		switch arg {
@@ -31,7 +32,6 @@ func main() {
 		case "--gui", "-g":
 			mode = "gui"
 		case "--help", "-h":
-			// Display help message with usage and environment variables
 			fmt.Printf(`svman — %s
 
 %s:
@@ -43,7 +43,7 @@ func main() {
   SERVICEDESTDIR  %s  (default: /var/service)
   SVMAN_LANG      %s  (cs, en)
 `,
-				t("app.subtitle"),
+				plugin.T["app.subtitle"],
 				"Usage", "GUI (default)", "TUI terminal",
 				"Environment",
 				"service directory",
@@ -54,11 +54,11 @@ func main() {
 		}
 	}
 
-	// Launch the selected UI mode ─────────────────────────────────────
+	// Launch the selected UI mode.
 	switch mode {
 	case "tui":
-		runTUI(serviceDir, serviceDestDir)
+		plugin.RunTUI(serviceDir, serviceDestDir)
 	default:
-		runGUI(serviceDir, serviceDestDir)
+		plugin.RunGUI(serviceDir, serviceDestDir)
 	}
 }
