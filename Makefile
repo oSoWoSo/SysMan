@@ -4,6 +4,12 @@ GOARCH   ?= amd64
 PREFIX   ?= /usr/local
 LDFLAGS   = -s -w -X 'codeberg.org/oSoWoSo/SysMan/plugin.Version=$(VERSION)'
 
+# add PIE flags for cgo builds
+CGO_ENABLED ?= 1
+CC ?= gcc
+PIE_EXTLDFLAGS = -linkmode=external -extldflags "-Wl,-pie"
+PIE_LDFLAGS = $(LDFLAGS) $(PIE_EXTLDFLAGS)
+
 BUILD_DIR = build
 
 GUI_BINS = sysman svman ugman infoman srcman pkgman
@@ -60,7 +66,7 @@ build-tui: build-sysman-tui build-svman-tui build-ugman-tui \
 build-sysman:
 	@echo "Building sysman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/sysman ./cmd/sysmanager/
+	go build -buildmode=pie -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/sysman ./cmd/sysmanager/
 	@cp -r lang $(BUILD_DIR)/lang
 	@[ -f void-transparent.png ] && cp void-transparent.png $(BUILD_DIR)/ || true
 
@@ -91,7 +97,9 @@ build-svman-tui:
 build-ugman:
 	@echo "Building ugman..."
 	@mkdir -p $(BUILD_DIR)
-	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/ugman ./cmd/ugman-gui/
+	CGO_ENABLED=$(CGO_ENABLED) CC=$(CC) \
+		go build -trimpath -ldflags="$(PIE_LDFLAGS)" \
+		-o $(BUILD_DIR)/ugman ./cmd/ugman-gui/
 
 ## build-ugman-tui: standalone ugman TUI only (CGO-free)
 build-ugman-tui:
