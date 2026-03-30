@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -137,9 +138,8 @@ type guiApp struct {
 	detailDst   *widget.Label
 	btnEnable   *widget.Button
 	btnDisable  *widget.Button
-	statusBar   *widget.Label
-	statusIcon  *widget.Icon
-	countLabel  *widget.Label
+	statusBar  *widget.Label
+	countLabel *widget.Label
 }
 
 func (s *guiApp) filtered() []Service {
@@ -209,13 +209,38 @@ func (s *guiApp) showDetail(svc Service) {
 	}
 }
 
-func (s *guiApp) setStatus(msg string, isErr bool) {
+func (s *guiApp) setStatus(msg string, _ bool) {
 	s.statusBar.SetText(msg)
-	if isErr {
-		s.statusIcon.SetResource(theme.NewErrorThemedResource(theme.ErrorIcon()))
-	} else {
-		s.statusIcon.SetResource(theme.NewSuccessThemedResource(theme.ConfirmIcon()))
-	}
+}
+
+// showAbout displays the About dialog with app metadata.
+func (s *guiApp) showAbout() {
+	title := canvas.NewText("svman", color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
+	title.TextSize = 26
+	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+
+	subtitle := canvas.NewText(t("app.subtitle"), colorMuted)
+	subtitle.TextSize = 12
+
+	infoForm := widget.NewForm(
+		widget.NewFormItem(t("about.version"), widget.NewLabel(Version)),
+		widget.NewFormItem(t("about.author"), widget.NewLabel(appAuthor)),
+		widget.NewFormItem(t("about.license"), widget.NewLabel(appLicense)),
+	)
+
+	repoURL, _ := url.Parse(appURL)
+	link := widget.NewHyperlink(appURL, repoURL)
+
+	content := container.NewVBox(
+		container.NewCenter(title),
+		container.NewCenter(subtitle),
+		widget.NewSeparator(),
+		infoForm,
+		container.NewCenter(link),
+	)
+
+	d := dialog.NewCustom(t("menu.about"), t("btn.close"), content, s.win)
+	d.Show()
 }
 
 func (s *guiApp) buildUI() {
@@ -381,8 +406,10 @@ func (s *guiApp) buildUI() {
 	// ── Status bar ───────────────────────────────────────────────────
 	s.statusBar = widget.NewLabel("")
 	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
-	s.statusIcon = widget.NewIcon(theme.InfoIcon())
-	statusBar := container.NewHBox(s.statusIcon, s.statusBar)
+	// About button — info icon at the bottom-left corner
+	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { s.showAbout() })
+	btnAbout.Importance = widget.LowImportance
+	statusBar := container.NewHBox(btnAbout, s.statusBar)
 
 	// ── Dir info ─────────────────────────────────────────────────────
 	dirInfo := widget.NewLabel(fmt.Sprintf("SERVICEDIR=%s\nSERVICEDESTDIR=%s", s.serviceDir, s.serviceDestDir))
@@ -436,6 +463,7 @@ func runGUI(serviceDir, serviceDestDir string) {
 		serviceDestDir: serviceDestDir,
 		selected:       -1,
 	}
+
 	g.services = loadServices(serviceDir, serviceDestDir)
 	g.buildUI()
 	g.win.ShowAndRun()

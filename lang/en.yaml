@@ -32,6 +32,14 @@ strings:
   btn.enable: "Enable"
   btn.disable: "Disable"
   btn.reload: "Reload"
+  btn.close: "Close"
+
+  menu.help: "Help"
+  menu.about: "About svman"
+
+  about.version: "Version"
+  about.author: "Author"
+  about.license: "License"
 
   confirm.title: "Disable service"
   confirm.disable: "Really disable '%s'?"
