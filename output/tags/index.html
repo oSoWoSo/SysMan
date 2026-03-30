@@ -1,67 +1,95 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <link rel="icon" href="http://localhost:8000/favicon.png">
-    <title>All Tags | SysMan</title>
-    <meta name="description" content="System Manager for Void Linux ">
-    <meta property="og:title" content="All Tags">
-    <meta property="og:description" content="System Manager for Void Linux ">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="http://localhost:8000//tags/">
-    
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="All Tags">
-    <meta name="twitter:description" content="System Manager for Void Linux ">
-    
-    <meta name="theme-color" content="#808080">
-    <style>
-      code{white-space: pre-wrap;}
-      span.smallcaps{font-variant: small-caps;}
-      div.columns{display: flex; gap: min(4vw, 1.5em);}
-      div.column{flex: auto; overflow-x: auto;}
-      div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
-      /* The extra [class] is a hack that increases specificity enough to
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, user-scalable=yes"
+        />
+        <link rel="icon" href="https://sysman.osowoso.org/favicon.png" />
+        <link rel="canonical" href="{{canonical_url}}" />
+        <title>All Tags | SysMan</title>
+        <meta name="description" content="{{page_description}}" />
+        <meta property="og:title" content="All Tags" />
+        <meta property="og:description" content="{{page_description}}" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="{{canonical_url}}" />
+        
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="All Tags" />
+        <meta name="twitter:description" content="{{page_description}}" />
+        
+        <meta name="theme-color" content="#808080" />
+        <style>
+            code {
+                white-space: pre-wrap;
+            }
+            span.smallcaps {
+                font-variant: small-caps;
+            }
+            div.columns {
+                display: flex;
+                gap: min(4vw, 1.5em);
+            }
+            div.column {
+                flex: auto;
+                overflow-x: auto;
+            }
+            div.hanging-indent {
+                margin-left: 1.5em;
+                text-indent: -1.5em;
+            }
+            /* The extra [class] is a hack that increases specificity enough to
          override a similar rule in reveal.js */
-      ul.task-list[class]{list-style: none;}
-      ul.task-list li input[type="checkbox"] {
-        font-size: inherit;
-        width: 0.8em;
-        margin: 0 0.8em 0.2em -1.6em;
-        vertical-align: middle;
-      }
-      .display.math{display: block; text-align: center; margin: 0.5rem auto;}
-    </style>
-    <link rel="stylesheet" href="http://localhost:8000/selector.css">
-    <link rel="stylesheet" href="http://localhost:8000/link.css">
-    <link rel="stylesheet" href="http://localhost:8000/css/style.css">
-    <link rel="alternate" type="application/rss+xml" title="RSS Feed" href="http://localhost:8000/rss.xml">
-    <script type="application/ld+json">
+            ul.task-list[class] {
+                list-style: none;
+            }
+            ul.task-list li input[type="checkbox"] {
+                font-size: inherit;
+                width: 0.8em;
+                margin: 0 0.8em 0.2em -1.6em;
+                vertical-align: middle;
+            }
+            .display.math {
+                display: block;
+                text-align: center;
+                margin: 0.5rem auto;
+            }
+        </style>
+        <link rel="stylesheet" href="https://sysman.osowoso.org/selector.css" />
+        <link rel="stylesheet" href="https://sysman.osowoso.org/css/style.css" />
+        <link
+            rel="alternate"
+            type="application/rss+xml"
+            title="RSS Feed"
+            href="https://sysman.osowoso.org/rss.xml"
+        />
+        <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
   "name": "All Tags",
   "description": "List of all tags on SysMan",
-  "url": "http://localhost:8000/tags/",
+  "url": "https://sysman.osowoso.org/tags/",
   "isPartOf": {
     "@type": "WebSite",
     "name": "SysMan",
-    "url": "http://localhost:8000"
+    "url": "https://sysman.osowoso.org"
   }
 }
-</script>
-    <link rel="stylesheet" href="http://localhost:8000/selector.css">
-</head>
-<body>
-    <div class="container">
-        <header>
-            <div class="site-title"><a href="http://localhost:8000/">SysMan</a></div>
-            <p>System Manager for Void Linux </p>
-            <div class="theme-selector">
-                <label for="theme-select">theme:</label>
-                <select id='theme-select' onchange='changeTheme()'>
-                                <option value='amiga500'>amiga500</option>
+</script> <link rel="stylesheet" href="https://sysman.osowoso.org/selector.css">
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <div class="site-title">
+                    <a href="https://sysman.osowoso.org/">SysMan</a>
+                </div>
+                <p>System Manager for Void Linux </p>
+                <div class="theme-selector">
+                    <label for="theme-select">theme:</label>
+                    <select id="theme-select" onchange="changeTheme()">
+                                        <option value='amiga500'>amiga500</option>
                 <option value='apple2'>apple2</option>
                 <option value='art-deco'>art-deco</option>
                 <option value='atarist'>atarist</option>
@@ -115,25 +143,30 @@
                 <option value='y2k'>y2k</option>
                 <option value='zxspectrum'>zxspectrum</option>
 
-                </select>
-                <link id='theme-style' rel='stylesheet' href=''>
-            </div>
-            <nav>
-                <div class="nav-left">
-                    <a href="http://localhost:8000/">Home</a> <a href="http://localhost:8000/archives/">Archives</a> <a href="http://localhost:8000/rss.xml">RSS</a>
+                    </select>
+                    <link id="theme-style" rel="stylesheet" href="" />
                 </div>
-                <div class="nav-right">
-                    <a href="https://osowoso.discourse.group/">forum</a>
-                </div>
-                <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false" aria-controls="nav-left">
-                    <span class="hamburger-icon">☰</span>
-                </button>
-            </nav>
-            <script src="http://localhost:8000/theme-switcher.js" defer></script>
-            <script src="http://localhost:8000/hamburger.js" defer></script>
-            <script src="http://localhost:8000/toc.js" defer></script>
-        </header>
-        <main>
+                <nav>
+                    <div class="nav-left"><a href="https://sysman.osowoso.org/">Home</a> <a href="https://sysman.osowoso.org/archives/">Archives</a> <a href="https://sysman.osowoso.org/rss.xml">RSS</a></div>
+                    <div class="nav-right">
+                        <a href="https://osowoso.discourse.group/">forum</a>
+                    </div>
+                    <button
+                        class="nav-hamburger"
+                        aria-label="Toggle menu"
+                        aria-expanded="false"
+                        aria-controls="nav-left"
+                    >
+                        <span class="hamburger-icon">☰</span>
+                    </button>
+                </nav>
+                <script src="https://sysman.osowoso.org/theme-switcher.js" defer></script>
+                <script src="https://sysman.osowoso.org/hamburger.js" defer></script>
+            </header>
+            <main></main>
+        </div>
+    </body>
+</html>
 <h1>All Tags</h1>
 <div class="tags-list">
 </div>
@@ -142,10 +175,11 @@
             <p>&copy; 2026 zenobit @ oSoWoSo.org. All rights reserved.</p>
             <p>This site was generated with <a href="https://bssg.dragas.net">BSSG</a>, a Bash Static Site Generator.</p>
             <p>
-                <a href="http://localhost:8000/">Home</a> &middot; <a href="http://localhost:8000/archives/">Archives</a> &middot; <a href="http://localhost:8000/rss.xml">Subscribe via RSS</a>
+                <a href="https://sysman.osowoso.org/">Home</a> &middot; <a href="https://sysman.osowoso.org/archives/">Archives</a> &middot; <a href="https://sysman.osowoso.org/rss.xml">Subscribe via RSS</a>
             </p>
             <p><a href="#">Back to Top</a></p>
         </footer>
     </div>
+    <script src="{{site_url}}/toc.js" defer></script>
 </body>
 </html> 

@@ -23,7 +23,7 @@ CACHE_DIR="/home/z/git/sysman/.bssg_cache"
 # --- Site Specific Overrides (Examples) ---
 SITE_TITLE="SysMan"
 SITE_DESCRIPTION="System Manager for Void Linux "
-SITE_URL="http://sysman.osowoso.org"
+SITE_URL="https://sysman.osowoso.org"
 AUTHOR_NAME="zenobit @ oSoWoSo.org" 
 AUTHOR_EMAIL="zenobit@duck.com"
 THEME="osowoso"
