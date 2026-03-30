@@ -11,8 +11,8 @@ package main
 import (
 	"os"
 
-	"codeberg.org/oSoWoSo/svman/api"
-	svman "codeberg.org/oSoWoSo/svman/plugin"
+	"codeberg.org/oSoWoSo/SysMan/api"
+	svman "codeberg.org/oSoWoSo/SysMan/plugin"
 )
 
 // New is the plugin factory called by the system manager after loading the .so.
@@ -27,5 +27,5 @@ func New() api.PluginIF {
 		serviceDestDir = svman.DefaultServiceDestDir
 	}
 	svman.InitI18n()
-	return svman.New(serviceDir, serviceDestDir)
+	return svman.NewRunit(serviceDir, serviceDestDir)
 }

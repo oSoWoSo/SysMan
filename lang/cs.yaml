@@ -41,6 +41,9 @@ strings:
   btn.stop: "Zastavit"
   btn.restart: "Restartovat"
   btn.hup: "Reload (HUP)"
+  btn.pause: "Pozastavit"
+  btn.continue: "Pokračovat"
+  btn.kill: "Zabít"
   btn.close: "Zavřít"
 
   menu.help: "Nápověda"
@@ -50,9 +53,10 @@ strings:
   about.author: "Autor"
   about.license: "Licence"
 
-  confirm.title: "Zakázat službu"
+  confirm.title: "Potvrdit akci"
   confirm.disable: "Opravdu zakázat '%s'?"
   confirm.stop: "Opravdu zastavit '%s'?"
+  confirm.kill: "Poslat SIGKILL procesu '%s'?"
 
   status.enabled: "OK: '%s' povolena"
   status.disabled: "OK: '%s' zakázána"
@@ -60,6 +64,9 @@ strings:
   status.stopped: "OK: '%s' zastavena"
   status.restarted: "OK: '%s' restartována"
   status.hupped: "OK: '%s' reloadována (HUP)"
+  status.paused: "OK: '%s' pozastavena"
+  status.continued: "OK: '%s' obnovena"
+  status.killed: "OK: '%s' zabita"
   status.reloaded: "seznam obnoven"
   status.err: "CHYBA: "
   status.already.on: "'%s' je již povolena"
@@ -68,7 +75,7 @@ strings:
   count.fmt: "povoleno %d/%d  zobrazeno %d"
   stats.fmt: "povoleno: %d/%d  zobrazeno: %d"
 
-  help.normal: "jk/šipky=pohyb  enter/mezera=přepnout  s=spustit  x=zastavit  t=restart  l=hup  /=hledat  tab=filtr  r=obnovit  q/esc=konec"
+  help.normal: "jk/šipky=pohyb  enter/mezera=přepnout  s=spustit  x=zastavit  t=restart  l=hup  p=pauza  c=pokr  K=zabít  /=hledat  tab=filtr  r=obnovit  q/esc=konec"
   help.search: "psát=filtrovat  up/down=pohyb  enter=ok  esc=zrušit"
 
   services.none: "(žádné služby)"

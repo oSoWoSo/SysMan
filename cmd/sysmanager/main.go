@@ -2,8 +2,9 @@
 //
 // Built-in plugins (always available):
 //   - Services        (svman runit service manager)
-//   - XBPS Templates  (xbps-src template manager)
-//   - System Info     (testplugin)
+//   - Packages        (xbps package manager)
+//   - Templates       (xbps-src template manager)
+//   - System Info     (sysinfo)
 //
 // Dynamic plugins (optional, loaded from PLUGIN_DIR or ./plugins/):
 //
@@ -27,10 +28,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"codeberg.org/oSoWoSo/svman/api"
-	svman "codeberg.org/oSoWoSo/svman/plugin"
-	"codeberg.org/oSoWoSo/svman/testplugin"
-	xbpssrc "codeberg.org/oSoWoSo/svman/xbps-src"
+	"codeberg.org/oSoWoSo/SysMan/api"
+	svman "codeberg.org/oSoWoSo/SysMan/plugin"
+	"codeberg.org/oSoWoSo/SysMan/sysinfo"
+	"codeberg.org/oSoWoSo/SysMan/usergroups"
+	xbpspkg "codeberg.org/oSoWoSo/SysMan/xbps-pkg"
+	xbpssrc "codeberg.org/oSoWoSo/SysMan/xbps-src"
 )
 
 func main() {
@@ -76,9 +79,11 @@ func main() {
 
 	// Built-in plugins — always present, no rebuild needed for these.
 	plugins := []api.PluginIF{
-		svman.New(serviceDir, serviceDestDir),
+		sysinfo.New(),
+		xbpspkg.New(),
 		xbpssrc.New(xbpssrc.DefaultDistDir),
-		testplugin.New(),
+		svman.New(serviceDir, serviceDestDir),
+		usergroups.New(),
 	}
 
 	// Dynamic plugins — loaded from PLUGIN_DIR (default: ./plugins/).
@@ -156,7 +161,7 @@ func runGUI(plugins []api.PluginIF) {
 	}
 
 	win.SetContent(container.NewAppTabs(tabs...))
-	win.Resize(fyne.NewSize(940, 640))
+	win.Resize(fyne.NewSize(1024, 768))
 	win.SetMaster()
 	win.ShowAndRun()
 }
@@ -192,18 +197,34 @@ func (m sysManagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-		// F1, F2, … switch tabs (up to 9 plugins).
+		// 1, 2, … switch tabs (up to 9 plugins).
 		for i := range m.plugins {
-			if key.String() == fmt.Sprintf("f%d", i+1) {
+			if key.String() == fmt.Sprintf("%d", i+1) {
 				m.active = i
 				return m, nil
 			}
 		}
 	}
 
-	// Forward all other input to the active plugin's model.
 	newModels := make([]tea.Model, len(m.models))
 	copy(newModels, m.models)
+
+	// Window resize and async result messages go to all plugins so background
+	// commands (e.g. package list loading) complete regardless of which tab is active.
+	if _, isKey := msg.(tea.KeyMsg); !isKey {
+		var cmds []tea.Cmd
+		for i, mdl := range newModels {
+			updated, cmd := mdl.Update(msg)
+			newModels[i] = updated
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+		m.models = newModels
+		return m, tea.Batch(cmds...)
+	}
+
+	// Key events go only to the active plugin.
 	updated, cmd := newModels[m.active].Update(msg)
 	newModels[m.active] = updated
 	m.models = newModels
@@ -220,14 +241,14 @@ var (
 func (m sysManagerModel) View() string {
 	bar := ""
 	for i, p := range m.plugins {
-		label := fmt.Sprintf("F%d %s", i+1, p.Name())
+		label := fmt.Sprintf("%d %s", i+1, p.Name())
 		if i == m.active {
 			bar += tuiTabActive.Render(label)
 		} else {
 			bar += tuiTabInactive.Render(label)
 		}
 	}
-	bar += "  " + tuiTabHelp.Render("ctrl+c: quit")
+	bar += "  " + tuiTabHelp.Render("1-9: switch tab  ctrl+c: quit")
 	return tuiTabBar.Render(bar) + "\n" + m.models[m.active].View()
 }
 

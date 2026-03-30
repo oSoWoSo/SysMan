@@ -4,9 +4,11 @@ package xbpssrc
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"codeberg.org/oSoWoSo/SysMan/api"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -18,8 +20,8 @@ import (
 // ── App state ─────────────────────────────────────────────────────────
 
 type xbpsGuiApp struct {
-	win      fyne.Window
-	distDir  string
+	win       fyne.Window
+	distDir   string
 	templates []Template
 	selected  int
 	search    string
@@ -28,16 +30,18 @@ type xbpsGuiApp struct {
 	detailName   *widget.Label
 	detailVer    *widget.Label
 	detailDesc   *widget.Label
-	outputEntry  *widget.Entry
+	outputRich   *widget.RichText
+	outputScroll *container.Scroll
+	highlighter  *api.Highlighter
 	statusBar    *widget.Label
 
-	btnBuild    *widget.Button
-	btnLint     *widget.Button
-	btnChecksum *widget.Button
-	btnBump     *widget.Button
-	btnInstall  *widget.Button
-	btnClean    *widget.Button
-	btnEdit     *widget.Button
+	btnBuild   *widget.Button
+	btnInstall *widget.Button
+	btnClean   *widget.Button
+
+	// always-visible inline editor
+	editorEntry *widget.Entry
+	editorPath  string // path of the file currently loaded
 }
 
 func (g *xbpsGuiApp) filtered() []Template {
@@ -65,12 +69,9 @@ func (g *xbpsGuiApp) showDetail(name string) {
 	g.detailVer.SetText(meta.Version)
 	g.detailDesc.SetText(meta.Desc)
 	g.btnBuild.Enable()
-	g.btnLint.Enable()
-	g.btnChecksum.Enable()
-	g.btnBump.Enable()
 	g.btnInstall.Enable()
 	g.btnClean.Enable()
-	g.btnEdit.Enable()
+	g.loadEditorFile(name)
 }
 
 func (g *xbpsGuiApp) clearDetail() {
@@ -78,12 +79,10 @@ func (g *xbpsGuiApp) clearDetail() {
 	g.detailVer.SetText("—")
 	g.detailDesc.SetText("—")
 	g.btnBuild.Disable()
-	g.btnLint.Disable()
-	g.btnChecksum.Disable()
-	g.btnBump.Disable()
 	g.btnInstall.Disable()
 	g.btnClean.Disable()
-	g.btnEdit.Disable()
+	g.editorPath = ""
+	g.editorEntry.SetText("")
 }
 
 func (g *xbpsGuiApp) setStatus(msg string) {
@@ -98,24 +97,75 @@ func (g *xbpsGuiApp) selectedName() string {
 	return list[g.selected].Name
 }
 
-// runCmd runs a command in a goroutine and updates the output + status.
+// loadEditorFile reads the template file for name into the editor entry.
+func (g *xbpsGuiApp) loadEditorFile(name string) {
+	path := filepath.Join(ResolveDistDir(g.distDir), "srcpkgs", name, "template")
+	data, err := os.ReadFile(path) //nolint:gosec
+	if err != nil {
+		g.setStatus("✗ cannot read template: " + err.Error())
+		g.editorPath = ""
+		g.editorEntry.SetText("")
+		return
+	}
+	g.editorPath = path
+	g.editorEntry.SetText(string(data))
+}
+
+// setOutput renders text into outputRich with syntax highlighting and scrolls to bottom.
+func (g *xbpsGuiApp) setOutput(text string) {
+	segs := g.highlighter.RichSegments(text)
+	g.outputRich.Segments = segs
+	g.outputRich.Refresh()
+	g.outputScroll.ScrollToBottom()
+}
+
+// runCmd runs a command in a goroutine and streams output with highlighting.
+// pkg is shown in status messages; pass "" to omit it.
 func (g *xbpsGuiApp) runCmd(label string, args ...string) {
-	g.setStatus(fmt.Sprintf("Running: %s…", label))
-	g.outputEntry.SetText("")
+	pkg := g.selectedName()
+	statusLabel := label
+	if pkg != "" {
+		statusLabel = fmt.Sprintf("%s %s", label, pkg)
+	}
+	g.setStatus(fmt.Sprintf("Running: %s…", statusLabel))
+	g.outputRich.Segments = nil
+	g.outputRich.Refresh()
 	go func() {
-		out, err := RunXbps(g.distDir, args...)
-		g.outputEntry.SetText(out)
+		var buf strings.Builder
+		w := writerFunc(func(p []byte) (int, error) {
+			buf.Write(p)
+			g.setOutput(buf.String())
+			return len(p), nil
+		})
+		out, err := RunXbpsStream(g.distDir, w, args...)
+		if out == "" {
+			if err != nil {
+				g.setOutput(fmt.Sprintf("error: %s", err.Error()))
+			} else if buf.Len() == 0 {
+				g.setOutput(fmt.Sprintf("%s OK", statusLabel))
+			}
+		}
 		if err != nil {
-			g.setStatus(fmt.Sprintf("✗ %s failed: %s", label, err.Error()))
+			g.setStatus(fmt.Sprintf("✗ %s failed: %s", statusLabel, err.Error()))
 		} else {
-			g.setStatus(fmt.Sprintf("✓ %s OK", label))
+			g.setStatus(fmt.Sprintf("✓ %s OK", statusLabel))
 		}
 	}()
 }
 
+// writerFunc adapts a function to io.Writer.
+type writerFunc func([]byte) (int, error)
+
+func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
+
 // ── Build widget tree ─────────────────────────────────────────────────
 
 func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
+	// ── Editor entry must be initialised before clearDetail() is called ──
+	g.editorEntry = widget.NewMultiLineEntry()
+	g.editorEntry.TextStyle = fyne.TextStyle{Monospace: true}
+	g.editorEntry.Wrapping = fyne.TextWrapOff
+
 	// ── Search bar ────────────────────────────────────────────────────
 	search := widget.NewEntry()
 	search.SetPlaceHolder("Search templates…")
@@ -178,25 +228,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	})
 	g.btnBuild.Importance = widget.HighImportance
 
-	g.btnLint = widget.NewButton("Lint", func() {
-		if name := g.selectedName(); name != "" {
-			g.runCmd("lint", "xlint", name)
-		}
-	})
-
-	g.btnChecksum = widget.NewButton("Checksum", func() {
-		if name := g.selectedName(); name != "" {
-			g.runCmd("checksum", "xgensum", "-i", name)
-		}
-	})
-
-	g.btnBump = widget.NewButton("Bump", func() {
-		if name := g.selectedName(); name != "" {
-			g.runCmd("bump", "xxautobump", name)
-		}
-	})
-
-	g.btnInstall = widget.NewButton("Install", func() {
+	g.btnInstall = widget.NewButton("install", func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("install", "xi", name)
 		}
@@ -205,12 +237,6 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	g.btnClean = widget.NewButtonWithIcon("Clean", theme.DeleteIcon(), func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("clean", "./xbps-src", "clean", name)
-		}
-	})
-
-	g.btnEdit = widget.NewButtonWithIcon("Edit", theme.DocumentCreateIcon(), func() {
-		if name := g.selectedName(); name != "" {
-			OpenEditor(g.distDir, name)
 		}
 	})
 
@@ -234,18 +260,17 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	btnBootstrap := widget.NewButtonWithIcon("Bootstrap Update", theme.ViewRefreshIcon(), func() {
 		g.runCmd("bootstrap-update", "./xbps-src", "bootstrap-update")
 	})
+	btnBootstrap.Importance = widget.LowImportance
 
-	actionRow1 := container.NewHBox(g.btnBuild, g.btnLint, g.btnChecksum, g.btnBump)
-	actionRow2 := container.NewHBox(g.btnInstall, g.btnClean, g.btnEdit, btnHomepage, btnRepology,
-		layout.NewSpacer(), btnBootstrap)
+	actionRow1 := container.NewHBox(btnBootstrap, layout.NewSpacer(), btnHomepage, btnRepology)
+	actionRow2 := container.NewHBox(g.btnBuild, layout.NewSpacer(), g.btnInstall, g.btnClean)
 
 	// ── Output area ───────────────────────────────────────────────────
-	g.outputEntry = widget.NewMultiLineEntry()
-	g.outputEntry.Disable()
-	g.outputEntry.Wrapping = fyne.TextWrapBreak
-
-	outputScroll := container.NewScroll(g.outputEntry)
-	outputScroll.SetMinSize(fyne.NewSize(0, 170))
+	g.highlighter = api.NewHighlighter()
+	g.outputRich = widget.NewRichText()
+	g.outputRich.Wrapping = fyne.TextWrapBreak
+	g.outputScroll = container.NewScroll(g.outputRich)
+	g.outputScroll.SetMinSize(fyne.NewSize(0, 280))
 
 	// ── Status bar ────────────────────────────────────────────────────
 	g.statusBar = widget.NewLabel("")
@@ -266,36 +291,88 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 
 	statusBar := container.NewHBox(btnReload, g.statusBar, layout.NewSpacer(), dirLabel)
 
-	// ── Layout ────────────────────────────────────────────────────────
-	rightPanel := container.NewVBox(
+	// ── Left main panel ───────────────────────────────────────────────
+	topSection := container.NewVBox(
 		detailForm,
 		widget.NewSeparator(),
 		actionRow1,
 		actionRow2,
 		widget.NewSeparator(),
-		outputScroll,
 	)
+	leftMainPanel := container.NewBorder(topSection, nil, nil, nil, g.outputScroll)
 
-	split := container.NewHSplit(
+	mainSplit := container.NewHSplit(
 		container.NewPadded(leftPanel),
-		container.NewPadded(rightPanel),
+		container.NewPadded(leftMainPanel),
 	)
-	split.SetOffset(0.32)
+	mainSplit.SetOffset(0.32)
 
 	g.clearDetail()
+
+	// ── Inline editor panel (always visible) ─────────────────────────
+	btnEditorSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
+		if g.editorPath == "" {
+			return
+		}
+		if err := os.WriteFile(g.editorPath, []byte(g.editorEntry.Text), 0o644); err != nil { //nolint:gosec
+			g.setStatus("✗ save failed: " + err.Error())
+			return
+		}
+		g.setStatus("✓ saved")
+	})
+	btnEditorSave.Importance = widget.HighImportance
+
+	btnEditorLint := widget.NewButton("Lint", func() {
+		if name := g.selectedName(); name != "" {
+			g.runCmd("lint", "xlint", name)
+		}
+	})
+
+	btnEditorSum := widget.NewButton("Sum", func() {
+		if name := g.selectedName(); name != "" {
+			g.runCmd("checksum", "xgensum", "-i", name)
+		}
+	})
+
+	btnEditorBump := widget.NewButton("Bump", func() {
+		if name := g.selectedName(); name != "" {
+			g.runCmd("bump", "xxautobump", name)
+		}
+	})
+
+	editorTitle := widget.NewLabel("Template editor")
+	editorTitle.TextStyle = fyne.TextStyle{Bold: true}
+
+	editorToolbar := container.NewHBox(
+		editorTitle,
+		layout.NewSpacer(),
+		btnEditorLint, btnEditorSum, btnEditorBump,
+		widget.NewSeparator(),
+		btnEditorSave,
+	)
+
+	editorPanel := container.NewBorder(
+		container.NewVBox(widget.NewSeparator(), container.NewPadded(editorToolbar), widget.NewSeparator()),
+		nil, nil, nil,
+		container.NewScroll(g.editorEntry),
+	)
+
+	// ── Outer split: main | editor ────────────────────────────────────
+	outerSplit := container.NewHSplit(mainSplit, editorPanel)
+	outerSplit.SetOffset(0.45)
 
 	return container.NewBorder(
 		nil,
 		container.NewVBox(widget.NewSeparator(), container.NewPadded(statusBar)),
 		nil, nil,
-		split,
+		outerSplit,
 	)
 }
 
 // RunGUI runs the xbps plugin as a standalone Fyne application.
 func RunGUI(distDir string) {
 	a := app.New()
-	win := a.NewWindow("XBPS Templates")
+	win := a.NewWindow("Templates")
 	g := &xbpsGuiApp{
 		win:      win,
 		distDir:  distDir,
@@ -303,7 +380,7 @@ func RunGUI(distDir string) {
 	}
 	g.templates = LoadTemplates(distDir)
 	win.SetContent(g.buildContent())
-	win.Resize(fyne.NewSize(940, 640))
+	win.Resize(fyne.NewSize(1400, 700))
 	win.SetMaster()
 	win.ShowAndRun()
 }

@@ -7,18 +7,20 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"codeberg.org/oSoWoSo/SysMan/api"
 )
 
 // ── App metadata ─────────────────────────────────────────────────────
 
-// Version is set at build time via -ldflags "-X codeberg.org/oSoWoSo/svman/plugin.Version=<tag>".
+// Version is set at build time via -ldflags "-X codeberg.org/oSoWoSo/SysMan/plugin.Version=<tag>".
 var Version = "dev"
 
 // App metadata used in the About dialog.
 const (
 	AppAuthor  = "oSoWoSo"
 	AppLicense = "MIT"
-	AppURL     = "https://codeberg.org/oSoWoSo/svman"
+	AppURL     = "https://codeberg.org/oSoWoSo/SysMan"
 )
 
 // ── Defaults ─────────────────────────────────────────────────────────
@@ -82,7 +84,8 @@ func LoadServices(serviceDir, destDir string) []Service {
 func EnableService(serviceDir, destDir, name string) error {
 	src := filepath.Join(serviceDir, name)
 	dst := filepath.Join(destDir, name)
-	out, err := exec.Command("sudo", "ln", "-s", src, dst).CombinedOutput()
+	args := api.Elevate("ln", "-s", src, dst)
+	out, err := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
 	}
@@ -90,11 +93,12 @@ func EnableService(serviceDir, destDir, name string) error {
 }
 
 // DisableService removes the symlink from the destination directory,
-// disabling the service. Uses sudo to handle permission requirements.
+// disabling the service. Uses privilege escalation to handle permission requirements.
 // Returns an error if the symlink removal fails.
 func DisableService(destDir, name string) error {
 	dst := filepath.Join(destDir, name)
-	out, err := exec.Command("sudo", "rm", dst).CombinedOutput()
+	args := api.Elevate("rm", dst)
+	out, err := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
 	}
@@ -137,11 +141,80 @@ func GetServiceStatus(destDir, name string) ServiceStatus {
 	return s
 }
 
+// ── Backend interface ─────────────────────────────────────────────────
+//
+// Backend abstracts service manager operations so the UI is independent
+// of the underlying init system. Implement this interface to add support
+// for openrc, s6, systemd, or any other service manager.
+//
+// The runit implementation (RunitBackend) is the default.
+
+// Backend is the interface every service manager backend must implement.
+type Backend interface {
+	// Dirs returns the service definition directory and the enabled-services
+	// directory. Used for display purposes (path labels, status header).
+	Dirs() (serviceDir, destDir string)
+	// List returns all available services with their enabled state.
+	List() []Service
+	// Enable activates a service (e.g. create symlink for runit).
+	Enable(name string) error
+	// Disable deactivates a service.
+	Disable(name string) error
+	// Status returns the live runtime status of an enabled service.
+	Status(name string) ServiceStatus
+	// Start starts an enabled service.
+	Start(name string) error
+	// Stop stops a running service.
+	Stop(name string) error
+	// Restart restarts a service.
+	Restart(name string) error
+	// Reload sends SIGHUP (or equivalent) to a service.
+	Reload(name string) error
+	// Pause suspends a service (SIGSTOP / sv pause).
+	Pause(name string) error
+	// Continue resumes a paused service (SIGCONT / sv cont).
+	Continue(name string) error
+	// Kill sends SIGKILL to a service (sv kill).
+	Kill(name string) error
+}
+
+// ── Runit backend ─────────────────────────────────────────────────────
+
+// RunitBackend implements Backend for the runit init system using the `sv` tool.
+type RunitBackend struct {
+	ServiceDir string // e.g. /etc/sv
+	DestDir    string // e.g. /var/service
+}
+
+// NewRunitBackend creates a RunitBackend with the given directories.
+func NewRunitBackend(serviceDir, destDir string) *RunitBackend {
+	return &RunitBackend{ServiceDir: serviceDir, DestDir: destDir}
+}
+
+func (b *RunitBackend) Dirs() (string, string) { return b.ServiceDir, b.DestDir }
+func (b *RunitBackend) List() []Service        { return LoadServices(b.ServiceDir, b.DestDir) }
+
+func (b *RunitBackend) Enable(name string) error {
+	return EnableService(b.ServiceDir, b.DestDir, name)
+}
+func (b *RunitBackend) Disable(name string) error { return DisableService(b.DestDir, name) }
+func (b *RunitBackend) Status(name string) ServiceStatus {
+	return GetServiceStatus(b.DestDir, name)
+}
+func (b *RunitBackend) Start(name string) error    { return svCmd(b.DestDir, name, "start") }
+func (b *RunitBackend) Stop(name string) error     { return svCmd(b.DestDir, name, "stop") }
+func (b *RunitBackend) Restart(name string) error  { return svCmd(b.DestDir, name, "restart") }
+func (b *RunitBackend) Reload(name string) error   { return svCmd(b.DestDir, name, "reload") }
+func (b *RunitBackend) Pause(name string) error    { return svCmd(b.DestDir, name, "pause") }
+func (b *RunitBackend) Continue(name string) error { return svCmd(b.DestDir, name, "cont") }
+func (b *RunitBackend) Kill(name string) error     { return svCmd(b.DestDir, name, "kill") }
+
 // ── sv control commands ──────────────────────────────────────────────
 
 func svCmd(destDir, name, action string) error {
 	path := filepath.Join(destDir, name)
-	out, err := exec.Command("sudo", "sv", action, path).CombinedOutput()
+	args := api.Elevate("sv", action, path)
+	out, err := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
 	}
@@ -159,3 +232,12 @@ func RestartService(destDir, name string) error { return svCmd(destDir, name, "r
 
 // ReloadService sends SIGHUP to an enabled service via `sv reload`.
 func ReloadService(destDir, name string) error { return svCmd(destDir, name, "reload") }
+
+// PauseService sends SIGSTOP to an enabled service via `sv pause`.
+func PauseService(destDir, name string) error { return svCmd(destDir, name, "pause") }
+
+// ContinueService sends SIGCONT to a paused service via `sv cont`.
+func ContinueService(destDir, name string) error { return svCmd(destDir, name, "cont") }
+
+// KillService sends SIGKILL to a service via `sv kill`.
+func KillService(destDir, name string) error { return svCmd(destDir, name, "kill") }

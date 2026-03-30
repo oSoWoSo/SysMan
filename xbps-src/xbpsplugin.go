@@ -32,7 +32,7 @@ func New(distDir string) *Plugin {
 
 // Name returns the plugin display name used in system manager tabs.
 // Implements api.PluginIF.
-func (p *Plugin) Name() string { return "xbps-src" }
+func (p *Plugin) Name() string { return "Templates" }
 
 // Model returns an initialized Bubbletea tea.Model for TUI embedding.
 // Implements api.PluginIF.

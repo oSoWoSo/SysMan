@@ -123,9 +123,8 @@ func (d *detailStateWidget) clear() {
 // ── App state ────────────────────────────────────────────────────────
 
 type guiApp struct {
-	win            fyne.Window
-	serviceDir     string
-	serviceDestDir string
+	win     fyne.Window
+	backend Backend
 
 	services   []Service
 	selected   int
@@ -146,6 +145,9 @@ type guiApp struct {
 	btnStop       *widget.Button
 	btnRestart    *widget.Button
 	btnHup        *widget.Button
+	btnPause      *widget.Button
+	btnContinue   *widget.Button
+	btnKill       *widget.Button
 	statusBar     *widget.Label
 	countLabel    *widget.Label
 }
@@ -172,7 +174,7 @@ func (s *guiApp) filtered() []Service {
 }
 
 func (s *guiApp) reload() {
-	s.services = LoadServices(s.serviceDir, s.serviceDestDir)
+	s.services = s.backend.List()
 	s.serviceList.Refresh()
 	s.updateCount()
 	list := s.filtered()
@@ -208,13 +210,17 @@ func (s *guiApp) clearDetail() {
 	s.btnStop.Disable()
 	s.btnRestart.Disable()
 	s.btnHup.Disable()
+	s.btnPause.Disable()
+	s.btnContinue.Disable()
+	s.btnKill.Disable()
 }
 
 func (s *guiApp) showDetail(svc Service) {
 	s.detailName.SetText(svc.Name)
 	s.detailState.setEnabled(svc.Enabled)
-	s.detailSrc.SetText(filepath.Join(s.serviceDir, svc.Name))
-	s.detailDst.SetText(filepath.Join(s.serviceDestDir, svc.Name))
+	svcDir, destDir := s.backend.Dirs()
+	s.detailSrc.SetText(filepath.Join(svcDir, svc.Name))
+	s.detailDst.SetText(filepath.Join(destDir, svc.Name))
 	s.btnEnable.Enable()
 	s.btnDisable.Enable()
 	if svc.Enabled {
@@ -223,9 +229,12 @@ func (s *guiApp) showDetail(svc Service) {
 		s.btnStop.Enable()
 		s.btnRestart.Enable()
 		s.btnHup.Enable()
+		s.btnPause.Enable()
+		s.btnContinue.Enable()
+		s.btnKill.Enable()
 		// Fetch running status asynchronously
 		go func(name string) {
-			st := GetServiceStatus(s.serviceDestDir, name)
+			st := s.backend.Status(name)
 			s.updateRunningStatus(st)
 		}(svc.Name)
 	} else {
@@ -234,6 +243,9 @@ func (s *guiApp) showDetail(svc Service) {
 		s.btnStop.Disable()
 		s.btnRestart.Disable()
 		s.btnHup.Disable()
+		s.btnPause.Disable()
+		s.btnContinue.Disable()
+		s.btnKill.Disable()
 		s.detailRunning.SetText(t("detail.empty"))
 		s.detailPID.SetText(t("detail.empty"))
 		s.detailUptime.SetText(t("detail.empty"))
@@ -293,19 +305,22 @@ func (s *guiApp) showAbout() {
 }
 
 // buildContent builds the full widget tree and returns it as a CanvasObject.
-// It does NOT call SetContent on the window — the caller is responsible for that.
-// This allows the panel to be embedded in a parent application.
-func (s *guiApp) buildContent() fyne.CanvasObject {
+// showHeader controls whether the svman title/subtitle bar is rendered.
+// Pass false when embedding in a parent app (e.g. sysmanager tab), true for standalone use.
+func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	// ── Header ───────────────────────────────────────────────────────
-	titleText := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
-	titleText.TextSize = 22
-	titleText.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
-	subtitleText := canvas.NewText(t("app.subtitle"), colorMuted)
-	subtitleText.TextSize = 11
-	header := container.NewVBox(
-		container.NewPadded(container.NewVBox(titleText, subtitleText)),
-		widget.NewSeparator(),
-	)
+	var header fyne.CanvasObject
+	if showHeader {
+		titleText := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
+		titleText.TextSize = 22
+		titleText.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+		subtitleText := canvas.NewText(t("app.subtitle"), colorMuted)
+		subtitleText.TextSize = 11
+		header = container.NewVBox(
+			container.NewPadded(container.NewVBox(titleText, subtitleText)),
+			widget.NewSeparator(),
+		)
+	}
 
 	// ── Search ───────────────────────────────────────────────────────
 	search := widget.NewEntry()
@@ -415,7 +430,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 			return
 		}
 		svc := list[s.selected]
-		if err := EnableService(s.serviceDir, s.serviceDestDir, svc.Name); err != nil {
+		if err := s.backend.Enable(svc.Name); err != nil {
 			dialog.ShowError(err, s.win)
 			s.setStatus(t("status.err") + err.Error())
 		} else {
@@ -439,7 +454,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 				if !ok {
 					return
 				}
-				if err := DisableService(s.serviceDestDir, svc.Name); err != nil {
+				if err := s.backend.Disable(svc.Name); err != nil {
 					dialog.ShowError(err, s.win)
 					s.setStatus(t("status.err") + err.Error())
 				} else {
@@ -464,12 +479,12 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		}
 		name := list[s.selected].Name
 		go func() {
-			if err := StartService(s.serviceDestDir, name); err != nil {
+			if err := s.backend.Start(name); err != nil {
 				s.setStatus(t("status.err") + err.Error())
 				return
 			}
 			s.setStatus(fmt.Sprintf(t("status.started"), name))
-			st := GetServiceStatus(s.serviceDestDir, name)
+			st := s.backend.Status(name)
 			s.updateRunningStatus(st)
 		}()
 	})
@@ -489,12 +504,12 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 					return
 				}
 				go func() {
-					if err := StopService(s.serviceDestDir, name); err != nil {
+					if err := s.backend.Stop(name); err != nil {
 						s.setStatus(t("status.err") + err.Error())
 						return
 					}
 					s.setStatus(fmt.Sprintf(t("status.stopped"), name))
-					st := GetServiceStatus(s.serviceDestDir, name)
+					st := s.backend.Status(name)
 					s.updateRunningStatus(st)
 				}()
 			}, s.win)
@@ -508,12 +523,12 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		}
 		name := list[s.selected].Name
 		go func() {
-			if err := RestartService(s.serviceDestDir, name); err != nil {
+			if err := s.backend.Restart(name); err != nil {
 				s.setStatus(t("status.err") + err.Error())
 				return
 			}
 			s.setStatus(fmt.Sprintf(t("status.restarted"), name))
-			st := GetServiceStatus(s.serviceDestDir, name)
+			st := s.backend.Status(name)
 			s.updateRunningStatus(st)
 		}()
 	})
@@ -525,15 +540,75 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		}
 		name := list[s.selected].Name
 		go func() {
-			if err := ReloadService(s.serviceDestDir, name); err != nil {
+			if err := s.backend.Reload(name); err != nil {
 				s.setStatus(t("status.err") + err.Error())
 				return
 			}
 			s.setStatus(fmt.Sprintf(t("status.hupped"), name))
-			st := GetServiceStatus(s.serviceDestDir, name)
+			st := s.backend.Status(name)
 			s.updateRunningStatus(st)
 		}()
 	})
+
+	s.btnPause = widget.NewButton(t("btn.pause"), func() {
+		list := s.filtered()
+		if s.selected < 0 || s.selected >= len(list) {
+			return
+		}
+		name := list[s.selected].Name
+		go func() {
+			if err := s.backend.Pause(name); err != nil {
+				s.setStatus(t("status.err") + err.Error())
+				return
+			}
+			s.setStatus(fmt.Sprintf(t("status.paused"), name))
+			st := s.backend.Status(name)
+			s.updateRunningStatus(st)
+		}()
+	})
+
+	s.btnContinue = widget.NewButton(t("btn.continue"), func() {
+		list := s.filtered()
+		if s.selected < 0 || s.selected >= len(list) {
+			return
+		}
+		name := list[s.selected].Name
+		go func() {
+			if err := s.backend.Continue(name); err != nil {
+				s.setStatus(t("status.err") + err.Error())
+				return
+			}
+			s.setStatus(fmt.Sprintf(t("status.continued"), name))
+			st := s.backend.Status(name)
+			s.updateRunningStatus(st)
+		}()
+	})
+
+	s.btnKill = widget.NewButtonWithIcon(t("btn.kill"), theme.DeleteIcon(), func() {
+		list := s.filtered()
+		if s.selected < 0 || s.selected >= len(list) {
+			return
+		}
+		name := list[s.selected].Name
+		dialog.ShowConfirm(
+			t("confirm.title"),
+			fmt.Sprintf(t("confirm.kill"), name),
+			func(ok bool) {
+				if !ok {
+					return
+				}
+				go func() {
+					if err := s.backend.Kill(name); err != nil {
+						s.setStatus(t("status.err") + err.Error())
+						return
+					}
+					s.setStatus(fmt.Sprintf(t("status.killed"), name))
+					st := s.backend.Status(name)
+					s.updateRunningStatus(st)
+				}()
+			}, s.win)
+	})
+	s.btnKill.Importance = widget.DangerImportance
 
 	s.btnEnable.Disable()
 	s.btnDisable.Disable()
@@ -541,9 +616,12 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	s.btnStop.Disable()
 	s.btnRestart.Disable()
 	s.btnHup.Disable()
+	s.btnPause.Disable()
+	s.btnContinue.Disable()
+	s.btnKill.Disable()
 
 	toggleRow := container.NewHBox(s.btnEnable, s.btnDisable)
-	controlRow := container.NewHBox(s.btnStart, s.btnStop, s.btnRestart, s.btnHup, layout.NewSpacer(), btnReload)
+	controlRow := container.NewHBox(s.btnStart, s.btnStop, s.btnRestart, s.btnHup, s.btnPause, s.btnContinue, s.btnKill, layout.NewSpacer(), btnReload)
 	buttons := container.NewVBox(toggleRow, controlRow)
 
 	// ── Status bar ───────────────────────────────────────────────────
@@ -555,7 +633,8 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	statusBar := container.NewHBox(btnAbout, s.statusBar)
 
 	// ── Dir info ─────────────────────────────────────────────────────
-	dirInfo := widget.NewLabel(fmt.Sprintf("SERVICEDIR=%s\nSERVICEDESTDIR=%s", s.serviceDir, s.serviceDestDir))
+	svcDir, destDir := s.backend.Dirs()
+	dirInfo := widget.NewLabel(fmt.Sprintf("SERVICEDIR=%s\nSERVICEDESTDIR=%s", svcDir, destDir))
 	dirInfo.TextStyle = fyne.TextStyle{Monospace: true}
 
 	detailTitle := canvas.NewText(t("detail.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xcc})
@@ -602,14 +681,14 @@ func RunGUI(serviceDir, serviceDestDir string) {
 	a := app.New()
 	a.Settings().SetTheme(darkIndustrialTheme{theme.DefaultTheme()})
 	win := a.NewWindow(t("app.window"))
+	b := NewRunitBackend(serviceDir, serviceDestDir)
 	g := &guiApp{
-		win:            win,
-		serviceDir:     serviceDir,
-		serviceDestDir: serviceDestDir,
-		selected:       -1,
+		win:      win,
+		backend:  b,
+		selected: -1,
 	}
-	g.services = LoadServices(serviceDir, serviceDestDir)
-	win.SetContent(g.buildContent())
+	g.services = b.List()
+	win.SetContent(g.buildContent(true))
 	win.Resize(fyne.NewSize(860, 560))
 	win.SetMaster()
 	win.ShowAndRun()

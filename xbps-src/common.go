@@ -7,6 +7,7 @@ package xbpssrc
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -134,11 +135,40 @@ func humanBytes(b uint64) string {
 // RunXbps executes a command with distDir as the working directory.
 // Returns combined stdout+stderr output and any error.
 func RunXbps(distDir string, args ...string) (string, error) {
+	return RunXbpsStream(distDir, nil, args...)
+}
+
+// RunXbpsStream executes a command with distDir as the working directory,
+// streaming each output line to w in real-time (pass nil to skip streaming).
+// Returns combined output and any error.
+func RunXbpsStream(distDir string, w io.Writer, args ...string) (string, error) {
 	dir := ResolveDistDir(distDir)
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return "", err
+	}
 	cmd := exec.Command(args[0], args[1:]...) //nolint:gosec
 	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	return strings.TrimSpace(string(out)), err
+	cmd.Stdout = pw
+	cmd.Stderr = pw
+	if err := cmd.Start(); err != nil {
+		pw.Close()
+		pr.Close()
+		return "", err
+	}
+	pw.Close()
+	var buf strings.Builder
+	scanner := bufio.NewScanner(pr)
+	for scanner.Scan() {
+		line := scanner.Text()
+		buf.WriteString(line + "\n")
+		if w != nil {
+			_, _ = io.WriteString(w, line+"\n")
+		}
+	}
+	pr.Close()
+	err = cmd.Wait()
+	return strings.TrimSpace(buf.String()), err
 }
 
 // OpenEditor opens srcpkgs/<name>/template in $EDITOR (or xdg-open as fallback).

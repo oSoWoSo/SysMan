@@ -10,10 +10,11 @@ import (
 )
 
 // newTestModel builds a tuiModel suitable for unit tests.
-// It uses temp directories so no real filesystem access is needed beyond what is provided.
+// It uses empty-dir backend so Dirs() and List() are safe to call without real paths.
 func newTestModel(services []Service) tuiModel {
 	ti := textinput.New()
 	return tuiModel{
+		backend:  NewRunitBackend("", ""),
 		services: services,
 		search:   ti,
 	}
@@ -163,10 +164,8 @@ func TestUpdate_WindowSize(t *testing.T) {
 }
 
 func TestUpdate_ReloadMsg_RefreshesServices(t *testing.T) {
-	dir := t.TempDir()
 	m := newTestModel([]Service{{Name: "stale"}})
-	m.serviceDir = dir
-	m.serviceDestDir = t.TempDir()
+	m.backend = NewRunitBackend(t.TempDir(), t.TempDir())
 
 	updated, _ := m.Update(tuiReloadMsg{})
 	tm := updated.(tuiModel)

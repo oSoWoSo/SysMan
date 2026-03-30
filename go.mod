@@ -1,4 +1,4 @@
-module codeberg.org/oSoWoSo/svman
+module codeberg.org/oSoWoSo/SysMan
 
 go 1.21
 

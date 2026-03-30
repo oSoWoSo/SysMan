@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"os"
 
-	xbpssrc "codeberg.org/oSoWoSo/svman/xbps-src"
+	xbpssrc "codeberg.org/oSoWoSo/SysMan/xbps-src"
 )
 
 func main() {
