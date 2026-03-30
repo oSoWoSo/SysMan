@@ -24,6 +24,8 @@ All notable changes to SysMan are documented here.
   - `cmd/srcman-gui/`, `cmd/srcman-tui/`
 
 ### Changed
+- **Static website** — new website with 50+ retro/nostalgic themes (Amiga 500, C64, DOS, MacOS, etc.)
+- **Standalone GUI binaries support TUI mode** — `infoman`, `pkgman`, `srcman`, `ugman` accept `--tui`/`--gui`/`--auto` flags; auto-detects DISPLAY/WAYLAND_DISPLAY
 - **Binary naming**: GUI binaries no longer carry a `-gui` suffix; TUI-only binaries use `-tui` suffix
   - `sysmanager` → `sysman` / `sysman-tui`
   - `svman` stays `svman` (GUI+TUI); `svman-tui` (TUI only)
@@ -36,6 +38,9 @@ All notable changes to SysMan are documented here.
 - `ugman-tui`: list was not scrolled/clipped to terminal height — added sliding window scroll
 - `ugman-tui`: no quit key was bound — added `q`, `Esc`, `Ctrl+C`
 - `usergroups/plugin.go`: removed compile-time interface check that broke `tui_only` builds
+
+### Security
+- **PIE build** for `sysman` and `ugman` binaries — required for Void Linux packages
 
 ---
 
