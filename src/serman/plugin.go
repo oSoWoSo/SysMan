@@ -1,4 +1,4 @@
-// Package plugin provides the svman runit service manager as an embeddable component.
+// Package serman provides a runit service manager plugin.
 //
 // Standalone use (GUI or TUI):
 //

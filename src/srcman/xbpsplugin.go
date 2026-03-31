@@ -1,4 +1,4 @@
-// Package xbpssrc provides an xbps-src template manager as an embeddable component.
+// Package srcman provides an xbps-src template manager plugin.
 //
 // Standalone use (GUI or TUI):
 //

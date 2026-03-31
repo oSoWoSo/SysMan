@@ -96,7 +96,7 @@ func main() {
 		srcman.New(""),
 		serman.New(serviceDir, serviceDestDir),
 		ugsman.New(),
-		vmman.New(vmman.DefaultVmDir),
+		vmman.New(vmman.DefaultVMDir),
 	}
 
 	// Set the shared status bar on all plugins.
@@ -263,14 +263,14 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	srcmanDistDir := newFormEntry(cfg.Srcman.DistDir, "")
 	srcmanSearchEngine := newFormEntry(cfg.Srcman.SearchEngine, "https://duckduckgo.com/?q=")
 
-	vmsmanVmDir := newFormEntry(cfg.Vmsman.VmDir, vmman.DefaultVmDir)
+	vmsmanVMDir := newFormEntry(cfg.Vmsman.VMDir, vmman.DefaultVMDir)
 
 	btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
 		cfg.Serman.ServiceDir = strings.TrimSpace(sermanServiceDir.Text)
 		cfg.Serman.ServiceDestDir = strings.TrimSpace(sermanServiceDestDir.Text)
 		cfg.Srcman.DistDir = strings.TrimSpace(srcmanDistDir.Text)
 		cfg.Srcman.SearchEngine = strings.TrimSpace(srcmanSearchEngine.Text)
-		cfg.Vmsman.VmDir = strings.TrimSpace(vmsmanVmDir.Text)
+		cfg.Vmsman.VMDir = strings.TrimSpace(vmsmanVMDir.Text)
 		if err := common.SaveSysManConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("save config: %w", err), win)
 		}
@@ -314,7 +314,7 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	)
 
 	formVmsman := widget.NewForm(
-		widget.NewFormItem("VM dir", vmsmanVmDir),
+		widget.NewFormItem("VM dir", vmsmanVMDir),
 	)
 
 	return container.NewVBox(

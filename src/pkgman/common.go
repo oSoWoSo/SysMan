@@ -1,4 +1,4 @@
-// Package xbpspkg provides a package manager plugin with an extensible backend.
+// Package pkgman provides a package manager plugin.
 // The default backend targets Void Linux (xbps), but any package manager can be
 // supported by implementing the PkgBackend interface.
 package pkgman
@@ -34,8 +34,11 @@ type Package struct {
 type FilterMode int
 
 const (
+	// FilterAll selects all packages.
 	FilterAll FilterMode = iota
+	// FilterInstalled selects only installed packages.
 	FilterInstalled
+	// FilterAvailable selects only available (not installed) packages.
 	FilterAvailable
 )
 
@@ -98,13 +101,26 @@ type XbpsBackend struct{}
 // when the plugin is constructed with New().
 func NewXbpsBackend() *XbpsBackend { return &XbpsBackend{} }
 
-func (b *XbpsBackend) Name() string                                        { return "xbps" }
-func (b *XbpsBackend) List() []Package                                     { return LoadPackages() }
-func (b *XbpsBackend) Detail(name string) PackageDetail                    { return QueryDetail(name) }
+// Name returns "xbps".
+func (b *XbpsBackend) Name() string { return "xbps" }
+
+// List returns all available packages.
+func (b *XbpsBackend) List() []Package { return LoadPackages() }
+
+// Detail returns package details by name.
+func (b *XbpsBackend) Detail(name string) PackageDetail { return QueryDetail(name) }
+
+// Install installs packages by name.
 func (b *XbpsBackend) Install(names []string, w io.Writer) (string, error) { return Install(names, w) }
-func (b *XbpsBackend) Remove(names []string, w io.Writer) (string, error)  { return Remove(names, w) }
-func (b *XbpsBackend) Update(w io.Writer) (string, error)                  { return Update(w) }
-func (b *XbpsBackend) OpenURL(url string)                                  { OpenBrowser(url) }
+
+// Remove removes packages by name.
+func (b *XbpsBackend) Remove(names []string, w io.Writer) (string, error) { return Remove(names, w) }
+
+// Update updates all packages.
+func (b *XbpsBackend) Update(w io.Writer) (string, error) { return Update(w) }
+
+// OpenURL opens a URL in the browser.
+func (b *XbpsBackend) OpenURL(url string) { OpenBrowser(url) }
 
 // installedSet returns a set of pkgnames that are currently installed locally.
 // Uses xbps-query --list-pkgs (local only, no remote needed).

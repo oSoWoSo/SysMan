@@ -14,22 +14,27 @@ import (
 
 // ── App metadata (re-exported from common for backward compatibility) ──
 
+// Version is the serman version.
 var Version = common.Version
 
 const (
-	AppAuthor  = common.AppAuthor
+	// AppAuthor is the author of serman.
+	AppAuthor = common.AppAuthor
+	// AppLicense is the license of serman.
 	AppLicense = common.AppLicense
-	AppURL     = common.AppURL
-	Usage      = "svman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SERVICEDIR      service dir (default: /etc/sv)\n  SERVICEDESTDIR  enabled services dir (default: /var/service)\n  SYSMAN_LANG  language override (e.g. cs)"
+	// AppURL is the URL of serman.
+	AppURL = common.AppURL
+	// Usage is the --help text for svman.
+	Usage = "svman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SERVICEDIR      service dir (default: /etc/sv)\n  SERVICEDESTDIR  enabled services dir (default: /var/service)\n  SYSMAN_LANG  language override (e.g. cs)"
 )
 
 // ── Defaults ─────────────────────────────────────────────────────────
 
-// Default directories for service definitions and enabled services.
-const (
-	DefaultServiceDir     = "/etc/sv"      // service definition directory
-	DefaultServiceDestDir = "/var/service" // enabled services symlink directory
-)
+// DefaultServiceDir is the default service definition directory.
+const DefaultServiceDir = "/etc/sv"
+
+// DefaultServiceDestDir is the default enabled services directory.
+const DefaultServiceDestDir = "/var/service"
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -42,9 +47,13 @@ type Service struct {
 // FilterMode represents the filter state for service/package lists.
 type FilterMode int
 
+
 const (
+	// FilterAll selects all services.
 	FilterAll FilterMode = iota
+	// FilterEnabled selects only enabled services.
 	FilterEnabled
+	// FilterDisabled selects only disabled services.
 	FilterDisabled
 )
 
@@ -255,26 +264,50 @@ func NewRunitBackend(serviceDir, destDir string) *RunitBackend {
 	return &RunitBackend{ServiceDir: serviceDir, DestDir: destDir}
 }
 
+// Dirs returns the service directory and destination directory.
 func (b *RunitBackend) Dirs() (string, string) { return b.ServiceDir, b.DestDir }
-func (b *RunitBackend) List() []Service        { return LoadServices(b.ServiceDir, b.DestDir) }
 
+// List returns all services.
+func (b *RunitBackend) List() []Service { return LoadServices(b.ServiceDir, b.DestDir) }
+
+// Enable enables a service.
 func (b *RunitBackend) Enable(name string) error {
 	return EnableService(b.ServiceDir, b.DestDir, name)
 }
+
+// Disable disables a service.
 func (b *RunitBackend) Disable(name string) error { return DisableService(b.DestDir, name) }
+
+// Status returns the status of a service.
 func (b *RunitBackend) Status(name string) ServiceStatus {
 	return GetServiceStatus(b.DestDir, name)
 }
+
+// StatusAll returns the status of all services.
 func (b *RunitBackend) StatusAll(names []string) map[string]ServiceStatus {
 	return GetAllServiceStatuses(b.DestDir, names)
 }
-func (b *RunitBackend) Start(name string) error    { return svCmd(b.DestDir, name, "start") }
-func (b *RunitBackend) Stop(name string) error     { return svCmd(b.DestDir, name, "stop") }
-func (b *RunitBackend) Restart(name string) error  { return svCmd(b.DestDir, name, "restart") }
-func (b *RunitBackend) Reload(name string) error   { return svCmd(b.DestDir, name, "reload") }
-func (b *RunitBackend) Pause(name string) error    { return svCmd(b.DestDir, name, "pause") }
+
+// Start starts a service.
+func (b *RunitBackend) Start(name string) error { return svCmd(b.DestDir, name, "start") }
+
+// Stop stops a service.
+func (b *RunitBackend) Stop(name string) error { return svCmd(b.DestDir, name, "stop") }
+
+// Restart restarts a service.
+func (b *RunitBackend) Restart(name string) error { return svCmd(b.DestDir, name, "restart") }
+
+// Reload reloads a service.
+func (b *RunitBackend) Reload(name string) error { return svCmd(b.DestDir, name, "reload") }
+
+// Pause pauses a service.
+func (b *RunitBackend) Pause(name string) error { return svCmd(b.DestDir, name, "pause") }
+
+// Continue continues a service.
 func (b *RunitBackend) Continue(name string) error { return svCmd(b.DestDir, name, "cont") }
-func (b *RunitBackend) Kill(name string) error     { return svCmd(b.DestDir, name, "kill") }
+
+// Kill kills a service.
+func (b *RunitBackend) Kill(name string) error { return svCmd(b.DestDir, name, "kill") }
 
 // ── sv control commands ──────────────────────────────────────────────
 

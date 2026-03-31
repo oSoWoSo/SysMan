@@ -1,4 +1,4 @@
-// Package sysinfo — ANSI rendering helpers.
+// Package infman — ANSI rendering helpers.
 // Exported so external callers (e.g. a TUI shell or future plugins) can reuse
 // the full-colour Fyne view and the fastfetch/neofetch runner.
 package infman

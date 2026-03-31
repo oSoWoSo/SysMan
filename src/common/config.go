@@ -7,35 +7,42 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// SysManConfig is the main SysMan configuration.
 type SysManConfig struct {
 	Serman SermanConfig `yaml:"serman,omitempty"`
 	Pkgman PkgmanConfig `yaml:"pkgman,omitempty"`
-	Srcman SrcmanConfig `yaml:"srcman,omitempty"`
+	Srcman Config `yaml:"srcman,omitempty"`
 	Vmsman VmsmanConfig `yaml:"vmsman,omitempty"`
 	Ugsman UgsmanConfig `yaml:"ugsman,omitempty"`
 	Infman InfmanConfig `yaml:"infman,omitempty"`
 }
 
+// SermanConfig is the services configuration.
 type SermanConfig struct {
 	ServiceDir     string `yaml:"service_dir,omitempty"`
 	ServiceDestDir string `yaml:"service_dest_dir,omitempty"`
 }
 
+// PkgmanConfig is the packages configuration.
 type PkgmanConfig struct {
 }
 
-type SrcmanConfig struct {
+// Config is the templates configuration.
+type Config struct {
 	DistDir      string `yaml:"dist_dir,omitempty"`
 	SearchEngine string `yaml:"search_engine,omitempty"`
 }
 
+// VmsmanConfig is the VM configuration.
 type VmsmanConfig struct {
-	VmDir string `yaml:"vm_dir,omitempty"`
+	VMDir string `yaml:"vm_dir,omitempty"`
 }
 
+// UgsmanConfig is the users & groups configuration.
 type UgsmanConfig struct {
 }
 
+// InfmanConfig is the system info configuration.
 type InfmanConfig struct {
 }
 
@@ -47,6 +54,7 @@ func sysmanConfigPath() string {
 	return filepath.Join(cfg, "sysman", "sysman.conf")
 }
 
+// LoadSysManConfig loads the SysMan configuration.
 func LoadSysManConfig() SysManConfig {
 	var c SysManConfig
 	path := sysmanConfigPath()
@@ -76,8 +84,8 @@ func LoadSysManConfig() SysManConfig {
 		if srcmanSearchEngine, ok := raw["srcman_search_engine"].(string); ok {
 			c.Srcman.SearchEngine = srcmanSearchEngine
 		}
-		if vmsmanVmDir, ok := raw["vmsman_vm_dir"].(string); ok {
-			c.Vmsman.VmDir = vmsmanVmDir
+		if vmsmanVMDir, ok := raw["vmsman_vm_dir"].(string); ok {
+			c.Vmsman.VMDir = vmsmanVMDir
 		}
 		return c
 	}
@@ -86,6 +94,7 @@ func LoadSysManConfig() SysManConfig {
 	return c
 }
 
+// SaveSysManConfig saves the SysMan configuration.
 func SaveSysManConfig(cfg SysManConfig) error {
 	path := sysmanConfigPath()
 	if path == "" {
@@ -110,8 +119,8 @@ func SaveSysManConfig(cfg SysManConfig) error {
 	if cfg.Srcman.SearchEngine == "" {
 		cfg.Srcman.SearchEngine = existing.Srcman.SearchEngine
 	}
-	if cfg.Vmsman.VmDir == "" {
-		cfg.Vmsman.VmDir = existing.Vmsman.VmDir
+	if cfg.Vmsman.VMDir == "" {
+		cfg.Vmsman.VMDir = existing.Vmsman.VMDir
 	}
 
 	out, err := yaml.Marshal(cfg)

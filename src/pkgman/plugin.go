@@ -1,4 +1,4 @@
-// Package xbpspkg provides an extensible package manager plugin.
+// Package pkgman provides a package manager plugin.
 //
 // The default backend targets Void Linux (xbps). To support another package
 // manager implement PkgBackend and use NewWithBackend:

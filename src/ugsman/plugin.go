@@ -1,4 +1,4 @@
-// Package usergroups provides a Users & Groups management plugin
+// Package ugsman provides a Users & Groups management plugin.
 // for the system manager. It wraps standard shadow-utils commands
 // (useradd, userdel, usermod, chpasswd, groupadd, groupdel) via sudo.
 package ugsman
