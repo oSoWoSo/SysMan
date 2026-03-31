@@ -22,6 +22,18 @@ All notable changes to SysMan are documented here.
   - `cmd/pkgman-gui/`
   - `cmd/infoman-gui/`, `cmd/infoman-tui/`
   - `cmd/srcman-gui/`, `cmd/srcman-tui/`
+- **vmsman plugin** — QEMU VM manager with GUI and TUI interfaces, SPICE connection support
+  - Boot, kill, and connect to VMs with status tracking (PID, SPICE port)
+  - Filter by running/stopped state, search by name
+  - Sectioned config system with per-module settings
+- **ANSI color support** in xbps and xbps-src GUI output
+  - PTY-based output capture for xbps-src to enable ANSI colors from build scripts
+  - ANSI escape sequence parser converts SGR codes to Fyne RichText segments
+  - Supports 16-color, 256-color palette, and 24-bit true color
+- **HoverableButton** component — buttons that display status text on hover
+- **Tooltip translations** for all managers (infoman, pkgman, srcman, serman, ugsman)
+- **srcman build mode selection** — `-Q` (with tests) and `-C` (confpkg) checkboxes for xbps-src builds
+- **i18n tests** for all modules (infman, pkgman, serman, srcman, ugsman, vmsman)
 
 ### Changed
 - **Static website** — new website with 50+ retro/nostalgic themes (Amiga 500, C64, DOS, MacOS, etc.)
@@ -33,11 +45,26 @@ All notable changes to SysMan are documented here.
 - **Makefile** fully restructured with per-binary targets (`build-svman`, `build-svman-tui`, etc.) and `install`/`uninstall`/`release` targets
 - **`sv status`** is now run with `api.Elevate` (pkexec/doas/sudo) for accurate service state display
 - Module path is `codeberg.org/oSoWoSo/SysMan`
+- **Directory structure** — reorganized into `src/` (Go code) and `web/` (static site)
+  - All plugins moved to `src/<name>/` (serman, pkgman, srcman, infman, ugsman, vmsman)
+  - All entry points moved to `src/cmd/<name>-gui/` and `src/cmd/<name>-tui/`
+  - Language files moved to `src/lang/<name>/`
+- **Module naming** — unified naming convention across all modules:
+  - `plugin` → `serman`, `xbps-pkg` → `pkgman`, `xbps-src` → `srcman`
+  - `sysinfo` → `infman`, `usergroups` → `ugsman`, `vmman` → `vmsman`
+  - `svman` → `serman` (in lang files and internal references)
+- **Generic Filter** — refactored filter logic into reusable generic `Filter[T]` function in each plugin
+- **Go dependencies** updated to latest versions
+- **golangci-lint** configuration updated with additional rules
 
 ### Fixed
 - `ugman-tui`: list was not scrolled/clipped to terminal height — added sliding window scroll
 - `ugman-tui`: no quit key was bound — added `q`, `Esc`, `Ctrl+C`
 - `usergroups/plugin.go`: removed compile-time interface check that broke `tui_only` builds
+- **Fyne threading** — wrapped UI updates in `fyne.Do()` to prevent race conditions in pkgman, srcman
+- **Code review fixes** — simplified highlight.go, cleaned up sysinfo, improved serman TUI
+- **langDirs paths** — corrected language directory resolution paths across all modules
+- **vmsman plugin** — fixed config loading and i18n initialization
 
 ### Security
 - **PIE build** for `sysman` and `ugman` binaries — required for Void Linux packages
