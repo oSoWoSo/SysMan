@@ -355,14 +355,19 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 
 	scroll := container.NewScroll(inner)
 
-	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { showAbout(win) })
-	btnAbout.Importance = widget.LowImportance
-	statusBar := container.NewVBox(
+	// Status bar for tooltips
+	statusBar := widget.NewLabel("")
+	statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
+
+	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), statusBar, func() { showAbout(win) })
+	btnAbout.Button.Importance = widget.LowImportance
+	statusBarRow := container.NewHBox(btnAbout, statusBar, layout.NewSpacer())
+	statusBarPanel := container.NewVBox(
 		widget.NewSeparator(),
-		container.NewPadded(container.NewHBox(btnAbout)),
+		container.NewPadded(statusBarRow),
 	)
 
-	return container.NewBorder(nil, statusBar, nil, nil, scroll)
+	return container.NewBorder(nil, statusBarPanel, nil, nil, scroll)
 }
 
 // Model returns a Bubbletea tea.Model showing system information.

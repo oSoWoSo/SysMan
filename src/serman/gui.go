@@ -460,11 +460,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnDisable.Importance = widget.DangerImportance
 
-	reloadIcon := fyne.Resource(theme.ViewRefreshIcon())
-	if os.Getuid() != 0 {
-		reloadIcon = theme.NewWarningThemedResource(theme.ViewRefreshIcon())
-	}
-	btnReload := widget.NewButtonWithIcon(t("btn.reload"), reloadIcon, func() {
+	btnReload := common.NewHoverableButton(t("btn.reload"), theme.ViewRefreshIcon(), t("tooltip.reload"), s.statusBar, func() {
 		s.reload()
 		if os.Getuid() != 0 {
 			s.setStatus(t("status.reloaded") + " ⚠ " + t("status.no_root"))
