@@ -5,17 +5,16 @@ package serman
 import (
 	"fmt"
 	"image/color"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -137,45 +136,17 @@ type guiApp struct {
 	detailUptime  *widget.Label
 	detailSrc     *widget.Label
 	detailDst     *widget.Label
-	btnEnable     *hoverableButton
-	btnDisable    *hoverableButton
-	btnStart      *hoverableButton
-	btnStop       *hoverableButton
-	btnRestart    *hoverableButton
-	btnHup        *hoverableButton
-	btnPause      *hoverableButton
-	btnContinue   *hoverableButton
-	btnKill       *hoverableButton
+	btnEnable     *common.HoverableButton
+	btnDisable    *common.HoverableButton
+	btnStart      *common.HoverableButton
+	btnStop       *common.HoverableButton
+	btnRestart    *common.HoverableButton
+	btnHup        *common.HoverableButton
+	btnPause      *common.HoverableButton
+	btnContinue   *common.HoverableButton
+	btnKill       *common.HoverableButton
 	statusBar     *widget.Label
 	countLabel    *widget.Label
-}
-
-// hoverableButton wraps a button with hover status text functionality.
-type hoverableButton struct {
-	*widget.Button
-	StatusText string
-	statusBar  *widget.Label
-}
-
-func newHoverableButton(label string, icon fyne.Resource, statusText string, statusBar *widget.Label, tapped func()) *hoverableButton {
-	btn := widget.NewButtonWithIcon(label, icon, tapped)
-	return &hoverableButton{
-		Button:     btn,
-		StatusText: statusText,
-		statusBar:  statusBar,
-	}
-}
-
-func (b *hoverableButton) MouseIn(e *desktop.MouseEvent) {
-	if b.statusBar != nil && b.StatusText != "" {
-		b.statusBar.SetText(b.StatusText)
-	}
-}
-
-func (b *hoverableButton) MouseOut() {
-	if b.statusBar != nil {
-		b.statusBar.SetText("")
-	}
 }
 
 func (s *guiApp) filtered() []Service {
@@ -314,37 +285,17 @@ func (s *guiApp) setStatus(msg string) {
 
 // showAbout displays the About dialog with app metadata.
 func (s *guiApp) showAbout() {
-	title := canvas.NewText("svman", color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
-	title.TextSize = 26
-	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
-
-	subtitle := canvas.NewText(t("app.subtitle"), colorMuted)
-	subtitle.TextSize = 12
-
-	infoForm := widget.NewForm(
-		widget.NewFormItem(t("about.version"), widget.NewLabel(Version)),
-		widget.NewFormItem(t("about.author"), widget.NewLabel(AppAuthor)),
-		widget.NewFormItem(t("about.license"), widget.NewLabel(AppLicense)),
-	)
-
-	repoURL, _ := url.Parse(AppURL)
-	link := widget.NewHyperlink(AppURL, repoURL)
-
-	descLabel := widget.NewLabel(t("about.description"))
-	descLabel.Wrapping = fyne.TextWrapWord
-
-	content := container.NewVBox(
-		container.NewCenter(title),
-		container.NewCenter(subtitle),
-		widget.NewSeparator(),
-		infoForm,
-		container.NewCenter(link),
-		widget.NewSeparator(),
-		descLabel,
-	)
-
-	d := dialog.NewCustom(t("menu.about"), t("btn.close"), content, s.win)
-	d.Show()
+	common.ShowAbout(common.AboutConfig{
+		Win:       s.win,
+		Title:     "svman",
+		Subtitle:  t("app.subtitle"),
+		Version:   Version,
+		Author:    AppAuthor,
+		License:   AppLicense,
+		URL:       AppURL,
+		DialogBtn: t("menu.about"),
+		CloseBtn:  t("btn.close"),
+	})
 }
 
 // buildContent builds the full widget tree and returns it as a CanvasObject.
@@ -467,7 +418,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	)
 
 	// ── Action buttons ───────────────────────────────────────────────
-	s.btnEnable = newHoverableButton(t("btn.enable"), theme.ConfirmIcon(), t("tooltip.enable"), s.statusBar, func() {
+	s.btnEnable = common.NewHoverableButton(t("btn.enable"), theme.ConfirmIcon(), t("tooltip.enable"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -484,7 +435,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnEnable.Button.Importance = widget.HighImportance
 
-	s.btnDisable = newHoverableButton(t("btn.disable"), theme.DeleteIcon(), t("tooltip.disable"), s.statusBar, func() {
+	s.btnDisable = common.NewHoverableButton(t("btn.disable"), theme.DeleteIcon(), t("tooltip.disable"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -523,7 +474,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 
 	// ── sv control buttons ───────────────────────────────────────────
-	s.btnStart = newHoverableButton(t("btn.start"), theme.MediaPlayIcon(), t("tooltip.start"), s.statusBar, func() {
+	s.btnStart = common.NewHoverableButton(t("btn.start"), theme.MediaPlayIcon(), t("tooltip.start"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -540,7 +491,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnStart.Button.Importance = widget.SuccessImportance
 
-	s.btnStop = newHoverableButton(t("btn.stop"), theme.MediaStopIcon(), t("tooltip.stop"), s.statusBar, func() {
+	s.btnStop = common.NewHoverableButton(t("btn.stop"), theme.MediaStopIcon(), t("tooltip.stop"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -566,7 +517,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnStop.Button.Importance = widget.DangerImportance
 
-	s.btnRestart = newHoverableButton(t("btn.restart"), theme.ViewRefreshIcon(), t("tooltip.restart"), s.statusBar, func() {
+	s.btnRestart = common.NewHoverableButton(t("btn.restart"), theme.ViewRefreshIcon(), t("tooltip.restart"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -582,7 +533,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnHup = newHoverableButton(t("btn.hup"), theme.MailSendIcon(), t("tooltip.hup"), s.statusBar, func() {
+	s.btnHup = common.NewHoverableButton(t("btn.hup"), theme.MailSendIcon(), t("tooltip.hup"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -598,7 +549,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnPause = newHoverableButton(t("btn.pause"), theme.MediaPauseIcon(), t("tooltip.pause"), s.statusBar, func() {
+	s.btnPause = common.NewHoverableButton(t("btn.pause"), theme.MediaPauseIcon(), t("tooltip.pause"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -614,7 +565,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnContinue = newHoverableButton(t("btn.continue"), theme.MediaPlayIcon(), t("tooltip.continue"), s.statusBar, func() {
+	s.btnContinue = common.NewHoverableButton(t("btn.continue"), theme.MediaPlayIcon(), t("tooltip.continue"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -630,7 +581,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnKill = newHoverableButton(t("btn.kill"), theme.DeleteIcon(), t("tooltip.kill"), s.statusBar, func() {
+	s.btnKill = common.NewHoverableButton(t("btn.kill"), theme.DeleteIcon(), t("tooltip.kill"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -674,8 +625,8 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	s.statusBar = widget.NewLabel("")
 	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 	// About button — info icon at the bottom-left corner
-	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { s.showAbout() })
-	btnAbout.Importance = widget.LowImportance
+	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), s.statusBar, func() { s.showAbout() })
+	btnAbout.Button.Importance = widget.LowImportance
 	statusBar := container.NewHBox(btnAbout, s.statusBar)
 
 	// ── Dir info ─────────────────────────────────────────────────────
