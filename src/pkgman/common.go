@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"codeberg.org/oSoWoSo/SysMan/src/api"
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"golang.org/x/term"
 )
 
@@ -46,25 +47,7 @@ func Filter[T any](
 	isInstalled func(T) bool,
 	matchesSearch func(T, string) bool,
 ) []T {
-	var out []T
-	q := strings.ToLower(search)
-	for _, item := range items {
-		switch mode {
-		case FilterInstalled:
-			if !isInstalled(item) {
-				continue
-			}
-		case FilterAvailable:
-			if isInstalled(item) {
-				continue
-			}
-		}
-		if q != "" && !matchesSearch(item, q) {
-			continue
-		}
-		out = append(out, item)
-	}
-	return out
+	return common.Filter(items, int(mode), search, isInstalled, matchesSearch)
 }
 
 // PackageDetail holds extended metadata for a single package.

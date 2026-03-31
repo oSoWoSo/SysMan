@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"gopkg.in/yaml.v3"
 )
 
@@ -58,25 +59,7 @@ func Filter[T any](
 	isRunning func(T) bool,
 	matchesSearch func(T, string) bool,
 ) []T {
-	var out []T
-	q := strings.ToLower(search)
-	for _, item := range items {
-		switch mode {
-		case FilterRunning:
-			if !isRunning(item) {
-				continue
-			}
-		case FilterStopped:
-			if isRunning(item) {
-				continue
-			}
-		}
-		if q != "" && !matchesSearch(item, q) {
-			continue
-		}
-		out = append(out, item)
-	}
-	return out
+	return common.Filter(items, int(mode), search, isRunning, matchesSearch)
 }
 
 func LoadVMs(vmDir string) []VM {

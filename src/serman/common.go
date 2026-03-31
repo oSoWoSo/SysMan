@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"codeberg.org/oSoWoSo/SysMan/src/api"
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 )
 
 // ── App metadata ─────────────────────────────────────────────────────
@@ -61,25 +62,10 @@ func Filter[T any](
 	isEnabled func(T) bool,
 	matchesSearch func(T, string) bool,
 ) []T {
-	var out []T
-	q := strings.ToLower(search)
-	for _, item := range items {
-		switch mode {
-		case FilterEnabled:
-			if !isEnabled(item) {
-				continue
-			}
-		case FilterDisabled:
-			if isEnabled(item) {
-				continue
-			}
-		}
-		if q != "" && !matchesSearch(item, q) {
-			continue
-		}
-		out = append(out, item)
-	}
-	return out
+	return common.Filter(items, int(mode), search,
+		func(item T) bool { return isEnabled(item) },
+		matchesSearch,
+	)
 }
 
 // ── Utilities ────────────────────────────────────────────────────────
