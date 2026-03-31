@@ -7,12 +7,12 @@ import (
 	"image/color"
 	"strings"
 
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -67,9 +67,10 @@ type guiApp struct {
 	detailState *widget.Label
 	detailPID   *widget.Label
 	detailPort  *widget.Label
-	btnBoot     *widget.Button
-	btnKill     *widget.Button
-	btnConnect  *widget.Button
+	btnBoot     *common.HoverableButton
+	btnKill     *common.HoverableButton
+	btnConnect  *common.HoverableButton
+	btnAbout    *common.HoverableButton
 	statusBar   *widget.Label
 	countLabel  *widget.Label
 }
@@ -199,7 +200,10 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		widget.NewLabel(t("detail.spice")+":"), s.detailPort,
 	)
 
-	s.btnBoot = widget.NewButtonWithIcon(t("action.boot"), theme.MediaPlayIcon(), func() {
+	s.statusBar = widget.NewLabel("")
+	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
+
+	s.btnBoot = common.NewHoverableButton(t("btn.boot"), theme.MediaPlayIcon(), t("tooltip.boot"), s.statusBar, func() {
 		vm := s.selectedVM()
 		if vm != nil {
 			go func() {
@@ -214,7 +218,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	})
 	s.btnBoot.Disable()
 
-	s.btnKill = widget.NewButtonWithIcon("Kill", theme.DeleteIcon(), func() {
+	s.btnKill = common.NewHoverableButton(t("btn.kill"), theme.DeleteIcon(), t("tooltip.kill"), s.statusBar, func() {
 		vm := s.selectedVM()
 		if vm != nil {
 			dialog.ShowConfirm(t("confirm.title"), fmt.Sprintf("Kill %s?", vm.Name), func(ok bool) {
@@ -234,7 +238,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	s.btnKill.Importance = widget.DangerImportance
 	s.btnKill.Disable()
 
-	s.btnConnect = widget.NewButtonWithIcon("Connect", theme.NewSuccessThemedResource(theme.ConfirmIcon()), func() {
+	s.btnConnect = common.NewHoverableButton(t("btn.connect"), theme.NewSuccessThemedResource(theme.ConfirmIcon()), t("tooltip.connect"), s.statusBar, func() {
 		vm := s.selectedVM()
 		if vm != nil && vm.SPICEPort > 0 {
 			if err := ConnectToVM(vm.SPICEPort, "remote-viewer"); err != nil {
@@ -247,10 +251,22 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	s.btnConnect.Importance = widget.SuccessImportance
 	s.btnConnect.Disable()
 
-	buttonRow := container.NewHBox(s.btnBoot, s.btnKill, s.btnConnect, layout.NewSpacer())
+	s.btnAbout = common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), s.statusBar, func() {
+		common.ShowAbout(common.AboutConfig{
+			Win:       s.win,
+			Title:     t("app.title"),
+			Subtitle:  t("app.subtitle"),
+			Version:   Version,
+			Author:    AppAuthor,
+			License:   AppLicense,
+			URL:       AppURL,
+			DialogBtn: t("btn.about"),
+			CloseBtn:  t("btn.close"),
+		})
+	})
+	s.btnAbout.Button.Importance = widget.LowImportance
 
-	s.statusBar = widget.NewLabel("")
-	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
+	buttonRow := container.NewHBox(s.btnBoot, s.btnKill, s.btnConnect, layout.NewSpacer())
 
 	rightPanel := container.NewVBox(
 		detailTitle,
@@ -268,9 +284,11 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	split := container.NewHSplit(container.NewPadded(leftPanel), container.NewPadded(rightPanel))
 	split.SetOffset(0.42)
 
+	statusBarRow := container.NewHBox(s.btnAbout, layout.NewSpacer(), s.statusBar)
+
 	return container.NewBorder(
 		nil,
-		container.NewVBox(widget.NewSeparator(), s.statusBar),
+		container.NewVBox(widget.NewSeparator(), statusBarRow),
 		nil, nil,
 		split,
 	)
@@ -323,31 +341,4 @@ func RunGUI(vmDir string) {
 		}
 	})
 	win.ShowAndRun()
-}
-
-type hoverableButton struct {
-	*widget.Button
-	StatusText string
-	statusBar  *widget.Label
-}
-
-func newHoverableButton(label string, icon fyne.Resource, statusText string, statusBar *widget.Label, tapped func()) *hoverableButton {
-	btn := widget.NewButtonWithIcon(label, icon, tapped)
-	return &hoverableButton{
-		Button:     btn,
-		StatusText: statusText,
-		statusBar:  statusBar,
-	}
-}
-
-func (b *hoverableButton) MouseIn(e *desktop.MouseEvent) {
-	if b.statusBar != nil && b.StatusText != "" {
-		b.statusBar.SetText(b.StatusText)
-	}
-}
-
-func (b *hoverableButton) MouseOut() {
-	if b.statusBar != nil {
-		b.statusBar.SetText("")
-	}
 }
