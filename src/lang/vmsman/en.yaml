@@ -44,3 +44,17 @@ strings:
 
   help.normal: "↑↓=nav  Enter=toggle  c=connect  b=boot  k=kill  /=search  tab=filter  q=quit"
   help.search: "Enter/esc=close  ↑↓=nav"
+
+  btn.boot: Boot
+  btn.kill: Kill
+  btn.connect: Connect
+  btn.about: About
+  btn.close: Close
+
+  tooltip.boot: Boot selected VM
+  tooltip.kill: Stop/Kill the VM
+  tooltip.connect: Connect to VM via SPICE
+  tooltip.about: About this application
+  tooltip.reload: Reload VM list
+  tooltip.filter: Filter VMs
+  tooltip.search: Search VMs

@@ -44,3 +44,17 @@ strings:
 
   help.normal: "↑↓=nav  Enter=přepnout  c=připojit  b=spustit  k=zastavit  /=hledat  tab=filtr  q=quit"
   help.search: "Enter/esc=zavřít  ↑↓=nav"
+
+  btn.boot: Spustit
+  btn.kill: Zabít
+  btn.connect: Připojit
+  btn.about: O aplikaci
+  btn.close: Zavřít
+
+  tooltip.boot: Spustit vybrané VM
+  tooltip.kill: Zastavit/zabít VM
+  tooltip.connect: Připojit k VM přes SPICE
+  tooltip.about: O této aplikaci
+  tooltip.reload: Znovu načíst seznam VM
+  tooltip.filter: Filtrovat VM
+  tooltip.search: Hledat VM
