@@ -58,3 +58,6 @@ strings:
   tooltip.reload: Reload VM list
   tooltip.filter: Filter VMs
   tooltip.search: Search VMs
+  tooltip.filter_all: Show all VMs
+  tooltip.filter_running: Show running VMs only
+  tooltip.filter_stopped: Show stopped VMs only

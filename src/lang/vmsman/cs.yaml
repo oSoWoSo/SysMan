@@ -58,3 +58,6 @@ strings:
   tooltip.reload: Znovu načíst seznam VM
   tooltip.filter: Filtrovat VM
   tooltip.search: Hledat VM
+  tooltip.filter_all: Zobrazit všechny VM
+  tooltip.filter_running: Zobrazit pouze běžící VM
+  tooltip.filter_stopped: Zobrazit pouze zastavené VM
