@@ -366,7 +366,7 @@ gopkg.in/yaml.v3                   Parsování YAML
 
 ## Licence
 
-MIT — viz [LICENSE](LICENSE)
+AGPL-3.0-only — viz [LICENSE](LICENSE)
 
 ## Autor
 

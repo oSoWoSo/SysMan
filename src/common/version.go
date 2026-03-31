@@ -6,6 +6,6 @@ var Version = "0.014 Alpha"
 // App metadata used in the About dialog.
 const (
 	AppAuthor  = "zenobit @ oSoWoSo.org"
-	AppLicense = "MIT"
+	AppLicense = "AGPL-3.0-only"
 	AppURL     = "https://codeberg.org/oSoWoSo/SysMan"
 )

@@ -1,20 +1,19 @@
 # Template file for 'sysman'
 pkgname=sysman
-version=0.014
+version=0.016
 revision=1
-archs="x86_64*"
+#archs="x86_64*"
+build_style=gnu-makefile
+make_build_args="build build-tui"
 hostmakedepends="go pkg-config"
 makedepends="libX11-devel libXrandr-devel libXxf86vm-devel libXi-devel
  libXcursor-devel libXinerama-devel glu-devel"
 short_desc="Full system manager - services, packages, templates, users, VMs"
 maintainer="zenobit <zenobit@disroot.org>"
-license="MIT"
+license="AGPL-3.0-only"
 homepage="https://codeberg.org/oSoWoSo/SysMan"
-changelog="https://codeberg.org/oSoWoSo/SysMan/raw/branch/main/CHANGELOG.md"
-distfiles="https://codeberg.org/oSoWoSo/SysMan/archive/v${version}.tar.gz#template"
-checksum=skip
-build_style=gnu-makefile
-make_build_args="build build-tui"
+distfiles="https://codeberg.org/oSoWoSo/SysMan/archive/v${version}.tar.gz"
+checksum=4814ce03cb859f4e6fe56124ee5a247913c6db7ee01a366409d51a72e95a7d02
 export PREFIX=/usr
 
 do_build() {
@@ -53,7 +52,7 @@ sysman-serman_package() {
 # Subpackage: sysman-pkgman (Packages manager - xbps)
 sysman-pkgman_package() {
 	short_desc="Packages manager (xbps)"
-	depends="sysman-common-${version}_${revision} xbps"
+	depends="sysman-common-${version}_${revision}"
 	pkg_install() {
 		vbin build/pkgman
 		vbin build/pkgman-tui
@@ -64,7 +63,7 @@ sysman-pkgman_package() {
 # Subpackage: sysman-srcman (Templates manager - xbps-src)
 sysman-srcman_package() {
 	short_desc="Templates manager (xbps-src)"
-	depends="sysman-common-${version}_${revision} xbps"
+	depends="sysman-common-${version}_${revision}"
 	pkg_install() {
 		vbin build/srcman
 		vbin build/srcman-tui
