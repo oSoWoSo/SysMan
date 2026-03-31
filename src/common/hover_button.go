@@ -21,6 +21,16 @@ func NewHoverableButton(label string, icon fyne.Resource, statusText string, sta
 	}
 }
 
+// NewHoverableButtonText creates a text button without icon that shows status text on hover.
+func NewHoverableButtonText(label string, statusText string, statusBar *widget.Label, tapped func()) *HoverableButton {
+	btn := widget.NewButton(label, tapped)
+	return &HoverableButton{
+		Button:     btn,
+		StatusText: statusText,
+		statusBar:  statusBar,
+	}
+}
+
 func (b *HoverableButton) MouseIn(e *desktop.MouseEvent) {
 	if b.statusBar != nil && b.StatusText != "" {
 		b.statusBar.SetText(b.StatusText)
