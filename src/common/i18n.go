@@ -54,9 +54,9 @@ func GetLangDirs(module string) []string {
 
 	// 4. Development paths (relative to CWD - various depths)
 	// These cover running from project root, src/, src/<module>/, or during tests
-	dirs = append(dirs, 
+	dirs = append(dirs,
 		"./lang/"+module,         // from project root
-		"./src/lang/"+module,      // from project root
+		"./src/lang/"+module,     // from project root
 		"../lang/"+module,        // from src/<module>/
 		"../../lang/"+module,     // from src/<module>/ (alternate)
 		"../src/lang/"+module,    // from src/<module>/

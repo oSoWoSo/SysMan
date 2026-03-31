@@ -214,6 +214,7 @@ func testTooltipKeysMatch(t *testing.T, langDir, modName string) {
 		}
 	}
 }
+
 // TestAllTooltipsTranslated verifies that ALL tooltip keys in the YAML files
 // return actual translated text (not the key itself). This catches the bug where
 // tooltips show keys instead of translations due to lang files not being loaded.
