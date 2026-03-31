@@ -37,15 +37,13 @@ var T translations
 // They are searched in order — first match wins.
 func langDirs() []string {
 	dirs := []string{
-		"/usr/local/share/SysMan/lang/svman", // local installation (make install PREFIX=/usr/local)
-		"/usr/share/SysMan/lang/svman",       // system installation
+		"/usr/local/share/SysMan/lang/serman",
+		"/usr/share/SysMan/lang/serman",
 	}
-	// Prepend dir next to the running binary (portable/dev builds).
 	if exe, err := os.Executable(); err == nil {
-		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "svman")}, dirs...)
+		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "serman")}, dirs...)
 	}
-	// Also prepend ./lang/svman relative to CWD (running from source tree).
-	dirs = append([]string{"./lang/svman"}, dirs...)
+	dirs = append([]string{"./lang/serman"}, dirs...)
 	return dirs
 }
 

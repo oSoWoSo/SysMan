@@ -196,13 +196,13 @@ var i18nOnce sync.Once
 
 func langDirs() []string {
 	dirs := []string{
-		"/usr/local/share/SysMan/lang/vmman",
-		"/usr/share/SysMan/lang/vmman",
+		"/usr/local/share/SysMan/lang/vmsman",
+		"/usr/share/SysMan/lang/vmsman",
 	}
 	if exe, err := os.Executable(); err == nil {
-		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "vmman")}, dirs...)
+		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "vmsman")}, dirs...)
 	}
-	dirs = append([]string{"./lang/vmman"}, dirs...)
+	dirs = append([]string{"./lang/vmsman"}, dirs...)
 	return dirs
 }
 

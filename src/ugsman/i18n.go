@@ -28,13 +28,13 @@ var (
 
 func langDirs() []string {
 	dirs := []string{
-		"/usr/local/share/SysMan/lang/ugman",
-		"/usr/share/SysMan/lang/ugman",
+		"/usr/local/share/SysMan/lang/ugsman",
+		"/usr/share/SysMan/lang/ugsman",
 	}
 	if exe, err := os.Executable(); err == nil {
-		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "ugman")}, dirs...)
+		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "ugsman")}, dirs...)
 	}
-	return append([]string{"./lang/ugman"}, dirs...)
+	return append([]string{"./lang/ugsman"}, dirs...)
 }
 
 func loadLangDir(dir string) {
