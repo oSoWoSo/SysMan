@@ -635,7 +635,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	btnBootstrap := common.NewHoverableButton(t("btn.bootstrap"), theme.ViewRefreshIcon(), t("tooltip.bootstrap"), g.statusBar, func() {
 		g.runCmd("bootstrap-update", "./xbps-src", "bootstrap-update")
 	})
-	btnBootstrap.Button.Importance = widget.LowImportance
+	btnBootstrap.Importance = widget.LowImportance
 
 	actionRow1 := container.NewHBox(btnBootstrap, layout.NewSpacer(), btnHomepage, btnRepology)
 	actionRow2 := container.NewHBox(checkQ, checkC, g.btnBuild, layout.NewSpacer(), g.btnClean, g.btnInstall)
@@ -653,19 +653,19 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		g.reload()
 		g.setStatus(t("status.reloaded"))
 	})
-	btnReload.Button.Importance = widget.LowImportance
+	btnReload.Importance = widget.LowImportance
 
 	btnFind := common.NewHoverableButton("", theme.SearchIcon(), t("tooltip.find"), g.statusBar, func() { g.output.ShowFind() })
-	btnFind.Button.Importance = widget.LowImportance
+	btnFind.Importance = widget.LowImportance
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
-	btnAbout.Button.Importance = widget.LowImportance
+	btnAbout.Importance = widget.LowImportance
 
 	g.btnBack = common.NewHoverableButton("", theme.NavigateBackIcon(), t("tooltip.back"), g.statusBar, func() { g.logBack() })
-	g.btnBack.Button.Importance = widget.LowImportance
-	g.btnBack.Button.Hide()
+	g.btnBack.Importance = widget.LowImportance
+	g.btnBack.Hide()
 	g.btnFwd = common.NewHoverableButton("", theme.NavigateNextIcon(), t("tooltip.forward"), g.statusBar, func() { g.logForward() })
-	g.btnFwd.Button.Importance = widget.LowImportance
-	g.btnFwd.Button.Hide()
+	g.btnFwd.Importance = widget.LowImportance
+	g.btnFwd.Hide()
 
 	statusBar := container.NewHBox(btnAbout, btnReload, btnFind, g.statusBar, layout.NewSpacer(), g.btnBack, g.btnFwd, layout.NewSpacer(), dirLabel)
 
@@ -694,7 +694,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		}
 		g.setStatus(t("status.save_ok"))
 	})
-	g.editorBtnSave.Button.Importance = widget.HighImportance
+	g.editorBtnSave.Importance = widget.HighImportance
 
 	g.editorBtnLint = common.NewHoverableButton(t("btn.lint"), theme.WarningIcon(), t("tooltip.lint"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
