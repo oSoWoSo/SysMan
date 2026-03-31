@@ -425,7 +425,16 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	g.clearDetail()
 
 	// Load packages asynchronously.
-	go g.reload()
+	go func() {
+		packages := g.backend.List()
+		fyne.Do(func() {
+			g.packages = packages
+			g.selected = -1
+			g.pkgList.Refresh()
+			g.clearDetail()
+			g.statusBar.SetText(fmt.Sprintf(t("pkg.count"), len(g.packages)))
+		})
+	}()
 
 	var header fyne.CanvasObject
 	if showHeader {
