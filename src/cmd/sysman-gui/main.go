@@ -25,6 +25,7 @@ import (
 
 	"image/color"
 
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -164,6 +165,7 @@ func loadDynamic(dir string) []api.PluginIF {
 func runGUI(plugins []api.PluginIF) {
 	a := app.New()
 	win := a.NewWindow("System Manager")
+	common.SetWindowIcon(win)
 
 	// Build content panels for each plugin + settings.
 	contents := make([]fyne.CanvasObject, len(plugins))
@@ -241,24 +243,24 @@ func runGUI(plugins []api.PluginIF) {
 }
 
 func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
-	cfg := serman.LoadSysManConfig()
+	cfg := common.LoadSysManConfig()
 
-	svmanServiceDir := newFormEntry(cfg.Svman.ServiceDir, serman.DefaultServiceDir)
-	svmanServiceDestDir := newFormEntry(cfg.Svman.ServiceDestDir, serman.DefaultServiceDestDir)
+	sermanServiceDir := newFormEntry(cfg.Serman.ServiceDir, serman.DefaultServiceDir)
+	sermanServiceDestDir := newFormEntry(cfg.Serman.ServiceDestDir, serman.DefaultServiceDestDir)
 
 	srcmanDistDir := newFormEntry(cfg.Srcman.DistDir, "")
 	srcmanSearchEngine := newFormEntry(cfg.Srcman.SearchEngine, "https://duckduckgo.com/?q=")
 
-	vmmanVmDir := newFormEntry(cfg.Vmman.VmDir, vmman.DefaultVmDir)
+	vmsmanVmDir := newFormEntry(cfg.Vmsman.VmDir, vmman.DefaultVmDir)
 
 	btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
-		cfg.Svman.ServiceDir = strings.TrimSpace(svmanServiceDir.Text)
-		cfg.Svman.ServiceDestDir = strings.TrimSpace(svmanServiceDestDir.Text)
+		cfg.Serman.ServiceDir = strings.TrimSpace(sermanServiceDir.Text)
+		cfg.Serman.ServiceDestDir = strings.TrimSpace(sermanServiceDestDir.Text)
 		cfg.Srcman.DistDir = strings.TrimSpace(srcmanDistDir.Text)
 		cfg.Srcman.SearchEngine = strings.TrimSpace(srcmanSearchEngine.Text)
-		cfg.Vmman.VmDir = strings.TrimSpace(vmmanVmDir.Text)
-		if err := serman.SaveSysManConfig(cfg); err != nil {
-			dialog.ShowError(err, win)
+		cfg.Vmsman.VmDir = strings.TrimSpace(vmsmanVmDir.Text)
+		if err := common.SaveSysManConfig(cfg); err != nil {
+			dialog.ShowError(fmt.Errorf("save config: %w", err), win)
 		}
 	})
 	btnSave.Importance = widget.HighImportance
@@ -270,17 +272,17 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	dividerColor := color.NRGBA{R: 0x2e, G: 0x34, B: 0x3b, A: 0xff}
 	headerColor := color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff}
 
-	headerSvman := canvas.NewText("Svman", headerColor)
-	headerSvman.TextStyle = fyne.TextStyle{Bold: true}
-	headerSvman.TextSize = 14
+	headerSerman := canvas.NewText("Serman", headerColor)
+	headerSerman.TextStyle = fyne.TextStyle{Bold: true}
+	headerSerman.TextSize = 14
 
 	headerSrcman := canvas.NewText("Srcman", headerColor)
 	headerSrcman.TextStyle = fyne.TextStyle{Bold: true}
 	headerSrcman.TextSize = 14
 
-	headerVmman := canvas.NewText("Vmman", headerColor)
-	headerVmman.TextStyle = fyne.TextStyle{Bold: true}
-	headerVmman.TextSize = 14
+	headerVmsman := canvas.NewText("Vmsman", headerColor)
+	headerVmsman.TextStyle = fyne.TextStyle{Bold: true}
+	headerVmsman.TextSize = 14
 
 	sep1 := canvas.NewRectangle(dividerColor)
 	sep1.SetMinSize(fyne.NewSize(0, 1))
@@ -289,9 +291,9 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	sep3 := canvas.NewRectangle(dividerColor)
 	sep3.SetMinSize(fyne.NewSize(0, 1))
 
-	formSvman := widget.NewForm(
-		widget.NewFormItem("Service Dir", svmanServiceDir),
-		widget.NewFormItem("Service Dest Dir", svmanServiceDestDir),
+	formSerman := widget.NewForm(
+		widget.NewFormItem("Service Dir", sermanServiceDir),
+		widget.NewFormItem("Service Dest Dir", sermanServiceDestDir),
 	)
 
 	formSrcman := widget.NewForm(
@@ -299,21 +301,21 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 		widget.NewFormItem("Search engine URL", srcmanSearchEngine),
 	)
 
-	formVmman := widget.NewForm(
-		widget.NewFormItem("VM dir", vmmanVmDir),
+	formVmsman := widget.NewForm(
+		widget.NewFormItem("VM dir", vmsmanVmDir),
 	)
 
 	return container.NewVBox(
 		container.NewPadded(titleStyle),
 		container.NewPadded(sep1),
-		container.NewPadded(headerSvman),
-		container.NewPadded(formSvman),
+		container.NewPadded(headerSerman),
+		container.NewPadded(formSerman),
 		container.NewPadded(sep2),
 		container.NewPadded(headerSrcman),
 		container.NewPadded(formSrcman),
 		container.NewPadded(sep3),
-		container.NewPadded(headerVmman),
-		container.NewPadded(formVmman),
+		container.NewPadded(headerVmsman),
+		container.NewPadded(formVmsman),
 		layout.NewSpacer(),
 		container.NewPadded(btnSave),
 	)
