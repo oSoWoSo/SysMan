@@ -1,4 +1,4 @@
-VERSION  ?= 0.013 Alpha
+VERSION  ?= 0.014 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local
@@ -51,7 +51,7 @@ help:
 	@echo "  make release            - build all + create tarballs with checksums"
 	@echo ""
 	@echo "=== Variables ==="
-	@echo "  VERSION=0.013 Alpha     - override version"
+	@echo "  VERSION=0.014 Alpha     - override version"
 	@echo "  PREFIX=/usr/local       - installation prefix (default: /usr/local)"
 	@echo "  DESTDIR=/               - staging directory for make install"
 	@echo ""
