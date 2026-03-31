@@ -22,8 +22,9 @@ import (
 // RichText for proper color rendering. Right-clicking while text is selected
 // fires onSecondaryTap so the caller can show a context menu.
 type outputPanel struct {
-	canvas fyne.Canvas
-	outer  fyne.CanvasObject // border: entryContainer + find bar
+	canvas    fyne.Canvas
+	outer     fyne.CanvasObject // border: entryContainer + find bar
+	statusBar *widget.Label
 
 	entry *selEntry
 	plain strings.Builder
@@ -44,8 +45,8 @@ type outputPanel struct {
 	findQuery   string
 }
 
-func newOutputPanel(canvas fyne.Canvas, onSecondaryTap func(sel string, pos fyne.Position)) *outputPanel {
-	p := &outputPanel{canvas: canvas, findIdx: -1}
+func newOutputPanel(canvas fyne.Canvas, statusBar *widget.Label, onSecondaryTap func(sel string, pos fyne.Position)) *outputPanel {
+	p := &outputPanel{canvas: canvas, statusBar: statusBar, findIdx: -1}
 
 	// widget.Entry has its own internal scroll — no container.Scroll needed.
 	p.entry = newSelEntry(onSecondaryTap)
@@ -69,14 +70,14 @@ func newOutputPanel(canvas fyne.Canvas, onSecondaryTap func(sel string, pos fyne
 	p.findLabel = widget.NewLabel("")
 	p.findLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
-	btnPrev := widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() { p.stepMatch(-1) })
-	btnPrev.Importance = widget.LowImportance
-	btnNext := widget.NewButtonWithIcon("", theme.NavigateNextIcon(), func() { p.stepMatch(+1) })
-	btnNext.Importance = widget.LowImportance
-	btnClose := widget.NewButtonWithIcon("", theme.CancelIcon(), func() { p.HideFind() })
-	btnClose.Importance = widget.LowImportance
+	btnPrev := common.NewHoverableButton("", theme.NavigateBackIcon(), t("tooltip.find_prev"), p.statusBar, func() { p.stepMatch(-1) })
+	btnPrev.Button.Importance = widget.LowImportance
+	btnNext := common.NewHoverableButton("", theme.NavigateNextIcon(), t("tooltip.find_next"), p.statusBar, func() { p.stepMatch(+1) })
+	btnNext.Button.Importance = widget.LowImportance
+	btnClose := common.NewHoverableButton("", theme.CancelIcon(), t("tooltip.find_close"), p.statusBar, func() { p.HideFind() })
+	btnClose.Button.Importance = widget.LowImportance
 
-	findRight := container.NewHBox(btnPrev, btnNext, p.findLabel, btnClose)
+	findRight := container.NewHBox(btnPrev.Button, btnNext.Button, p.findLabel, btnClose.Button)
 	findEntryWrap := container.New(layout.NewGridWrapLayout(fyne.NewSize(240, 36)), p.findEntry)
 	p.findBar = container.NewHBox(findEntryWrap, findRight)
 	p.findBar.Hide()

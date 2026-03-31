@@ -640,7 +640,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	actionRow1 := container.NewHBox(btnBootstrap, layout.NewSpacer(), btnHomepage, btnRepology)
 	actionRow2 := container.NewHBox(checkQ, checkC, g.btnBuild, layout.NewSpacer(), g.btnClean, g.btnInstall)
 
-	g.output = newOutputPanel(g.win.Canvas(), func(sel string, pos fyne.Position) { g.showSelectionMenu(sel, pos) })
+	g.output = newOutputPanel(g.win.Canvas(), g.statusBar, func(sel string, pos fyne.Position) { g.showSelectionMenu(sel, pos) })
 
 	diskText := fmt.Sprintf("XBPS_DISTDIR=%s", filepath.Clean(ResolveDistDir(g.distDir)))
 	if disk := DiskInfo(g.distDir); disk != "" {
