@@ -124,7 +124,7 @@ func ReadMeta(distDir, name string) TemplateMeta {
 	if err != nil {
 		return m
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		k, v, ok := strings.Cut(scanner.Text(), "=")

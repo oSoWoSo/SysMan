@@ -630,7 +630,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 	// About button — info icon at the bottom-left corner
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), s.statusBar, func() { s.showAbout() })
-	btnAbout.Button.Importance = widget.LowImportance
+	btnAbout.Importance = widget.LowImportance
 	statusBar := container.NewHBox(btnAbout, s.statusBar)
 
 	// ── Dir info ─────────────────────────────────────────────────────

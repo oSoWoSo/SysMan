@@ -143,7 +143,7 @@ func readOSRelease() (string, string) {
 	if err != nil {
 		return "", ""
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	kv := make(map[string]string)
 	sc := bufio.NewScanner(f)
@@ -182,7 +182,7 @@ func readCPUInfo() (string, int) {
 	if err != nil {
 		return "", runtime.NumCPU()
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var model string
 	cores := 0
@@ -210,7 +210,7 @@ func readMemInfo() (int64, int64, bool) {
 	if err != nil {
 		return 0, 0, false
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	kv := make(map[string]int64)
 	sc := bufio.NewScanner(f)
@@ -371,7 +371,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), statusBar, func() { showAbout(win) })
-	btnAbout.Button.Importance = widget.LowImportance
+	btnAbout.Importance = widget.LowImportance
 	statusBarRow := container.NewHBox(btnAbout, statusBar, layout.NewSpacer())
 	statusBarPanel := container.NewVBox(
 		widget.NewSeparator(),

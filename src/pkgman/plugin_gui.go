@@ -279,20 +279,20 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	// ── Filter buttons ────────────────────────────────────────────────
 	var btnFilterAll, btnFilterInstalled, btnFilterAvailable *common.HoverableButton
 	highlightFilter := func(f pkgFilter) {
-		btnFilterAll.Button.Importance = widget.MediumImportance
-		btnFilterInstalled.Button.Importance = widget.MediumImportance
-		btnFilterAvailable.Button.Importance = widget.MediumImportance
+		btnFilterAll.Importance = widget.MediumImportance
+		btnFilterInstalled.Importance = widget.MediumImportance
+		btnFilterAvailable.Importance = widget.MediumImportance
 		switch f {
 		case FilterInstalled:
-			btnFilterInstalled.Button.Importance = widget.HighImportance
+			btnFilterInstalled.Importance = widget.HighImportance
 		case FilterAvailable:
-			btnFilterAvailable.Button.Importance = widget.HighImportance
+			btnFilterAvailable.Importance = widget.HighImportance
 		default:
-			btnFilterAll.Button.Importance = widget.HighImportance
+			btnFilterAll.Importance = widget.HighImportance
 		}
-		btnFilterAll.Button.Refresh()
-		btnFilterInstalled.Button.Refresh()
-		btnFilterAvailable.Button.Refresh()
+		btnFilterAll.Refresh()
+		btnFilterInstalled.Refresh()
+		btnFilterAvailable.Refresh()
 	}
 	applyFilter := func(f pkgFilter) {
 		g.filter = f
@@ -387,29 +387,29 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 			g.runOp("install "+name, func(w io.Writer) (string, error) { return g.backend.Install([]string{name}, w) })
 		}
 	})
-	g.btnInstall.Button.Importance = widget.HighImportance
+	g.btnInstall.Importance = widget.HighImportance
 
 	g.btnRemove = common.NewHoverableButton(t("btn.remove"), theme.DeleteIcon(), t("tooltip.remove"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runOp("remove "+name, func(w io.Writer) (string, error) { return g.backend.Remove([]string{name}, w) })
 		}
 	})
-	g.btnRemove.Button.Importance = widget.DangerImportance
+	g.btnRemove.Importance = widget.DangerImportance
 
 	btnUpdate := common.NewHoverableButton(t("btn.update_all"), theme.UploadIcon(), t("tooltip.update_all"), g.statusBar, func() {
 		g.runOp("update", func(w io.Writer) (string, error) { return g.backend.Update(w) })
 	})
-	btnUpdate.Button.Importance = widget.MediumImportance
+	btnUpdate.Importance = widget.MediumImportance
 
 	btnReload := common.NewHoverableButton("", theme.ViewRefreshIcon(), t("tooltip.reload"), g.statusBar, func() {
 		g.reload()
 	})
-	btnReload.Button.Importance = widget.LowImportance
+	btnReload.Importance = widget.LowImportance
 
 	actionRow := container.NewHBox(g.btnInstall, g.btnRemove, layout.NewSpacer(), btnUpdate)
 
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
-	btnAbout.Button.Importance = widget.LowImportance
+	btnAbout.Importance = widget.LowImportance
 	statusBar := container.NewHBox(btnAbout, btnReload, g.statusBar, layout.NewSpacer())
 
 	rightTop := container.NewVBox(detailForm, widget.NewSeparator(), actionRow, widget.NewSeparator())
