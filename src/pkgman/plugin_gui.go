@@ -277,22 +277,22 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	}
 
 	// ── Filter buttons ────────────────────────────────────────────────
-	var btnFilterAll, btnFilterInstalled, btnFilterAvailable *widget.Button
+	var btnFilterAll, btnFilterInstalled, btnFilterAvailable *common.HoverableButton
 	highlightFilter := func(f pkgFilter) {
-		btnFilterAll.Importance = widget.MediumImportance
-		btnFilterInstalled.Importance = widget.MediumImportance
-		btnFilterAvailable.Importance = widget.MediumImportance
+		btnFilterAll.Button.Importance = widget.MediumImportance
+		btnFilterInstalled.Button.Importance = widget.MediumImportance
+		btnFilterAvailable.Button.Importance = widget.MediumImportance
 		switch f {
 		case FilterInstalled:
-			btnFilterInstalled.Importance = widget.HighImportance
+			btnFilterInstalled.Button.Importance = widget.HighImportance
 		case FilterAvailable:
-			btnFilterAvailable.Importance = widget.HighImportance
+			btnFilterAvailable.Button.Importance = widget.HighImportance
 		default:
-			btnFilterAll.Importance = widget.HighImportance
+			btnFilterAll.Button.Importance = widget.HighImportance
 		}
-		btnFilterAll.Refresh()
-		btnFilterInstalled.Refresh()
-		btnFilterAvailable.Refresh()
+		btnFilterAll.Button.Refresh()
+		btnFilterInstalled.Button.Refresh()
+		btnFilterAvailable.Button.Refresh()
 	}
 	applyFilter := func(f pkgFilter) {
 		g.filter = f
@@ -301,10 +301,10 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		g.clearDetail()
 		highlightFilter(f)
 	}
-	btnFilterAll = widget.NewButton(t("filter.all"), func() { applyFilter(FilterAll) })
-	btnFilterInstalled = widget.NewButton(t("filter.installed"), func() { applyFilter(FilterInstalled) })
-	btnFilterAvailable = widget.NewButton(t("filter.available"), func() { applyFilter(FilterAvailable) })
-	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable)
+	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.filter_all"), g.statusBar, func() { applyFilter(FilterAll) })
+	btnFilterInstalled = common.NewHoverableButtonText(t("filter.installed"), t("tooltip.filter_installed"), g.statusBar, func() { applyFilter(FilterInstalled) })
+	btnFilterAvailable = common.NewHoverableButtonText(t("filter.available"), t("tooltip.filter_available"), g.statusBar, func() { applyFilter(FilterAvailable) })
+	filterRow := container.NewHBox(btnFilterAll.Button, btnFilterInstalled.Button, btnFilterAvailable.Button)
 
 	// ── Package list ──────────────────────────────────────────────────
 	installedColor := color.RGBA{R: 0x44, G: 0xDD, B: 0x77, A: 0xFF} // grn

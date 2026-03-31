@@ -54,3 +54,6 @@ strings:
   tooltip.update_all: "Update all packages"
   tooltip.reload: "Reload package database"
   tooltip.about: "About this application"
+  tooltip.filter_all: "Show all packages"
+  tooltip.filter_installed: "Show installed packages only"
+  tooltip.filter_available: "Show available packages only"

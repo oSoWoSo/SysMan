@@ -54,3 +54,6 @@ strings:
   tooltip.update_all: "Aktualizovat všechny balíčky"
   tooltip.reload: "Znovu načíst databázi balíčků"
   tooltip.about: "O této aplikaci"
+  tooltip.filter_all: "Zobrazit všechny balíčky"
+  tooltip.filter_installed: "Zobrazit pouze nainstalované balíčky"
+  tooltip.filter_available: "Zobrazit pouze dostupné balíčky"
