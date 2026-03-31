@@ -301,9 +301,9 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		g.clearDetail()
 		highlightFilter(f)
 	}
-	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.filter_all"), g.statusBar, func() { applyFilter(FilterAll) })
-	btnFilterInstalled = common.NewHoverableButtonText(t("filter.installed"), t("tooltip.filter_installed"), g.statusBar, func() { applyFilter(FilterInstalled) })
-	btnFilterAvailable = common.NewHoverableButtonText(t("filter.available"), t("tooltip.filter_available"), g.statusBar, func() { applyFilter(FilterAvailable) })
+	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.pkgman.filter_all"), g.statusBar, func() { applyFilter(FilterAll) })
+	btnFilterInstalled = common.NewHoverableButtonText(t("filter.installed"), t("tooltip.pkgman.filter_installed"), g.statusBar, func() { applyFilter(FilterInstalled) })
+	btnFilterAvailable = common.NewHoverableButtonText(t("filter.available"), t("tooltip.pkgman.filter_available"), g.statusBar, func() { applyFilter(FilterAvailable) })
 	filterRow := container.NewHBox(btnFilterAll.Button, btnFilterInstalled.Button, btnFilterAvailable.Button)
 
 	// ── Package list ──────────────────────────────────────────────────
@@ -382,33 +382,33 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	// ── Action buttons ────────────────────────────────────────────────
-	g.btnInstall = common.NewHoverableButton(t("btn.install"), theme.DownloadIcon(), t("tooltip.install"), g.statusBar, func() {
+	g.btnInstall = common.NewHoverableButton(t("btn.install"), theme.DownloadIcon(), t("tooltip.pkgman.install"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runOp("install "+name, func(w io.Writer) (string, error) { return g.backend.Install([]string{name}, w) })
 		}
 	})
 	g.btnInstall.Importance = widget.HighImportance
 
-	g.btnRemove = common.NewHoverableButton(t("btn.remove"), theme.DeleteIcon(), t("tooltip.remove"), g.statusBar, func() {
+	g.btnRemove = common.NewHoverableButton(t("btn.remove"), theme.DeleteIcon(), t("tooltip.pkgman.remove"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runOp("remove "+name, func(w io.Writer) (string, error) { return g.backend.Remove([]string{name}, w) })
 		}
 	})
 	g.btnRemove.Importance = widget.DangerImportance
 
-	btnUpdate := common.NewHoverableButton(t("btn.update_all"), theme.UploadIcon(), t("tooltip.update_all"), g.statusBar, func() {
+	btnUpdate := common.NewHoverableButton(t("btn.update_all"), theme.UploadIcon(), t("tooltip.pkgman.update_all"), g.statusBar, func() {
 		g.runOp("update", func(w io.Writer) (string, error) { return g.backend.Update(w) })
 	})
 	btnUpdate.Importance = widget.MediumImportance
 
-	btnReload := common.NewHoverableButton("", theme.ViewRefreshIcon(), t("tooltip.reload"), g.statusBar, func() {
+	btnReload := common.NewHoverableButton("", theme.ViewRefreshIcon(), t("tooltip.pkgman.reload"), g.statusBar, func() {
 		g.reload()
 	})
 	btnReload.Importance = widget.LowImportance
 
 	actionRow := container.NewHBox(g.btnInstall, g.btnRemove, layout.NewSpacer(), btnUpdate)
 
-	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
+	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.pkgman.about"), g.statusBar, func() { g.showAbout() })
 	btnAbout.Importance = widget.LowImportance
 	statusBar := container.NewHBox(btnAbout, btnReload, g.statusBar, layout.NewSpacer())
 

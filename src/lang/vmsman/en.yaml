@@ -51,13 +51,13 @@ strings:
   btn.about: About
   btn.close: Close
 
-  tooltip.boot: Boot selected VM
-  tooltip.kill: Stop/Kill the VM
-  tooltip.connect: Connect to VM via SPICE
-  tooltip.about: About this application
-  tooltip.reload: Reload VM list
-  tooltip.filter: Filter VMs
-  tooltip.search: Search VMs
-  tooltip.filter_all: Show all VMs
-  tooltip.filter_running: Show running VMs only
-  tooltip.filter_stopped: Show stopped VMs only
+  tooltip.vmsman.boot: Boot selected VM
+  tooltip.vmsman.kill: Stop/Kill the VM
+  tooltip.vmsman.connect: Connect to VM via SPICE
+  tooltip.vmsman.about: About this application
+  tooltip.vmsman.reload: Reload VM list
+  tooltip.vmsman.filter: Filter VMs
+  tooltip.vmsman.search: Search VMs
+  tooltip.vmsman.filter_all: Show all VMs
+  tooltip.vmsman.filter_running: Show running VMs only
+  tooltip.vmsman.filter_stopped: Show stopped VMs only

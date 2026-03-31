@@ -32,4 +32,4 @@ strings:
   status.loading: "Loading…"
   status.loading_info: "Loading system info…"
 
-  tooltip.about: "About this application"
+  tooltip.infman.about: "About this application"

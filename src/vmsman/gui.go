@@ -155,9 +155,9 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		s.vmList.Refresh()
 	}
 
-	filterAll := common.NewHoverableButtonText(t("filter.all"), t("tooltip.filter_all"), s.statusBar, func() { s.applyFilter(FilterAll) })
-	filterRunning := common.NewHoverableButtonText(t("filter.running"), t("tooltip.filter_running"), s.statusBar, func() { s.applyFilter(FilterRunning) })
-	filterStopped := common.NewHoverableButtonText(t("filter.stopped"), t("tooltip.filter_stopped"), s.statusBar, func() { s.applyFilter(FilterStopped) })
+	filterAll := common.NewHoverableButtonText(t("filter.all"), t("tooltip.vmsman.filter_all"), s.statusBar, func() { s.applyFilter(FilterAll) })
+	filterRunning := common.NewHoverableButtonText(t("filter.running"), t("tooltip.vmsman.filter_running"), s.statusBar, func() { s.applyFilter(FilterRunning) })
+	filterStopped := common.NewHoverableButtonText(t("filter.stopped"), t("tooltip.vmsman.filter_stopped"), s.statusBar, func() { s.applyFilter(FilterStopped) })
 	filterRow := container.NewHBox(filterAll.Button, filterRunning.Button, filterStopped.Button)
 
 	s.countLabel = widget.NewLabel("")
@@ -205,7 +205,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	s.statusBar = common.NewStatusBar()
 	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
-	s.btnBoot = common.NewHoverableButton(t("btn.boot"), theme.MediaPlayIcon(), t("tooltip.boot"), s.statusBar, func() {
+	s.btnBoot = common.NewHoverableButton(t("btn.boot"), theme.MediaPlayIcon(), t("tooltip.vmsman.boot"), s.statusBar, func() {
 		vm := s.selectedVM()
 		if vm != nil {
 			go func() {
@@ -220,7 +220,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	})
 	s.btnBoot.Disable()
 
-	s.btnKill = common.NewHoverableButton(t("btn.kill"), theme.DeleteIcon(), t("tooltip.kill"), s.statusBar, func() {
+	s.btnKill = common.NewHoverableButton(t("btn.kill"), theme.DeleteIcon(), t("tooltip.vmsman.kill"), s.statusBar, func() {
 		vm := s.selectedVM()
 		if vm != nil {
 			dialog.ShowConfirm(t("confirm.title"), fmt.Sprintf("Kill %s?", vm.Name), func(ok bool) {
@@ -240,7 +240,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	s.btnKill.Importance = widget.DangerImportance
 	s.btnKill.Disable()
 
-	s.btnConnect = common.NewHoverableButton(t("btn.connect"), theme.NewSuccessThemedResource(theme.ConfirmIcon()), t("tooltip.connect"), s.statusBar, func() {
+	s.btnConnect = common.NewHoverableButton(t("btn.connect"), theme.NewSuccessThemedResource(theme.ConfirmIcon()), t("tooltip.vmsman.connect"), s.statusBar, func() {
 		vm := s.selectedVM()
 		if vm != nil && vm.SPICEPort > 0 {
 			if err := ConnectToVM(vm.SPICEPort, "remote-viewer"); err != nil {
@@ -253,7 +253,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	s.btnConnect.Importance = widget.SuccessImportance
 	s.btnConnect.Disable()
 
-	s.btnAbout = common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), s.statusBar, func() {
+	s.btnAbout = common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.vmsman.about"), s.statusBar, func() {
 		common.ShowAbout(common.AboutConfig{
 			Win:       s.win,
 			Title:     t("app.title"),

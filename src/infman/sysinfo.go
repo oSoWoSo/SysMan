@@ -370,7 +370,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	}
 	statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
-	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), statusBar, func() { showAbout(win) })
+	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.infman.about"), statusBar, func() { showAbout(win) })
 	btnAbout.Importance = widget.LowImportance
 	statusBarRow := container.NewHBox(btnAbout, statusBar, layout.NewSpacer())
 	statusBarPanel := container.NewVBox(

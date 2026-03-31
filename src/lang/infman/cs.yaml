@@ -32,4 +32,4 @@ strings:
   status.loading: "Načítám…"
   status.loading_info: "Načítám systémové informace…"
 
-  tooltip.about: "O této aplikaci"
+  tooltip.infman.about: "O této aplikaci"

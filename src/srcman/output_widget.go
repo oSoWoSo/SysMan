@@ -70,11 +70,11 @@ func newOutputPanel(canvas fyne.Canvas, statusBar *common.StatusBar, onSecondary
 	p.findLabel = widget.NewLabel("")
 	p.findLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
-	btnPrev := common.NewHoverableButton("", theme.NavigateBackIcon(), t("tooltip.find_prev"), p.statusBar, func() { p.stepMatch(-1) })
+	btnPrev := common.NewHoverableButton("", theme.NavigateBackIcon(), t("tooltip.srcman.find_prev"), p.statusBar, func() { p.stepMatch(-1) })
 	btnPrev.Importance = widget.LowImportance
-	btnNext := common.NewHoverableButton("", theme.NavigateNextIcon(), t("tooltip.find_next"), p.statusBar, func() { p.stepMatch(+1) })
+	btnNext := common.NewHoverableButton("", theme.NavigateNextIcon(), t("tooltip.srcman.find_next"), p.statusBar, func() { p.stepMatch(+1) })
 	btnNext.Importance = widget.LowImportance
-	btnClose := common.NewHoverableButton("", theme.CancelIcon(), t("tooltip.find_close"), p.statusBar, func() { p.HideFind() })
+	btnClose := common.NewHoverableButton("", theme.CancelIcon(), t("tooltip.srcman.find_close"), p.statusBar, func() { p.HideFind() })
 	btnClose.Importance = widget.LowImportance
 
 	findRight := container.NewHBox(btnPrev.Button, btnNext.Button, p.findLabel, btnClose.Button)
