@@ -270,12 +270,15 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 
 	vmsmanVMDir := newFormEntry(cfg.Vmsman.VMDir, vmman.DefaultVMDir)
 
+	langDir := newFormEntry(cfg.LangDir, "")
+
 	btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
 		cfg.Serman.ServiceDir = strings.TrimSpace(sermanServiceDir.Text)
 		cfg.Serman.ServiceDestDir = strings.TrimSpace(sermanServiceDestDir.Text)
 		cfg.Srcman.DistDir = strings.TrimSpace(srcmanDistDir.Text)
 		cfg.Srcman.SearchEngine = strings.TrimSpace(srcmanSearchEngine.Text)
 		cfg.Vmsman.VMDir = strings.TrimSpace(vmsmanVMDir.Text)
+		cfg.LangDir = strings.TrimSpace(langDir.Text)
 		if err := common.SaveSysManConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("save config: %w", err), win)
 		}
@@ -301,12 +304,18 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	headerVmsman.TextStyle = fyne.TextStyle{Bold: true}
 	headerVmsman.TextSize = 14
 
+	headerCommon := canvas.NewText("Common", headerColor)
+	headerCommon.TextStyle = fyne.TextStyle{Bold: true}
+	headerCommon.TextSize = 14
+
 	sep1 := canvas.NewRectangle(dividerColor)
 	sep1.SetMinSize(fyne.NewSize(0, 1))
 	sep2 := canvas.NewRectangle(dividerColor)
 	sep2.SetMinSize(fyne.NewSize(0, 1))
 	sep3 := canvas.NewRectangle(dividerColor)
 	sep3.SetMinSize(fyne.NewSize(0, 1))
+	sep4 := canvas.NewRectangle(dividerColor)
+	sep4.SetMinSize(fyne.NewSize(0, 1))
 
 	formSerman := widget.NewForm(
 		widget.NewFormItem("Service Dir", sermanServiceDir),
@@ -322,6 +331,10 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 		widget.NewFormItem("VM dir", vmsmanVMDir),
 	)
 
+	formCommon := widget.NewForm(
+		widget.NewFormItem("Language dir", langDir),
+	)
+
 	return container.NewVBox(
 		container.NewPadded(titleStyle),
 		container.NewPadded(sep1),
@@ -333,6 +346,9 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 		container.NewPadded(sep3),
 		container.NewPadded(headerVmsman),
 		container.NewPadded(formVmsman),
+		container.NewPadded(sep4),
+		container.NewPadded(headerCommon),
+		container.NewPadded(formCommon),
 		layout.NewSpacer(),
 		container.NewPadded(btnSave),
 	)
