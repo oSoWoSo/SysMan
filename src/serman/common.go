@@ -47,7 +47,6 @@ type Service struct {
 // FilterMode represents the filter state for service/package lists.
 type FilterMode int
 
-
 const (
 	// FilterAll selects all services.
 	FilterAll FilterMode = iota
