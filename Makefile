@@ -18,7 +18,10 @@ TUI_BINS = sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vms
 .PHONY: all clean fmt lint test \
 	build build-tui \
 	install install-tui uninstall uninstall-tui release \
-	help
+	help default
+
+# Default target - show help when no target specified
+default: help
 
 ## help: show available targets
 help:
@@ -51,6 +54,12 @@ help:
 	@echo "  VERSION=0.013 Alpha     - override version"
 	@echo "  PREFIX=/usr/local       - installation prefix (default: /usr/local)"
 	@echo "  DESTDIR=/               - staging directory for make install"
+	@echo ""
+	@echo "Run 'make <target>' to execute a specific target."
+
+# Default target - show help when no argument provided
+.PHONY: default
+default: help
 
 
 ## all: clean → lint → test → build
