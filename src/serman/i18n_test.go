@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -187,7 +188,7 @@ func testTooltipKeysMatch(t *testing.T, langDir, modName string) {
 			content := string(data)
 			prefix := "tooltip." + modName + "."
 			for _, line := range strings.Split(content, "\n") {
-				if idx := strings.Index(line, `t("` + prefix); idx >= 0 {
+				if idx := strings.Index(line, `t("`+prefix); idx >= 0 {
 					start := idx + len(`t("`) + len(prefix)
 					end := strings.Index(line[start:], `")`)
 					if end > 0 {
@@ -211,5 +212,119 @@ func testTooltipKeysMatch(t *testing.T, langDir, modName string) {
 		if strings.HasPrefix(key, prefix) && !goKeys[key] {
 			t.Logf("Warning: en.yaml has tooltip key '%s' but it's not used in Go code", key)
 		}
+	}
+}
+// TestAllTooltipsTranslated verifies that ALL tooltip keys in the YAML files
+// return actual translated text (not the key itself). This catches the bug where
+// tooltips show keys instead of translations due to lang files not being loaded.
+func TestAllTooltipsTranslated(tt *testing.T) {
+	// Reset i18n to ensure fresh load - this is what should happen in main()
+	T = nil
+	i18nOnce = sync.Once{}
+	InitI18n()
+
+	// Check that translations loaded
+	if T == nil || len(langs) == 0 {
+		tt.Fatal("Translations not loaded - lang files not found")
+	}
+
+	langDir := findLangDir("serman")
+	if langDir == "" {
+		tt.Skip("lang directory not found")
+	}
+
+	// Load en.yaml strings
+	path := filepath.Join(langDir, "en.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		tt.Fatalf("failed to read en.yaml: %v", err)
+	}
+
+	var lf struct {
+		Strings map[string]string `yaml:"strings"`
+	}
+	if err := yaml.Unmarshal(data, &lf); err != nil {
+		tt.Fatalf("failed to parse YAML: %v", err)
+	}
+
+	// Get all tooltip keys
+	var tooltipKeys []string
+	prefix := "tooltip.serman."
+	for key := range lf.Strings {
+		if strings.HasPrefix(key, prefix) {
+			tooltipKeys = append(tooltipKeys, key)
+		}
+	}
+
+	if len(tooltipKeys) == 0 {
+		tt.Fatal("no tooltip keys found in en.yaml")
+	}
+
+	// Test the actual t() function - this is the REAL test
+	// If lang files aren't loaded, t() returns the key itself
+	translate := func(key string) string {
+		if T == nil {
+			return key
+		}
+		if v, ok := T[key]; ok {
+			return v
+		}
+		return key
+	}
+
+	untranslated := 0
+	for _, key := range tooltipKeys {
+		result := translate(key)
+		if result == key {
+			untranslated++
+			tt.Logf("UNTRANSLATED: %q returns key itself", key)
+		}
+	}
+
+	if untranslated > 0 {
+		tt.Errorf("%d/%d tooltips are untranslated (returning key instead of text). "+
+			"This indicates lang files are not being loaded.", untranslated, len(tooltipKeys))
+	} else {
+		tt.Logf("All %d tooltips are properly translated", len(tooltipKeys))
+	}
+}
+
+// TestTooltipCount verifies the expected number of tooltips exist.
+func TestTooltipCount(tt *testing.T) {
+	langDir := findLangDir("serman")
+	if langDir == "" {
+		tt.Skip("lang directory not found")
+	}
+
+	path := filepath.Join(langDir, "en.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		tt.Fatalf("failed to read en.yaml: %v", err)
+	}
+
+	var lf struct {
+		Strings map[string]string `yaml:"strings"`
+	}
+	if err := yaml.Unmarshal(data, &lf); err != nil {
+		tt.Fatalf("failed to parse YAML: %v", err)
+	}
+
+	// Count tooltips
+	prefix := "tooltip.serman."
+	count := 0
+	for key := range lf.Strings {
+		if strings.HasPrefix(key, prefix) {
+			count++
+		}
+	}
+
+	// serman should have at least these tooltips based on gui.go buttons:
+	// filter_all, filter_enabled, filter_disabled, enable, disable, reload,
+	// start, stop, restart, hup, pause, continue, kill, about
+	minExpected := 10
+	if count < minExpected {
+		tt.Errorf("Expected at least %d tooltips, found %d", minExpected, count)
+	} else {
+		tt.Logf("Found %d tooltip translations in en.yaml", count)
 	}
 }

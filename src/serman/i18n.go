@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,16 +36,9 @@ var T translations
 
 // langDirs returns directories where to look for *.yaml translation files.
 // They are searched in order — first match wins.
+// Uses common.GetLangDirs() for configurable lang directory support.
 func langDirs() []string {
-	dirs := []string{
-		"/usr/local/share/SysMan/lang/serman",
-		"/usr/share/SysMan/lang/serman",
-	}
-	if exe, err := os.Executable(); err == nil {
-		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "serman")}, dirs...)
-	}
-	dirs = append([]string{"./lang/serman"}, dirs...)
-	return dirs
+	return common.GetLangDirs("serman")
 }
 
 // ── Loading ──────────────────────────────────────────────────────────
