@@ -6,7 +6,7 @@ This document provides essential information for AI agents and human contributor
 
 **SysMan** is a modular desktop and terminal application for Void Linux that combines service management, package management, template management, system information, user/group management, and VM management into a single tabbed interface. It is also a plugin framework — each tab is an independently embeddable component.
 
-**Version:** 0.009 Alpha
+**Version:** 0.013 Alpha
 **Module path:** `codeberg.org/oSoWoSo/SysMan`
 **License:** MIT
 **Author:** zenobit @ oSoWoSo.org
@@ -56,7 +56,7 @@ Then add a single comprehensive changelog entry covering all changes in the sess
 
 - Version is set at build time via ldflags targeting `common.Version`
 - Makefile line: `LDFLAGS = -s -w -X 'codeberg.org/oSoWoSo/SysMan/src/common.Version=$(VERSION)'`
-- Default version in `src/common/version.go` is `"0.009 Alpha"`
+- Default version in `src/common/version.go` is `"0.013 Alpha"`
 - Each module re-exports version for backward compatibility: `var Version = common.Version`
 
 ### 6. All GUI action buttons must use `common.HoverableButton`
