@@ -17,9 +17,40 @@ TUI_BINS = sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vms
 
 .PHONY: all clean fmt lint test \
 	build build-tui \
-	build-gui build-tui \
-	build-plugins \
-	install install-tui uninstall uninstall-tui release
+	install install-tui uninstall uninstall-tui release \
+	help
+
+## help: show available targets
+help:
+	@echo "SysMan Makefile targets:"
+	@echo ""
+	@echo "=== Build Targets ==="
+	@echo "  make build              - Build all GUI binaries (sysman, serman, pkgman, srcman, infman, ugsman, vmsman)"
+	@echo "  make build-tui          - Build all TUI binaries (sysman-tui, serman-tui, ...)"
+	@echo ""
+	@echo "  make build-<module>     - Build single GUI binary"
+	@echo "    Examples: make build-serman, make build-pkgman, make build-srcman"
+	@echo "    Available: sysman, serman, pkgman, srcman, infman, ugsman, vmsman"
+	@echo ""
+	@echo "  make build-<module>-tui - Build single TUI binary"
+	@echo "    Examples: make build-serman-tui, make build-pkgman-tui"
+	@echo ""
+	@echo "=== Other Targets ==="
+	@echo "  make all                - clean → lint → test → build"
+	@echo "  make clean              - remove build artefacts"
+	@echo "  make fmt                - gofmt -s"
+	@echo "  make lint               - golangci-lint"
+	@echo "  make test               - go test -race -cover"
+	@echo "  make install            - install binaries to \$$PREFIX/bin"
+	@echo "  make install-tui        - install TUI binaries"
+	@echo "  make uninstall          - remove installed binaries"
+	@echo "  make uninstall-tui      - remove installed TUI binaries"
+	@echo "  make release            - build all + create tarballs with checksums"
+	@echo ""
+	@echo "=== Variables ==="
+	@echo "  VERSION=0.013 Alpha     - override version"
+	@echo "  PREFIX=/usr/local       - installation prefix (default: /usr/local)"
+	@echo "  DESTDIR=/               - staging directory for make install"
 
 
 ## all: clean → lint → test → build
@@ -68,18 +99,6 @@ build-%-tui:
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$*-tui ./src/cmd/$*-tui/
 	@cp -r src/lang/. $(BUILD_DIR)/lang 2>/dev/null || true
-
-## build-plugins: build all dynamic plugin .so files
-build-plugins:
-	@echo "Building dynamic plugins..."
-	@mkdir -p $(BUILD_DIR)/plugins
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/serman.so    ./src/serman/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/srcman.so    ./src/srcman/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/pkgman.so   ./src/pkgman/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/infman.so   ./src/infman/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/ugsman.so   ./src/ugsman/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/vmsman.so   ./src/vmsman/
-	@echo "Plugins ready in $(BUILD_DIR)/plugins/"
 
 ## install: build and install all GUI binaries and data files
 install: build
