@@ -22,7 +22,8 @@ import (
 // RichText for proper color rendering. Right-clicking while text is selected
 // fires onSecondaryTap so the caller can show a context menu.
 type outputPanel struct {
-	outer fyne.CanvasObject // border: entryContainer + find bar
+	canvas fyne.Canvas
+	outer  fyne.CanvasObject // border: entryContainer + find bar
 
 	entry *selEntry
 	plain strings.Builder
@@ -43,8 +44,8 @@ type outputPanel struct {
 	findQuery   string
 }
 
-func newOutputPanel(onSecondaryTap func(sel string, pos fyne.Position)) *outputPanel {
-	p := &outputPanel{findIdx: -1}
+func newOutputPanel(canvas fyne.Canvas, onSecondaryTap func(sel string, pos fyne.Position)) *outputPanel {
+	p := &outputPanel{canvas: canvas, findIdx: -1}
 
 	// widget.Entry has its own internal scroll — no container.Scroll needed.
 	p.entry = newSelEntry(onSecondaryTap)
@@ -142,11 +143,16 @@ func (p *outputPanel) renderContent() {
 	}
 }
 
-// Append appends text to the output.
+// Append appends text to the output. It is thread-safe and can be called
+// from goroutines.
 func (p *outputPanel) Append(text string) {
 	p.plain.WriteString(text)
-	p.renderContent()
-	p.scrollToBottom()
+	if p.canvas != nil {
+		fyne.Do(func() {
+			p.renderContent()
+			p.scrollToBottom()
+		})
+	}
 }
 
 // SetText replaces the entire output content.

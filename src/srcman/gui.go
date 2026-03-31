@@ -68,6 +68,10 @@ type xbpsGuiApp struct {
 	buildCancel context.CancelFunc // non-nil while build is running
 }
 
+func (g *xbpsGuiApp) doUI(fn func()) {
+	fyne.Do(fn)
+}
+
 func (g *xbpsGuiApp) filtered() []Template {
 	return Filter(g.templates, g.search)
 }
@@ -150,32 +154,36 @@ func (g *xbpsGuiApp) showSelectionMenu(sel string, pos fyne.Position) {
 			g.setStatus(fmt.Sprintf("xlocate %s…", sel))
 			go func() {
 				out, err := RunXlocate(sel)
-				if err != nil {
-					g.pushLog(fmt.Sprintf("xlocate %s: %s\n%s", sel, err.Error(), out))
-					g.setStatus(fmt.Sprintf("✗ xlocate %s", sel))
-				} else {
-					if out == "" {
-						out = "(no results)"
+				g.doUI(func() {
+					if err != nil {
+						g.pushLog(fmt.Sprintf("xlocate %s: %s\n%s", sel, err.Error(), out))
+						g.setStatus(fmt.Sprintf("✗ xlocate %s", sel))
+					} else {
+						if out == "" {
+							out = "(no results)"
+						}
+						g.pushLog(out)
+						g.setStatus(fmt.Sprintf("✓ xlocate %s", sel))
 					}
-					g.pushLog(out)
-					g.setStatus(fmt.Sprintf("✓ xlocate %s", sel))
-				}
+				})
 			}()
 		}),
 		fyne.NewMenuItem(t("menu.xbpsquery"), func() {
 			g.setStatus(fmt.Sprintf("xbps-query -Rs %s…", sel))
 			go func() {
 				out, err := RunXbpsStream("", nil, "xbps-query", "-Rs", sel)
-				if err != nil && out == "" {
-					g.pushLog(fmt.Sprintf("xbps-query -Rs %s: %s\n", sel, err.Error()))
-					g.setStatus(fmt.Sprintf("✗ xbps-query %s", sel))
-				} else {
-					if out == "" {
-						out = "(no results)"
+				g.doUI(func() {
+					if err != nil && out == "" {
+						g.pushLog(fmt.Sprintf("xbps-query -Rs %s: %s\n", sel, err.Error()))
+						g.setStatus(fmt.Sprintf("✗ xbps-query %s", sel))
+					} else {
+						if out == "" {
+							out = "(no results)"
+						}
+						g.pushLog(out)
+						g.setStatus(fmt.Sprintf("✓ xbps-query -Rs %s", sel))
 					}
-					g.pushLog(out)
-					g.setStatus(fmt.Sprintf("✓ xbps-query -Rs %s", sel))
-				}
+				})
 			}()
 		}),
 		fyne.NewMenuItemSeparator(),
@@ -416,28 +424,29 @@ func (g *xbpsGuiApp) runCmdCtx(cancellable bool, label string, args ...string) {
 			return len(p), nil
 		})
 		_, err := RunXbpsPtyCtx(ctx, g.distDir, w, args...)
-		if cancellable {
-			g.setBuildRunning(false)
-		}
-		if g.output.plain.Len() == 0 {
+		g.doUI(func() {
+			if cancellable {
+				g.setBuildRunning(false)
+			}
+			if g.output.plain.Len() == 0 {
+				if err != nil {
+					g.setOutput(fmt.Sprintf(t("status.error"), err.Error()))
+				} else {
+					g.setOutput(statusLabel + " OK")
+				}
+			}
+			g.logLive = g.output.plain.String()
+			g.updateNavBtns()
 			if err != nil {
-				g.setOutput(fmt.Sprintf(t("status.error"), err.Error()))
+				if ctx.Err() != nil {
+					g.setStatus(fmt.Sprintf(t("status.failed"), statusLabel, t("btn.stop")))
+				} else {
+					g.setStatus(fmt.Sprintf(t("status.failed"), statusLabel, err.Error()))
+				}
 			} else {
-				g.setOutput(statusLabel + " OK")
+				g.setStatus(fmt.Sprintf(t("status.ok"), statusLabel))
 			}
-		}
-		// Snapshot the completed output as the new live buffer.
-		g.logLive = g.output.plain.String()
-		g.updateNavBtns()
-		if err != nil {
-			if ctx.Err() != nil {
-				g.setStatus(fmt.Sprintf(t("status.failed"), statusLabel, t("btn.stop")))
-			} else {
-				g.setStatus(fmt.Sprintf(t("status.failed"), statusLabel, err.Error()))
-			}
-		} else {
-			g.setStatus(fmt.Sprintf(t("status.ok"), statusLabel))
-		}
+		})
 	}()
 }
 
@@ -632,7 +641,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	actionRow1 := container.NewHBox(btnBootstrap, layout.NewSpacer(), btnHomepage, btnRepology)
 	actionRow2 := container.NewHBox(checkQ, checkC, g.btnBuild, layout.NewSpacer(), g.btnClean, g.btnInstall)
 
-	g.output = newOutputPanel(func(sel string, pos fyne.Position) { g.showSelectionMenu(sel, pos) })
+	g.output = newOutputPanel(g.win.Canvas(), func(sel string, pos fyne.Position) { g.showSelectionMenu(sel, pos) })
 
 	diskText := fmt.Sprintf("XBPS_DISTDIR=%s", filepath.Clean(ResolveDistDir(g.distDir)))
 	if disk := DiskInfo(g.distDir); disk != "" {

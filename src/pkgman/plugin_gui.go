@@ -70,6 +70,10 @@ type pkgGuiApp struct {
 	btnRemove     *tui.HoverableButton
 }
 
+func (g *pkgGuiApp) doUI(fn func()) {
+	fyne.Do(fn)
+}
+
 func (g *pkgGuiApp) showAbout() {
 	title := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
 	title.TextSize = 26
@@ -171,23 +175,25 @@ func (g *pkgGuiApp) showDetail(name string) {
 
 	go func() {
 		d := g.backend.Detail(name)
-		if d.Version != "" {
-			g.detailVer.SetText(d.Version)
-		} else {
-			g.detailVer.SetText("—")
-		}
-		if d.ShortDesc != "" {
-			g.detailDesc.SetText(d.ShortDesc)
-		} else {
-			g.detailDesc.SetText("—")
-		}
-		if d.Homepage != "" {
-			if u, err := url.Parse(d.Homepage); err == nil {
-				g.detailHome.SetText(d.Homepage)
-				g.detailHome.SetURL(u)
-				g.detailHome.Show()
+		g.doUI(func() {
+			if d.Version != "" {
+				g.detailVer.SetText(d.Version)
+			} else {
+				g.detailVer.SetText("—")
 			}
-		}
+			if d.ShortDesc != "" {
+				g.detailDesc.SetText(d.ShortDesc)
+			} else {
+				g.detailDesc.SetText("—")
+			}
+			if d.Homepage != "" {
+				if u, err := url.Parse(d.Homepage); err == nil {
+					g.detailHome.SetText(d.Homepage)
+					g.detailHome.SetURL(u)
+					g.detailHome.Show()
+				}
+			}
+		})
 	}()
 }
 
@@ -210,7 +216,9 @@ type streamWriter struct {
 
 func (sw *streamWriter) Write(p []byte) (int, error) {
 	sw.buf.Write(p)
-	sw.app.setOutput(sw.buf.String())
+	sw.app.doUI(func() {
+		sw.app.setOutput(sw.buf.String())
+	})
 	return len(p), nil
 }
 
@@ -238,18 +246,19 @@ func (g *pkgGuiApp) runOp(label string, fn func(w io.Writer) (string, error)) {
 	go func() {
 		sw := &streamWriter{app: g}
 		out, err := fn(sw)
-		// If fn returned output that wasn't streamed (e.g. TTY mode), show it.
-		if out != "" {
-			g.setOutput(out)
-		} else if err != nil && sw.buf.Len() == 0 {
-			g.setOutput(err.Error())
-		}
-		if err != nil {
-			g.statusBar.SetText(fmt.Sprintf("✗ %s failed: %s", label, err.Error()))
-		} else {
-			g.statusBar.SetText(fmt.Sprintf("✓ %s OK", label))
-		}
-		g.reloadAndReselect(prevName)
+		g.doUI(func() {
+			if out != "" {
+				g.setOutput(out)
+			} else if err != nil && sw.buf.Len() == 0 {
+				g.setOutput(err.Error())
+			}
+			if err != nil {
+				g.statusBar.SetText(fmt.Sprintf("✗ %s failed: %s", label, err.Error()))
+			} else {
+				g.statusBar.SetText(fmt.Sprintf("✓ %s OK", label))
+			}
+			g.reloadAndReselect(prevName)
+		})
 	}()
 }
 
