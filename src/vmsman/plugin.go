@@ -8,12 +8,14 @@ import (
 	"strings"
 
 	commonconfig "codeberg.org/oSoWoSo/SysMan/src/common"
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type Plugin struct {
-	vmDir string
+	vmDir     string
+	statusBar *common.StatusBar
 }
 
 func New(vmDir string) *Plugin {
@@ -21,6 +23,12 @@ func New(vmDir string) *Plugin {
 }
 
 func (p *Plugin) Name() string { return t("tab.name") }
+
+// SetStatusBar sets a shared status bar for tooltips and messages.
+// Implements api.PluginIF.
+func (p *Plugin) SetStatusBar(statusBar *common.StatusBar) {
+	p.statusBar = statusBar
+}
 
 func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	g := &guiApp{win: win, backend: NewQEMUBackend(p.resolveVmDir())}

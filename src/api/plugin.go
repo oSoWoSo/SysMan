@@ -10,6 +10,7 @@ package api
 
 import (
 	"fyne.io/fyne/v2"
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -26,4 +27,9 @@ type PluginIF interface {
 
 	// Model returns an initialized Bubbletea tea.Model for TUI embedding.
 	Model() tea.Model
+
+	// SetStatusBar sets a shared status bar for tooltips and messages.
+	// If not called, each plugin creates its own status bar.
+	// This allows the system manager to provide a unified status bar across all plugins.
+	SetStatusBar(statusBar *common.StatusBar)
 }

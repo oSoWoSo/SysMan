@@ -16,12 +16,16 @@
 //	model := p.Model()          // tea.Model — wrap in your own tea.Program
 package srcman
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"codeberg.org/oSoWoSo/SysMan/src/common"
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 // Plugin is the embeddable xbps-src template manager component.
 // Construct one with New(); then call Content() or Model() depending on the UI framework.
 type Plugin struct {
-	distDir string
+	distDir   string
+	statusBar *common.StatusBar
 }
 
 // New creates a Plugin for the given void-packages directory.
@@ -33,6 +37,12 @@ func New(distDir string) *Plugin {
 // Name returns the plugin display name used in system manager tabs.
 // Implements api.PluginIF.
 func (p *Plugin) Name() string { return t("tab.name") }
+
+// SetStatusBar sets a shared status bar for tooltips and messages.
+// Implements api.PluginIF.
+func (p *Plugin) SetStatusBar(statusBar *common.StatusBar) {
+	p.statusBar = statusBar
+}
 
 // Model returns an initialized Bubbletea tea.Model for TUI embedding.
 // Implements api.PluginIF.

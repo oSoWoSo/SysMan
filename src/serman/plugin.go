@@ -24,13 +24,15 @@
 package serman
 
 import (
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Plugin is the embeddable svman component.
 // Construct one with New() or NewWithBackend(); then call Content() or Model().
 type Plugin struct {
-	backend Backend
+	backend  Backend
+	statusBar *common.StatusBar
 }
 
 // Name returns the plugin display name used in system manager tabs.
@@ -52,6 +54,12 @@ func NewRunit(serviceDir, serviceDestDir string) *Plugin {
 // NewWithBackend creates a Plugin using a custom Backend implementation.
 // Use this to add support for openrc, s6, systemd, or any other service manager.
 func NewWithBackend(b Backend) *Plugin { return &Plugin{backend: b} }
+
+// SetStatusBar sets a shared status bar for tooltips and messages.
+// Implements api.PluginIF.
+func (p *Plugin) SetStatusBar(statusBar *common.StatusBar) {
+	p.statusBar = statusBar
+}
 
 // Model returns an initialized Bubbletea tea.Model for TUI embedding.
 // Wrap it in your own tea.Program to control program options.

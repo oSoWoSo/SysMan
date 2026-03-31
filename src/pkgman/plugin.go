@@ -18,11 +18,15 @@
 //	model := p.Model()   // tea.Model — wrap in your own tea.Program
 package pkgman
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"codeberg.org/oSoWoSo/SysMan/src/common"
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 // Plugin is the embeddable package-manager component.
 type Plugin struct {
-	backend PkgBackend
+	backend   PkgBackend
+	statusBar *common.StatusBar
 }
 
 // New creates a Plugin using the default xbps backend.
@@ -39,6 +43,12 @@ func NewWithBackend(b PkgBackend) *Plugin { return &Plugin{backend: b} }
 // Name returns the plugin display name used in system manager tabs.
 // Implements api.PluginIF.
 func (p *Plugin) Name() string { return t("tab.name") }
+
+// SetStatusBar sets a shared status bar for tooltips and messages.
+// Implements api.PluginIF.
+func (p *Plugin) SetStatusBar(statusBar *common.StatusBar) {
+	p.statusBar = statusBar
+}
 
 // Model returns an initialized Bubbletea tea.Model for TUI embedding.
 // Implements api.PluginIF.

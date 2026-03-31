@@ -43,7 +43,9 @@ func RunTUI() {
 }
 
 // Plugin displays basic system information (hostname, OS, arch, CPUs, Go version).
-type Plugin struct{}
+type Plugin struct{
+	statusBar *common.StatusBar
+}
 
 // New returns a new sysinfo Plugin.
 func New() *Plugin { return &Plugin{} }
@@ -51,6 +53,11 @@ func New() *Plugin { return &Plugin{} }
 // Name returns the plugin display name.
 // Implements api.PluginIF.
 func (p *Plugin) Name() string { return t("tab.name") }
+// SetStatusBar sets a shared status bar for tooltips and messages.
+// Implements api.PluginIF.
+func (p *Plugin) SetStatusBar(statusBar *common.StatusBar) {
+	p.statusBar = statusBar
+}
 
 // ── Native info collection ─────────────────────────────────────────────
 
