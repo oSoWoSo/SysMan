@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	serman.InitI18n()
 	mode := "auto"
 	for _, arg := range os.Args[1:] {
 		switch arg {

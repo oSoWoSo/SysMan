@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	pkgman.InitI18n()
 	for _, arg := range os.Args[1:] {
 		if arg == "--help" || arg == "-h" {
 			fmt.Println(pkgman.Usage)
