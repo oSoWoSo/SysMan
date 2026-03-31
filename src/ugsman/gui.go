@@ -4,50 +4,18 @@ package ugsman
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
-	"image/color"
-
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	serman "codeberg.org/oSoWoSo/SysMan/src/serman"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
-
-// hoverableButton wraps a button with hover status text functionality.
-type hoverableButton struct {
-	*widget.Button
-	StatusText string
-	statusBar  *widget.Label
-}
-
-func newHoverableButton(label string, icon fyne.Resource, statusText string, statusBar *widget.Label, tapped func()) *hoverableButton {
-	btn := widget.NewButtonWithIcon(label, icon, tapped)
-	return &hoverableButton{
-		Button:     btn,
-		StatusText: statusText,
-		statusBar:  statusBar,
-	}
-}
-
-func (b *hoverableButton) MouseIn(e *desktop.MouseEvent) {
-	if b.statusBar != nil && b.StatusText != "" {
-		b.statusBar.SetText(b.StatusText)
-	}
-}
-
-func (b *hoverableButton) MouseOut() {
-	if b.statusBar != nil {
-		b.statusBar.SetText("")
-	}
-}
 
 // ── GUI state ─────────────────────────────────────────────────────────
 
@@ -70,31 +38,17 @@ type ugApp struct {
 func (g *ugApp) setStatus(msg string) { g.statusBar.SetText(msg) }
 
 func (g *ugApp) showAbout() {
-	title := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
-	title.TextSize = 26
-	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
-	subtitle := canvas.NewText(t("app.subtitle"), color.NRGBA{R: 0x88, G: 0x88, B: 0x88, A: 0xff})
-	subtitle.TextSize = 12
-	infoForm := widget.NewForm(
-		widget.NewFormItem(t("about.version"), widget.NewLabel(serman.Version)),
-		widget.NewFormItem(t("about.author"), widget.NewLabel(serman.AppAuthor)),
-		widget.NewFormItem(t("about.license"), widget.NewLabel(serman.AppLicense)),
-	)
-	repoURL, _ := url.Parse(serman.AppURL)
-	link := widget.NewHyperlink(serman.AppURL, repoURL)
-	descLabel := widget.NewLabel(t("about.description"))
-	descLabel.Wrapping = fyne.TextWrapWord
-	content := container.NewVBox(
-		container.NewCenter(title),
-		container.NewCenter(subtitle),
-		widget.NewSeparator(),
-		infoForm,
-		container.NewCenter(link),
-		widget.NewSeparator(),
-		descLabel,
-	)
-	d := dialog.NewCustom(t("btn.about"), t("btn.close"), content, g.win)
-	d.Show()
+	common.ShowAbout(common.AboutConfig{
+		Win:       g.win,
+		Title:     t("app.title"),
+		Subtitle:  t("app.subtitle"),
+		Version:   serman.Version,
+		Author:    serman.AppAuthor,
+		License:   serman.AppLicense,
+		URL:       serman.AppURL,
+		DialogBtn: t("btn.about"),
+		CloseBtn:  t("btn.close"),
+	})
 }
 
 func (g *ugApp) refresh() {
@@ -453,19 +407,19 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	})
 
 	// Toolbar buttons — Users context
-	btnAddUser := newHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.add_user"), g.statusBar, func() {
+	btnAddUser := common.NewHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.add_user"), g.statusBar, func() {
 		g.showAddUserDialog()
 	})
-	btnDelUser := newHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.delete_user"), g.statusBar, func() {
+	btnDelUser := common.NewHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.delete_user"), g.statusBar, func() {
 		g.showDeleteUserDialog()
 	})
-	btnPropsUser := newHoverableButton(t("btn.properties"), theme.DocumentCreateIcon(), t("tooltip.user_properties"), g.statusBar, func() {
+	btnPropsUser := common.NewHoverableButton(t("btn.properties"), theme.DocumentCreateIcon(), t("tooltip.user_properties"), g.statusBar, func() {
 		g.showUserPropsDialog()
 	})
-	btnPasswd := newHoverableButton(t("btn.password"), theme.VisibilityIcon(), t("tooltip.change_password"), g.statusBar, func() {
+	btnPasswd := common.NewHoverableButton(t("btn.password"), theme.VisibilityIcon(), t("tooltip.change_password"), g.statusBar, func() {
 		g.showChangePasswordDialog()
 	})
-	btnRefreshUsers := newHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.refresh"), g.statusBar, func() {
+	btnRefreshUsers := common.NewHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.refresh"), g.statusBar, func() {
 		g.refresh()
 		g.setStatus(t("status.refreshed"))
 	})
@@ -486,16 +440,16 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	// ── Groups tab ────────────────────────────────────────────────────
 	groupTable := g.buildGroupTable()
 
-	btnAddGroup := newHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.add_group"), g.statusBar, func() {
+	btnAddGroup := common.NewHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.add_group"), g.statusBar, func() {
 		g.showAddGroupDialog()
 	})
-	btnDelGroup := newHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.delete_group"), g.statusBar, func() {
+	btnDelGroup := common.NewHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.delete_group"), g.statusBar, func() {
 		g.showDeleteGroupDialog()
 	})
-	btnEditMembers := newHoverableButton(t("btn.members"), theme.AccountIcon(), t("tooltip.edit_members"), g.statusBar, func() {
+	btnEditMembers := common.NewHoverableButton(t("btn.members"), theme.AccountIcon(), t("tooltip.edit_members"), g.statusBar, func() {
 		g.showEditGroupMembersDialog()
 	})
-	btnRefreshGroups := newHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.refresh"), g.statusBar, func() {
+	btnRefreshGroups := common.NewHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.refresh"), g.statusBar, func() {
 		g.refresh()
 		g.setStatus(t("status.refreshed"))
 	})
@@ -518,7 +472,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 		container.NewTabItem(t("tab.groups"), groupsTab),
 	)
 
-	btnAbout := newHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
+	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
 	btnAbout.Button.Importance = widget.LowImportance
 	statusBar := container.NewVBox(
 		widget.NewSeparator(),
