@@ -363,7 +363,10 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	scroll := container.NewScroll(inner)
 
 	// Status bar for tooltips
-	statusBar := widget.NewLabel("")
+	statusBar := p.statusBar
+	if statusBar == nil {
+		statusBar = common.NewStatusBar()
+	}
 	statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), statusBar, func() { showAbout(win) })

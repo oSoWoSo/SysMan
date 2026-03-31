@@ -24,7 +24,7 @@ import (
 type outputPanel struct {
 	canvas    fyne.Canvas
 	outer     fyne.CanvasObject // border: entryContainer + find bar
-	statusBar *widget.Label
+	statusBar *common.StatusBar
 
 	entry *selEntry
 	plain strings.Builder
@@ -45,7 +45,7 @@ type outputPanel struct {
 	findQuery   string
 }
 
-func newOutputPanel(canvas fyne.Canvas, statusBar *widget.Label, onSecondaryTap func(sel string, pos fyne.Position)) *outputPanel {
+func newOutputPanel(canvas fyne.Canvas, statusBar *common.StatusBar, onSecondaryTap func(sel string, pos fyne.Position)) *outputPanel {
 	p := &outputPanel{canvas: canvas, statusBar: statusBar, findIdx: -1}
 
 	// widget.Entry has its own internal scroll — no container.Scroll needed.

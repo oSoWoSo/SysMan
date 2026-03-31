@@ -145,7 +145,7 @@ type guiApp struct {
 	btnPause      *common.HoverableButton
 	btnContinue   *common.HoverableButton
 	btnKill       *common.HoverableButton
-	statusBar     *widget.Label
+	statusBar     *common.StatusBar
 	countLabel    *widget.Label
 }
 
@@ -624,7 +624,9 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	buttons := container.NewVBox(toggleRow, controlRow)
 
 	// ── Status bar ───────────────────────────────────────────────────
-	s.statusBar = widget.NewLabel("")
+	if s.statusBar == nil {
+		s.statusBar = common.NewStatusBar()
+	}
 	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 	// About button — info icon at the bottom-left corner
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), s.statusBar, func() { s.showAbout() })

@@ -9,10 +9,10 @@ import (
 type HoverableButton struct {
 	*widget.Button
 	StatusText string
-	statusBar  *widget.Label
+	statusBar  *StatusBar
 }
 
-func NewHoverableButton(label string, icon fyne.Resource, statusText string, statusBar *widget.Label, tapped func()) *HoverableButton {
+func NewHoverableButton(label string, icon fyne.Resource, statusText string, statusBar *StatusBar, tapped func()) *HoverableButton {
 	btn := widget.NewButtonWithIcon(label, icon, tapped)
 	return &HoverableButton{
 		Button:     btn,
@@ -22,7 +22,7 @@ func NewHoverableButton(label string, icon fyne.Resource, statusText string, sta
 }
 
 // NewHoverableButtonText creates a text button without icon that shows status text on hover.
-func NewHoverableButtonText(label string, statusText string, statusBar *widget.Label, tapped func()) *HoverableButton {
+func NewHoverableButtonText(label string, statusText string, statusBar *StatusBar, tapped func()) *HoverableButton {
 	btn := widget.NewButton(label, tapped)
 	return &HoverableButton{
 		Button:     btn,

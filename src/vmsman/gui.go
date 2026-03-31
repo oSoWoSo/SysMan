@@ -71,7 +71,7 @@ type guiApp struct {
 	btnKill     *common.HoverableButton
 	btnConnect  *common.HoverableButton
 	btnAbout    *common.HoverableButton
-	statusBar   *widget.Label
+	statusBar   *common.StatusBar
 	countLabel  *widget.Label
 }
 
@@ -202,7 +202,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		widget.NewLabel(t("detail.spice")+":"), s.detailPort,
 	)
 
-	s.statusBar = widget.NewLabel("")
+	s.statusBar = common.NewStatusBar()
 	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	s.btnBoot = common.NewHoverableButton(t("btn.boot"), theme.MediaPlayIcon(), t("tooltip.boot"), s.statusBar, func() {

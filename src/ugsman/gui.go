@@ -24,7 +24,7 @@ type ugApp struct {
 	users      []User
 	groups     []Group
 	showSystem bool
-	statusBar  *widget.Label
+	statusBar  *common.StatusBar
 
 	// Users tab
 	userTable    *widget.Table
@@ -393,7 +393,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	g.groups = LoadGroups()
 
 	// ── Status bar ────────────────────────────────────────────────────
-	g.statusBar = widget.NewLabel("")
+	g.statusBar = common.NewStatusBar()
 	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	// ── Users tab ─────────────────────────────────────────────────────

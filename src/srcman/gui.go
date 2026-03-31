@@ -40,7 +40,7 @@ type xbpsGuiApp struct {
 	detailVer    *widget.Label
 	detailDesc   *widget.Label
 	output       *outputPanel
-	statusBar    *widget.Label
+	statusBar    *common.StatusBar
 
 	btnBuild   *common.HoverableButton
 	btnInstall *common.HoverableButton
@@ -575,7 +575,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	})
 
 	// Status bar (created early for hover tooltips)
-	g.statusBar = widget.NewLabel("")
+	g.statusBar = common.NewStatusBar()
 	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	// Build button

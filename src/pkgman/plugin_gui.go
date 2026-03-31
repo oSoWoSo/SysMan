@@ -66,7 +66,7 @@ type pkgGuiApp struct {
 	outputRich    *widget.RichText
 	outputScroll  *container.Scroll
 	highlighter   *api.Highlighter
-	statusBar     *widget.Label
+	statusBar     *common.StatusBar
 	btnInstall    *common.HoverableButton
 	btnRemove     *common.HoverableButton
 }
@@ -378,7 +378,7 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	)
 
 	// ── Status bar ────────────────────────────────────────────────────
-	g.statusBar = widget.NewLabel(t("pkg.loading"))
+	g.statusBar = common.NewStatusBar()
 	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	// ── Action buttons ────────────────────────────────────────────────
