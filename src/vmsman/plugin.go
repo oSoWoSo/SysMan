@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"codeberg.org/oSoWoSo/SysMan/src/common"
-	commonconfig "codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -52,7 +51,7 @@ func (p *Plugin) resolveVmDir() string {
 	if p.vmDir != "" && p.vmDir != DefaultVmDir {
 		return expandHome(p.vmDir)
 	}
-	cfg := commonconfig.LoadSysManConfig()
+	cfg := common.LoadSysManConfig()
 	if cfg.Vmsman.VmDir != "" {
 		return expandHome(cfg.Vmsman.VmDir)
 	}

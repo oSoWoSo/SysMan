@@ -313,7 +313,7 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		func() fyne.CanvasObject {
 			star := canvas.NewText("*", installedColor)
 			star.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-			name := canvas.NewText("package-placeholder", theme.ForegroundColor())
+			name := canvas.NewText("package-placeholder", theme.Color(theme.ColorNameForeground))
 			name.TextStyle = fyne.TextStyle{Monospace: true}
 			return container.NewHBox(star, name)
 		},

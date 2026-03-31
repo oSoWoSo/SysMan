@@ -241,11 +241,11 @@ func runElevated(w io.Writer, args []string) (string, error) {
 	cmd.Stdout = pw
 	cmd.Stderr = pw
 	if err := cmd.Start(); err != nil {
-		pw.Close()
-		pr.Close()
+		_ = pw.Close()
+		_ = pr.Close()
 		return "", err
 	}
-	pw.Close() // close write end in parent so scanner reaches EOF
+	_ = pw.Close() // close write end in parent so scanner reaches EOF
 	var buf strings.Builder
 	scanner := bufio.NewScanner(pr)
 	for scanner.Scan() {
@@ -255,7 +255,7 @@ func runElevated(w io.Writer, args []string) (string, error) {
 			_, _ = io.WriteString(w, line+"\n")
 		}
 	}
-	pr.Close()
+	_ = pr.Close()
 	err = cmd.Wait()
 	return strings.TrimSpace(buf.String()), err
 }

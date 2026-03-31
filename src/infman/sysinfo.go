@@ -303,11 +303,11 @@ func buildNativeView(entries []infoEntry) fyne.CanvasObject {
 
 	var rows []fyne.CanvasObject
 	for _, e := range entries {
-		key := canvas.NewText(e.Key, theme.PrimaryColor())
+		key := canvas.NewText(e.Key, theme.Color(theme.ColorNamePrimary))
 		key.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 		key.TextSize = fontSize
 
-		val := canvas.NewText(e.Value, theme.ForegroundColor())
+		val := canvas.NewText(e.Value, theme.Color(theme.ColorNameForeground))
 		val.TextStyle = fyne.TextStyle{Monospace: true}
 		val.TextSize = fontSize
 

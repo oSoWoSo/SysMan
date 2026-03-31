@@ -127,7 +127,7 @@ func (m tuiModel) View() string {
 	if m.tab == tabGroups {
 		gr = tuiHeader.Render(gr)
 	}
-	sb.WriteString(fmt.Sprintf("  %s   %s\n", u, gr))
+	fmt.Fprintf(&sb, "  %s   %s\n", u, gr)
 	w := m.width
 	if w < 10 {
 		w = 10
