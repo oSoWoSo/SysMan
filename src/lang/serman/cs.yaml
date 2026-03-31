@@ -99,3 +99,6 @@ strings:
   tooltip.continue: "Obnovit službu"
   tooltip.kill: "Zabít službu (SIGKILL)"
   tooltip.about: "O této aplikaci"
+  tooltip.filter_all: "Zobrazit všechny služby"
+  tooltip.filter_enabled: "Zobrazit pouze povolené služby"
+  tooltip.filter_disabled: "Zobrazit pouze zakázané služby"

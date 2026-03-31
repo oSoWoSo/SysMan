@@ -371,7 +371,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	}
 
 	// ── Filter toggle buttons ────────────────────────────────────────
-	var btnFilterAll, btnFilterEnabled, btnFilterDisabled *widget.Button
+	var btnFilterAll, btnFilterEnabled, btnFilterDisabled *common.HoverableButton
 
 	applyFilter := func(f filterMode) {
 		s.filter = f
@@ -379,26 +379,26 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		s.serviceList.Refresh()
 		s.updateCount()
 		s.clearDetail()
-		btnFilterAll.Importance = widget.MediumImportance
-		btnFilterEnabled.Importance = widget.MediumImportance
-		btnFilterDisabled.Importance = widget.MediumImportance
+		btnFilterAll.Button.Importance = widget.MediumImportance
+		btnFilterEnabled.Button.Importance = widget.MediumImportance
+		btnFilterDisabled.Button.Importance = widget.MediumImportance
 		switch f {
 		case FilterEnabled:
-			btnFilterEnabled.Importance = widget.HighImportance
+			btnFilterEnabled.Button.Importance = widget.HighImportance
 		case FilterDisabled:
-			btnFilterDisabled.Importance = widget.HighImportance
+			btnFilterDisabled.Button.Importance = widget.HighImportance
 		default:
-			btnFilterAll.Importance = widget.HighImportance
+			btnFilterAll.Button.Importance = widget.HighImportance
 		}
-		btnFilterAll.Refresh()
-		btnFilterEnabled.Refresh()
-		btnFilterDisabled.Refresh()
+		btnFilterAll.Button.Refresh()
+		btnFilterEnabled.Button.Refresh()
+		btnFilterDisabled.Button.Refresh()
 	}
 
-	btnFilterAll = widget.NewButton(t("filter.all"), func() { applyFilter(FilterAll) })
-	btnFilterEnabled = widget.NewButton(t("filter.enabled"), func() { applyFilter(FilterEnabled) })
-	btnFilterDisabled = widget.NewButton(t("filter.disabled"), func() { applyFilter(FilterDisabled) })
-	filterRow := container.NewHBox(btnFilterAll, btnFilterEnabled, btnFilterDisabled)
+	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.filter_all"), s.statusBar, func() { applyFilter(FilterAll) })
+	btnFilterEnabled = common.NewHoverableButtonText(t("filter.enabled"), t("tooltip.filter_enabled"), s.statusBar, func() { applyFilter(FilterEnabled) })
+	btnFilterDisabled = common.NewHoverableButtonText(t("filter.disabled"), t("tooltip.filter_disabled"), s.statusBar, func() { applyFilter(FilterDisabled) })
+	filterRow := container.NewHBox(btnFilterAll.Button, btnFilterEnabled.Button, btnFilterDisabled.Button)
 
 	// ── Detail panel ─────────────────────────────────────────────────
 	s.detailName = widget.NewLabel(t("detail.empty"))

@@ -99,3 +99,6 @@ strings:
   tooltip.continue: "Continue the service"
   tooltip.kill: "Kill the service (SIGKILL)"
   tooltip.about: "About this application"
+  tooltip.filter_all: "Show all services"
+  tooltip.filter_enabled: "Show only enabled services"
+  tooltip.filter_disabled: "Show only disabled services"
