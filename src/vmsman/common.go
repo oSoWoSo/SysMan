@@ -1,6 +1,5 @@
-package vmman
-
 // Package vmman provides a VM manager plugin.
+package vmman
 
 import (
 	"fmt"
@@ -20,7 +19,7 @@ var Version = common.Version
 
 const (
 	// AppAuthor is the application author.
-	AppAuthor  = common.AppAuthor
+	AppAuthor = common.AppAuthor
 	// AppLicense is the application license.
 	AppLicense = common.AppLicense
 	// AppURL is the application URL.
@@ -43,7 +42,7 @@ type VM struct {
 	Running   bool
 }
 
- // VMStatus represents the status of a virtual machine.
+// VMStatus represents the status of a virtual machine.
 type VMStatus struct {
 	Running   bool
 	PID       int
@@ -54,7 +53,7 @@ type VMStatus struct {
 	Raw       string
 }
 
- // FilterMode represents the filter mode for VMs.
+// FilterMode represents the filter mode for VMs.
 type FilterMode int
 
 const (
@@ -66,7 +65,7 @@ const (
 	FilterStopped
 )
 
- // Filter filters VMs by mode and search term.
+// Filter filters VMs by mode and search term.
 func Filter[T any](
 	items []T,
 	mode FilterMode,
@@ -77,7 +76,7 @@ func Filter[T any](
 	return common.Filter(items, int(mode), search, isRunning, matchesSearch)
 }
 
- // LoadVMs loads VMs from the specified directory.
+// LoadVMs loads VMs from the specified directory.
 func LoadVMs(vmDir string) []VM {
 	entries, err := os.ReadDir(vmDir)
 	if err != nil {
@@ -122,7 +121,7 @@ func LoadVMs(vmDir string) []VM {
 	return vms
 }
 
- // Backend defines the interface for VM backends.
+// Backend defines the interface for VM backends.
 type Backend interface {
 	List() []VM
 	Boot(vm *VM) error
@@ -130,22 +129,22 @@ type Backend interface {
 	Status(vm *VM) VMStatus
 }
 
- // QEMUBackend is a backend for QEMU VMs.
+// QEMUBackend is a backend for QEMU VMs.
 type QEMUBackend struct {
 	VMDir string
 }
 
- // NewQEMUBackend creates a new QEMU backend.
+// NewQEMUBackend creates a new QEMU backend.
 func NewQEMUBackend(vmDir string) *QEMUBackend {
 	return &QEMUBackend{VMDir: vmDir}
 }
 
- // List returns the list of VMs.
+// List returns the list of VMs.
 func (b *QEMUBackend) List() []VM {
 	return LoadVMs(b.VMDir)
 }
 
- // Boot boots a VM.
+// Boot boots a VM.
 func (b *QEMUBackend) Boot(vm *VM) error {
 	args := []string{"quickemu", "--vm", vm.Config}
 	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
@@ -155,7 +154,7 @@ func (b *QEMUBackend) Boot(vm *VM) error {
 	return nil
 }
 
- // Kill stops a VM.
+// Kill stops a VM.
 func (b *QEMUBackend) Kill(vm *VM) error {
 	if vm.PID <= 0 {
 		return fmt.Errorf("VM not running")
@@ -168,7 +167,7 @@ func (b *QEMUBackend) Kill(vm *VM) error {
 	return nil
 }
 
- // Status returns the status of a VM.
+// Status returns the status of a VM.
 func (b *QEMUBackend) Status(vm *VM) VMStatus {
 	st := VMStatus{}
 	if vm.PID <= 0 {
@@ -182,7 +181,7 @@ func (b *QEMUBackend) Status(vm *VM) VMStatus {
 	return st
 }
 
- // ConnectToVM connects to a VM via SPICE.
+// ConnectToVM connects to a VM via SPICE.
 func ConnectToVM(port int, viewer string) error {
 	var args []string
 	switch viewer {
@@ -198,7 +197,8 @@ func ConnectToVM(port int, viewer string) error {
 }
 
 var langs = map[string]map[string]string{}
- // T is the translation map.
+
+// T is the translation map.
 var T map[string]string
 var i18nOnce sync.Once
 
@@ -267,7 +267,7 @@ func detectLang() string {
 	return "en"
 }
 
- // InitI18n loads the translation files.
+// InitI18n loads the translation files.
 func InitI18n() {
 	i18nOnce.Do(func() {
 		for _, dir := range langDirs() {

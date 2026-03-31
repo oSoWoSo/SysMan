@@ -11,7 +11,7 @@ import (
 type SysManConfig struct {
 	Serman SermanConfig `yaml:"serman,omitempty"`
 	Pkgman PkgmanConfig `yaml:"pkgman,omitempty"`
-	Srcman Config `yaml:"srcman,omitempty"`
+	Srcman Config       `yaml:"srcman,omitempty"`
 	Vmsman VmsmanConfig `yaml:"vmsman,omitempty"`
 	Ugsman UgsmanConfig `yaml:"ugsman,omitempty"`
 	Infman InfmanConfig `yaml:"infman,omitempty"`

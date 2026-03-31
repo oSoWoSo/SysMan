@@ -11,7 +11,7 @@ import (
 type SysManConfig struct {
 	Svman      SvmanConfig      `yaml:"svman,omitempty"`
 	Pkgman     PkgmanConfig     `yaml:"pkgman,omitempty"`
-	Srcman     Config     `yaml:"srcman,omitempty"`
+	Srcman     Config           `yaml:"srcman,omitempty"`
 	Vmman      VmmanConfig      `yaml:"vmman,omitempty"`
 	Usergroups UsergroupsConfig `yaml:"usergroups,omitempty"`
 	Sysinfo    SysinfoConfig    `yaml:"sysinfo,omitempty"`
