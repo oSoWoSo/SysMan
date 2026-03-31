@@ -326,6 +326,7 @@ func RunGUI(vmDir string) {
 	a := app.New()
 	a.Settings().SetTheme(darkIndustrialTheme{theme.DefaultTheme()})
 	win := a.NewWindow(t("app.window"))
+	common.SetWindowIcon(win)
 	b := NewQEMUBackend(vmDir)
 	g := &guiApp{
 		win:     win,

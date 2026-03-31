@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"codeberg.org/oSoWoSo/SysMan/src/infman"
 )
 
@@ -48,6 +49,7 @@ func main() {
 		p := infman.New()
 		a := app.New()
 		win := a.NewWindow(p.Name())
+		common.SetWindowIcon(win)
 		win.SetContent(p.Content(win))
 		win.Resize(fyne.NewSize(420, 300))
 		win.SetMaster()

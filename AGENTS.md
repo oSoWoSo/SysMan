@@ -48,6 +48,8 @@ Each completed task must be committed immediately with a descriptive message. Do
 2. The build passes successfully
 3. All commits are made
 
+Then make sure that all changes are also in README.md and AGENTS.md if needed
+
 Then add a single comprehensive changelog entry covering all changes in the session.
 
 ### 5. Version management

@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"codeberg.org/oSoWoSo/SysMan/src/serman"
 )
 
@@ -57,6 +58,7 @@ func main() {
 		p := serman.New(serviceDir, serviceDestDir)
 		a := app.New()
 		win := a.NewWindow(p.Name())
+		common.SetWindowIcon(win)
 		win.SetContent(p.Content(win))
 		win.Resize(fyne.NewSize(760, 520))
 		win.SetMaster()

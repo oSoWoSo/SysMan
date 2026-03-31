@@ -486,6 +486,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 func RunGUI() {
 	a := app.New()
 	win := a.NewWindow(t("app.window"))
+	common.SetWindowIcon(win)
 	win.SetContent(New().Content(win))
 	win.Resize(fyne.NewSize(760, 520))
 	win.SetMaster()

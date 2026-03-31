@@ -34,6 +34,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 func RunGUI() {
 	a := app.New()
 	win := a.NewWindow(t("app.window"))
+	common.SetWindowIcon(win)
 	g := &pkgGuiApp{win: win, backend: NewXbpsBackend()}
 	win.SetContent(g.buildContent(true))
 	win.Resize(fyne.NewSize(900, 620))

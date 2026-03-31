@@ -755,6 +755,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 func RunGUI(distDir string) {
 	a := app.New()
 	win := a.NewWindow(t("app.window"))
+	common.SetWindowIcon(win)
 	g := &xbpsGuiApp{
 		win:       win,
 		distDir:   distDir,
