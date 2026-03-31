@@ -51,13 +51,13 @@ strings:
   btn.about: O aplikaci
   btn.close: Zavřít
 
-  tooltip.boot: Spustit vybrané VM
-  tooltip.kill: Zastavit/zabít VM
-  tooltip.connect: Připojit k VM přes SPICE
-  tooltip.about: O této aplikaci
-  tooltip.reload: Znovu načíst seznam VM
-  tooltip.filter: Filtrovat VM
-  tooltip.search: Hledat VM
-  tooltip.filter_all: Zobrazit všechny VM
-  tooltip.filter_running: Zobrazit pouze běžící VM
-  tooltip.filter_stopped: Zobrazit pouze zastavené VM
+  tooltip.vmsman.boot: Spustit vybrané VM
+  tooltip.vmsman.kill: Zastavit/zabít VM
+  tooltip.vmsman.connect: Připojit k VM přes SPICE
+  tooltip.vmsman.about: O této aplikaci
+  tooltip.vmsman.reload: Znovu načíst seznam VM
+  tooltip.vmsman.filter: Filtrovat VM
+  tooltip.vmsman.search: Hledat VM
+  tooltip.vmsman.filter_all: Zobrazit všechny VM
+  tooltip.vmsman.filter_running: Zobrazit pouze běžící VM
+  tooltip.vmsman.filter_stopped: Zobrazit pouze zastavené VM

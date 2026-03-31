@@ -395,9 +395,9 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		btnFilterDisabled.Refresh()
 	}
 
-	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.filter_all"), s.statusBar, func() { applyFilter(FilterAll) })
-	btnFilterEnabled = common.NewHoverableButtonText(t("filter.enabled"), t("tooltip.filter_enabled"), s.statusBar, func() { applyFilter(FilterEnabled) })
-	btnFilterDisabled = common.NewHoverableButtonText(t("filter.disabled"), t("tooltip.filter_disabled"), s.statusBar, func() { applyFilter(FilterDisabled) })
+	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.serman.filter_all"), s.statusBar, func() { applyFilter(FilterAll) })
+	btnFilterEnabled = common.NewHoverableButtonText(t("filter.enabled"), t("tooltip.serman.filter_enabled"), s.statusBar, func() { applyFilter(FilterEnabled) })
+	btnFilterDisabled = common.NewHoverableButtonText(t("filter.disabled"), t("tooltip.serman.filter_disabled"), s.statusBar, func() { applyFilter(FilterDisabled) })
 	filterRow := container.NewHBox(btnFilterAll.Button, btnFilterEnabled.Button, btnFilterDisabled.Button)
 
 	// ── Detail panel ─────────────────────────────────────────────────
@@ -424,7 +424,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	)
 
 	// ── Action buttons ───────────────────────────────────────────────
-	s.btnEnable = common.NewHoverableButton(t("btn.enable"), theme.ConfirmIcon(), t("tooltip.enable"), s.statusBar, func() {
+	s.btnEnable = common.NewHoverableButton(t("btn.enable"), theme.ConfirmIcon(), t("tooltip.serman.enable"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -441,7 +441,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnEnable.Importance = widget.HighImportance
 
-	s.btnDisable = common.NewHoverableButton(t("btn.disable"), theme.DeleteIcon(), t("tooltip.disable"), s.statusBar, func() {
+	s.btnDisable = common.NewHoverableButton(t("btn.disable"), theme.DeleteIcon(), t("tooltip.serman.disable"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -466,7 +466,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnDisable.Importance = widget.DangerImportance
 
-	btnReload := common.NewHoverableButton(t("btn.reload"), theme.ViewRefreshIcon(), t("tooltip.reload"), s.statusBar, func() {
+	btnReload := common.NewHoverableButton(t("btn.reload"), theme.ViewRefreshIcon(), t("tooltip.serman.reload"), s.statusBar, func() {
 		s.reload()
 		if os.Getuid() != 0 {
 			s.setStatus(t("status.reloaded") + " ⚠ " + t("status.no_root"))
@@ -476,7 +476,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 
 	// ── sv control buttons ───────────────────────────────────────────
-	s.btnStart = common.NewHoverableButton(t("btn.start"), theme.MediaPlayIcon(), t("tooltip.start"), s.statusBar, func() {
+	s.btnStart = common.NewHoverableButton(t("btn.start"), theme.MediaPlayIcon(), t("tooltip.serman.start"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -493,7 +493,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnStart.Importance = widget.SuccessImportance
 
-	s.btnStop = common.NewHoverableButton(t("btn.stop"), theme.MediaStopIcon(), t("tooltip.stop"), s.statusBar, func() {
+	s.btnStop = common.NewHoverableButton(t("btn.stop"), theme.MediaStopIcon(), t("tooltip.serman.stop"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -519,7 +519,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	s.btnStop.Importance = widget.DangerImportance
 
-	s.btnRestart = common.NewHoverableButton(t("btn.restart"), theme.ViewRefreshIcon(), t("tooltip.restart"), s.statusBar, func() {
+	s.btnRestart = common.NewHoverableButton(t("btn.restart"), theme.ViewRefreshIcon(), t("tooltip.serman.restart"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -535,7 +535,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnHup = common.NewHoverableButton(t("btn.hup"), theme.MailSendIcon(), t("tooltip.hup"), s.statusBar, func() {
+	s.btnHup = common.NewHoverableButton(t("btn.hup"), theme.MailSendIcon(), t("tooltip.serman.hup"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -551,7 +551,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnPause = common.NewHoverableButton(t("btn.pause"), theme.MediaPauseIcon(), t("tooltip.pause"), s.statusBar, func() {
+	s.btnPause = common.NewHoverableButton(t("btn.pause"), theme.MediaPauseIcon(), t("tooltip.serman.pause"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -567,7 +567,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnContinue = common.NewHoverableButton(t("btn.continue"), theme.MediaPlayIcon(), t("tooltip.continue"), s.statusBar, func() {
+	s.btnContinue = common.NewHoverableButton(t("btn.continue"), theme.MediaPlayIcon(), t("tooltip.serman.continue"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -583,7 +583,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		}()
 	})
 
-	s.btnKill = common.NewHoverableButton(t("btn.kill"), theme.DeleteIcon(), t("tooltip.kill"), s.statusBar, func() {
+	s.btnKill = common.NewHoverableButton(t("btn.kill"), theme.DeleteIcon(), t("tooltip.serman.kill"), s.statusBar, func() {
 		list := s.filtered()
 		if s.selected < 0 || s.selected >= len(list) {
 			return
@@ -629,7 +629,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	}
 	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 	// About button — info icon at the bottom-left corner
-	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), s.statusBar, func() { s.showAbout() })
+	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.serman.about"), s.statusBar, func() { s.showAbout() })
 	btnAbout.Importance = widget.LowImportance
 	statusBar := container.NewHBox(btnAbout, s.statusBar)
 

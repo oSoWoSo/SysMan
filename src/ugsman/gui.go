@@ -407,19 +407,19 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	})
 
 	// Toolbar buttons — Users context
-	btnAddUser := common.NewHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.add_user"), g.statusBar, func() {
+	btnAddUser := common.NewHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.ugsman.add_user"), g.statusBar, func() {
 		g.showAddUserDialog()
 	})
-	btnDelUser := common.NewHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.delete_user"), g.statusBar, func() {
+	btnDelUser := common.NewHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.ugsman.delete_user"), g.statusBar, func() {
 		g.showDeleteUserDialog()
 	})
-	btnPropsUser := common.NewHoverableButton(t("btn.properties"), theme.DocumentCreateIcon(), t("tooltip.user_properties"), g.statusBar, func() {
+	btnPropsUser := common.NewHoverableButton(t("btn.properties"), theme.DocumentCreateIcon(), t("tooltip.ugsman.user_properties"), g.statusBar, func() {
 		g.showUserPropsDialog()
 	})
-	btnPasswd := common.NewHoverableButton(t("btn.password"), theme.VisibilityIcon(), t("tooltip.change_password"), g.statusBar, func() {
+	btnPasswd := common.NewHoverableButton(t("btn.password"), theme.VisibilityIcon(), t("tooltip.ugsman.change_password"), g.statusBar, func() {
 		g.showChangePasswordDialog()
 	})
-	btnRefreshUsers := common.NewHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.refresh"), g.statusBar, func() {
+	btnRefreshUsers := common.NewHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.ugsman.refresh"), g.statusBar, func() {
 		g.refresh()
 		g.setStatus(t("status.refreshed"))
 	})
@@ -440,16 +440,16 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	// ── Groups tab ────────────────────────────────────────────────────
 	groupTable := g.buildGroupTable()
 
-	btnAddGroup := common.NewHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.add_group"), g.statusBar, func() {
+	btnAddGroup := common.NewHoverableButton(t("btn.add"), theme.ContentAddIcon(), t("tooltip.ugsman.add_group"), g.statusBar, func() {
 		g.showAddGroupDialog()
 	})
-	btnDelGroup := common.NewHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.delete_group"), g.statusBar, func() {
+	btnDelGroup := common.NewHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.ugsman.delete_group"), g.statusBar, func() {
 		g.showDeleteGroupDialog()
 	})
-	btnEditMembers := common.NewHoverableButton(t("btn.members"), theme.AccountIcon(), t("tooltip.edit_members"), g.statusBar, func() {
+	btnEditMembers := common.NewHoverableButton(t("btn.members"), theme.AccountIcon(), t("tooltip.ugsman.edit_members"), g.statusBar, func() {
 		g.showEditGroupMembersDialog()
 	})
-	btnRefreshGroups := common.NewHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.refresh"), g.statusBar, func() {
+	btnRefreshGroups := common.NewHoverableButton(t("btn.refresh"), theme.ViewRefreshIcon(), t("tooltip.ugsman.refresh"), g.statusBar, func() {
 		g.refresh()
 		g.setStatus(t("status.refreshed"))
 	})
@@ -472,7 +472,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 		container.NewTabItem(t("tab.groups"), groupsTab),
 	)
 
-	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
+	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.ugsman.about"), g.statusBar, func() { g.showAbout() })
 	btnAbout.Importance = widget.LowImportance
 	statusBar := container.NewVBox(
 		widget.NewSeparator(),
