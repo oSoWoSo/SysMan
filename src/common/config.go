@@ -123,6 +123,9 @@ func SaveSysManConfig(cfg SysManConfig) error {
 	if cfg.Vmsman.VMDir == "" {
 		cfg.Vmsman.VMDir = existing.Vmsman.VMDir
 	}
+	if cfg.LangDir == "" {
+		cfg.LangDir = existing.LangDir
+	}
 
 	out, err := yaml.Marshal(cfg)
 	if err != nil {

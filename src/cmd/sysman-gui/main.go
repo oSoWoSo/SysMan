@@ -237,6 +237,8 @@ func runGUI(plugins []api.PluginIF) {
 	}
 	settingsIdx := len(plugins)
 	btnSettingsIcon := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
+		// Rebuild settings content to get fresh config values
+		allContent[settingsIdx] = buildSettingsContent(win)
 		show(settingsIdx)
 		for _, b := range tabBtns {
 			b.Importance = widget.LowImportance
