@@ -85,16 +85,18 @@ func (s *guiApp) filtered() []VM {
 }
 
 func (s *guiApp) reload() {
-	s.vms = s.backend.List()
-	s.vmList.Refresh()
-	s.updateCount()
-	list := s.filtered()
-	if s.selected >= 0 && s.selected < len(list) {
-		s.showDetail(list[s.selected])
-	} else {
-		s.selected = -1
-		s.clearDetail()
-	}
+	fyne.Do(func() {
+		s.vms = s.backend.List()
+		s.vmList.Refresh()
+		s.updateCount()
+		list := s.filtered()
+		if s.selected >= 0 && s.selected < len(list) {
+			s.showDetail(list[s.selected])
+		} else {
+			s.selected = -1
+			s.clearDetail()
+		}
+	})
 }
 
 func (s *guiApp) updateCount() {
@@ -318,7 +320,9 @@ func (s *guiApp) applyFilter(mode FilterMode) {
 }
 
 func (s *guiApp) setStatus(msg string) {
-	s.statusBar.SetText(msg)
+	fyne.Do(func() {
+		s.statusBar.SetText(msg)
+	})
 }
 
 func RunGUI(vmDir string) {
