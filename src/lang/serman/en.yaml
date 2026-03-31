@@ -3,9 +3,9 @@ meta:
   name: English
 
 strings:
-  app.title: "svman"
+  app.title: "serman"
   app.subtitle: "runit service manager - Void Linux"
-  app.window: "svman — runit service manager"
+  app.window: "serman — runit service manager"
   tab.name: "Services"
 
   filter.all: "All"
@@ -49,7 +49,7 @@ strings:
   btn.close: "Close"
 
   menu.help: "Help"
-  menu.about: "About svman"
+  menu.about: "About serman"
 
   about.version: "Version"
   about.author: "Author"

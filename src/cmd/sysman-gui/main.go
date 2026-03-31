@@ -1,15 +1,17 @@
 // Command sysmanager is a demo system manager that embeds multiple plugins.
 //
 // Built-in plugins (always available):
-//   - Services        (svman runit service manager)
-//   - Packages        (xbps package manager)
-//   - Templates       (xbps-src template manager)
-//   - System Info     (sysinfo)
+//   - Services        (serman runit service manager)
+//   - Packages        (pkgman package manager)
+//   - Templates       (srcman template manager)
+//   - System Info     (infman)
+//   - Users & Groups  (ugsman)
+//   - VMs             (vmsman)
 //
 // Dynamic plugins (optional, loaded from PLUGIN_DIR or ./plugins/):
 //
 //	Each .so file must export:  func New() api.PluginIF
-//	Build with:  go build -buildmode=plugin -o plugins/foo.so ./pluginentry/foo/
+//	Build with:  go build -buildmode=plugin -o plugins/foo.so ./vmsman/
 //
 // Usage:
 //

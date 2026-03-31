@@ -1,4 +1,4 @@
-VERSION  ?= 0.008 Alpha
+VERSION  ?= 0.009 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local
@@ -73,11 +73,12 @@ build-%-tui:
 build-plugins:
 	@echo "Building dynamic plugins..."
 	@mkdir -p $(BUILD_DIR)/plugins
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/serman.so    ./src/pluginentry/serman/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/xbps-src.so ./src/pluginentry/xbps_src/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/xbps-pkg.so ./src/pluginentry/xbps_pkg/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/vmsman.so   ./src/pluginentry/vmsman/
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/sysinfo.so  ./src/pluginentry/sysinfo/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/serman.so    ./src/serman/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/srcman.so    ./src/srcman/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/pkgman.so   ./src/pkgman/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/infman.so   ./src/infman/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/ugsman.so   ./src/ugsman/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/vmsman.so   ./src/vmsman/
 	@echo "Plugins ready in $(BUILD_DIR)/plugins/"
 
 ## install: build and install all GUI binaries and data files

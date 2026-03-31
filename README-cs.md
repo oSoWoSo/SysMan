@@ -10,11 +10,11 @@ Je zároveň pluginovým frameworkem — každá záložka je samostatně použi
 
 | Záložka | Plugin | Backend |
 |---|---|---|
-| **SysInfo** | `sysinfo` | fastfetch |
-| **Packages** | `xbps-pkg` | xbps (`xbps-query`, `xbps-install`) |
-| **Templates** | `xbps-src` | xbps-src void-packages |
-| **Services** | `plugin` (svman) | runit (`sv`, `pkexec`/`doas`/`sudo`) |
-| **Users & Groups** | `usergroups` | `/etc/passwd`, `/etc/group` |
+| **SysInfo** | `infman` | fastfetch |
+| **Packages** | `pkgman` | xbps (`xbps-query`, `xbps-install`) |
+| **Templates** | `srcman` | xbps-src void-packages |
+| **Services** | `serman` | runit (`sv`, `pkexec`/`doas`/`sudo`) |
+| **Users & Groups** | `ugsman` | `/etc/passwd`, `/etc/group` |
 
 ---
 
@@ -36,21 +36,23 @@ Každý plugin lze provozovat i samostatně:
 |---|---|---|
 | `sysman` | Kompletní system manager (všechny pluginy, GUI + TUI) | vyžadováno |
 | `sysman-tui` | Kompletní system manager (TUI vstup) | vyžadováno |
-| `svman` | Správa služeb (GUI + TUI) | vyžadováno |
-| `svman-tui` | Správa služeb (pouze TUI) | ne |
-| `ugman` | Správa uživatelů a skupin (GUI + TUI) | vyžadováno |
-| `ugman-tui` | Správa uživatelů a skupin (pouze TUI) | ne |
-| `infoman` | Systémové informace (GUI + TUI) | vyžadováno |
-| `infoman-tui` | Systémové informace (pouze TUI) | ne |
-| `srcman` | Správa šablon xbps-src (GUI + TUI) | vyžadováno |
-| `srcman-tui` | Správa šablon xbps-src (pouze TUI) | ne |
+| `serman` | Správa služeb (GUI + TUI) | vyžadováno |
+| `serman-tui` | Správa služeb (pouze TUI) | ne |
+| `ugsman` | Správa uživatelů a skupin (GUI + TUI) | vyžadováno |
+| `ugsman-tui` | Správa uživatelů a skupin (pouze TUI) | ne |
+| `infman` | Systémové informace (GUI + TUI) | vyžadováno |
+| `infman-tui` | Systémové informace (pouze TUI) | ne |
+| `srcman` | Správa šablon (GUI + TUI) | vyžadováno |
+| `srcman-tui` | Správa šablon (pouze TUI) | ne |
 | `pkgman` | Správa balíčků (GUI + TUI) | vyžadováno |
 | `pkgman-tui` | Správa balíčků (pouze TUI) | ne |
+| `vmsman` | Správa VM (GUI + TUI) | vyžadováno |
+| `vmsman-tui` | Správa VM (pouze TUI) | ne |
 
 ```bash
-make build          # všechny 12 binárky
-make build-svman    # build/svman
-make build-svman-tui
+make build          # všechny 14 binárky
+make build-serman   # build/serman
+make build-serman-tui
 # … viz cíle Makefile níže
 ```
 
@@ -72,14 +74,14 @@ sysman              # GUI (výchozí, pokud je dostupný display)
 sysman --tui        # TUI
 sysman --help
 
-svman               # Services GUI
-svman --tui         # Services TUI
+serman               # Services GUI
+serman --tui         # Services TUI
 
-ugman               # Users & Groups GUI
-ugman-tui           # Users & Groups (pouze TUI)
+ugsman               # Users & Groups GUI
+ugsman-tui           # Users & Groups (pouze TUI)
 
-infoman             # SysInfo GUI
-infoman-tui         # SysInfo (pouze TUI)
+infman               # SysInfo GUI
+infman-tui           # SysInfo (pouze TUI)
 
 srcman              # Templates GUI (čte $XBPS_DISTDIR)
 srcman-tui          # Templates (pouze TUI)
@@ -156,45 +158,45 @@ pkgman-tui          # Packages (pouze TUI)
 
 ```
 SysMan/
-├── main.go                    # Vstupní bod svman (samostatné Services)
+├── main.go                    # Vstupní bod sysman
 ├── Makefile
 ├── lang/                      # Překlady (cs, en)
 ├── api/
 │   └── plugin.go              # Rozhraní PluginIF
-├── plugin/                    # Plugin Services (runit přes sv)
+├── serman/                    # Plugin Services (runit přes sv)
 │   ├── plugin.go              # Plugin, New, NewRunit, NewWithBackend
 │   ├── plugin_gui.go          # Content / ShowAbout
 │   ├── gui.go                 # Fyne GUI
 │   ├── tui.go                 # Bubbletea TUI
 │   ├── common.go              # Service, rozhraní Backend, RunitBackend
 │   └── i18n.go                # Překlady
-├── xbps-pkg/                  # Plugin Packages (xbps)
+├── pkgman/                    # Plugin Packages (xbps)
 │   ├── plugin.go
 │   ├── common.go              # Rozhraní PkgBackend, XbpsBackend
 │   ├── plugin_gui.go          # Content
 │   └── tui.go                 # Bubbletea TUI
-├── xbps-src/                  # Plugin Templates (xbps-src)
-├── sysinfo/                   # Plugin SysInfo (fastfetch)
-├── usergroups/                # Plugin Users & Groups
+├── srcman/                    # Plugin Templates
+├── infman/                    # Plugin SysInfo (fastfetch)
+├── ugsman/                    # Plugin Users & Groups
 │   ├── plugin.go
 │   ├── gui.go                 # Fyne GUI + RunGUI
 │   ├── tui.go                 # Bubbletea TUI + RunTUI
 │   └── users.go               # Načítání uživatelů/skupin
 ├── cmd/
-│   ├── sysmanager/            # sysman / sysman-tui
-│   ├── svman-tui/             # svman-tui (bez CGO)
-│   ├── ugman-gui/             # ugman
-│   ├── ugman-tui/             # ugman-tui (bez CGO)
+│   ├── sysman-gui/            # sysman / sysman-tui
+│   ├── serman-gui/            # serman
+│   ├── serman-tui/            # serman-tui (bez CGO)
+│   ├── ugsman-gui/            # ugsman
+│   ├── ugsman-tui/            # ugsman-tui (bez CGO)
 │   ├── pkgman-gui/            # pkgman
-│   ├── infoman-gui/           # infoman
-│   ├── infoman-tui/           # infoman-tui (bez CGO)
+│   ├── pkgman-tui/            # pkgman-tui (bez CGO)
+│   ├── infman-gui/            # infman
+│   ├── infman-tui/            # infman-tui (bez CGO)
 │   ├── srcman-gui/            # srcman
-│   └── srcman-tui/            # srcman-tui (bez CGO)
-└── pluginentry/               # Vstupní body pro dynamické .so pluginy
-    ├── svman/
-    ├── xbps-pkg/
-    ├── xbps-src/
-    └── sysinfo/
+│   ├── srcman-tui/            # srcman-tui (bez CGO)
+│   ├── vmsman-gui/            # vmsman
+│   └── vmsman-tui/            # vmsman-tui (bez CGO)
+└── vmsman/                    # Plugin VM manager
 ```
 
 ---
@@ -214,12 +216,12 @@ type PluginIF interface {
 ### Vložení Services do Fyne aplikace
 
 ```go
-import svman "codeberg.org/oSoWoSo/SysMan/plugin"
+import serman "codeberg.org/oSoWoSo/SysMan/serman"
 
-svman.InitI18n()
-p := svman.New("/etc/sv", "/var/service")   // runit backend
+serman.InitI18n()
+p := serman.New("/etc/sv", "/var/service")   // runit backend
 // nebo s vlastním backendem:
-p = svman.NewWithBackend(&MyOpenRCBackend{})
+p = serman.NewWithBackend(&MyOpenRCBackend{})
 
 tabs := container.NewAppTabs(
     container.NewTabItem(p.Name(), p.Content(win)),
@@ -229,19 +231,19 @@ tabs := container.NewAppTabs(
 ### Vložení Packages do Fyne aplikace
 
 ```go
-import xbpspkg "codeberg.org/oSoWoSo/SysMan/xbps-pkg"
+import pkgman "codeberg.org/oSoWoSo/SysMan/pkgman"
 
-p := xbpspkg.New()                         // xbps backend
+p := pkgman.New()                         // xbps backend
 // nebo s vlastním backendem:
-p = xbpspkg.NewWithBackend(&MyAptBackend{})
+p = pkgman.NewWithBackend(&MyAptBackend{})
 ```
 
 ### Vložení Users & Groups do Fyne aplikace
 
 ```go
-import "codeberg.org/oSoWoSo/SysMan/usergroups"
+import "codeberg.org/oSoWoSo/SysMan/ugsman"
 
-p := usergroups.New()
+p := ugsman.New()
 tabs := container.NewAppTabs(
     container.NewTabItem(p.Name(), p.Content(win)),
 )
@@ -255,11 +257,11 @@ _ = p.Model()
 type MyOpenRCBackend struct{}
 
 func (b *MyOpenRCBackend) Dirs() (string, string)                         { return "/etc/init.d", "/etc/runlevels/default" }
-func (b *MyOpenRCBackend) List() []plugin.Service                         { … }
+func (b *MyOpenRCBackend) List() []serman.Service                         { … }
 func (b *MyOpenRCBackend) Enable(name string) error                       { … }
 func (b *MyOpenRCBackend) Disable(name string) error                      { … }
-func (b *MyOpenRCBackend) Status(name string) plugin.ServiceStatus        { … }
-func (b *MyOpenRCBackend) StatusAll(names []string) map[string]plugin.ServiceStatus { … }
+func (b *MyOpenRCBackend) Status(name string) serman.ServiceStatus        { … }
+func (b *MyOpenRCBackend) StatusAll(names []string) map[string]serman.ServiceStatus { … }
 func (b *MyOpenRCBackend) Start(name string) error                        { … }
 func (b *MyOpenRCBackend) Stop(name string) error                         { … }
 func (b *MyOpenRCBackend) Restart(name string) error                      { … }
@@ -268,7 +270,7 @@ func (b *MyOpenRCBackend) Pause(name string) error                        { … 
 func (b *MyOpenRCBackend) Continue(name string) error                     { … }
 func (b *MyOpenRCBackend) Kill(name string) error                         { … }
 
-p := svman.NewWithBackend(&MyOpenRCBackend{})
+p := serman.NewWithBackend(&MyOpenRCBackend{})
 ```
 
 ### Dynamické načítání pluginů
@@ -301,19 +303,21 @@ go build -buildmode=plugin -o plugins/myplugin.so ./myplugin/
 
 | Cíl | Výstup |
 |---|---|
-| `make build` | všechny 12 binárky |
+| `make build` | všechny 14 binárky |
 | `make build-sysman` | `build/sysman` — kompletní system manager |
 | `make build-sysman-tui` | `build/sysman-tui` — kompletní system manager (TUI vstup) |
-| `make build-svman` | `build/svman` — Services samostatně |
-| `make build-svman-tui` | `build/svman-tui` — Services TUI (bez CGO) |
-| `make build-ugman` | `build/ugman` — Users & Groups samostatně |
-| `make build-ugman-tui` | `build/ugman-tui` — Users & Groups TUI (bez CGO) |
-| `make build-infoman` | `build/infoman` — SysInfo samostatně |
-| `make build-infoman-tui` | `build/infoman-tui` — SysInfo TUI (bez CGO) |
+| `make build-serman` | `build/serman` — Services samostatně |
+| `make build-serman-tui` | `build/serman-tui` — Services TUI (bez CGO) |
+| `make build-ugsman` | `build/ugsman` — Users & Groups samostatně |
+| `make build-ugsman-tui` | `build/ugsman-tui` — Users & Groups TUI (bez CGO) |
+| `make build-infman` | `build/infman` — SysInfo samostatně |
+| `make build-infman-tui` | `build/infman-tui` — SysInfo TUI (bez CGO) |
 | `make build-srcman` | `build/srcman` — Templates samostatně |
 | `make build-srcman-tui` | `build/srcman-tui` — Templates TUI (bez CGO) |
 | `make build-pkgman` | `build/pkgman` — Packages samostatně |
 | `make build-pkgman-tui` | `build/pkgman-tui` — Packages TUI (bez CGO) |
+| `make build-vmsman` | `build/vmsman` — VM manager samostatně |
+| `make build-vmsman-tui` | `build/vmsman-tui` — VM manager TUI (bez CGO) |
 | `make build-plugins` | `build/plugins/*.so` — dynamické pluginy |
 | `make test` | testy s detektorem závodů |
 | `make lint` | `go vet` + golangci-lint |
