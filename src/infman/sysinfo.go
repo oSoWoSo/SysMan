@@ -11,7 +11,6 @@ package infman
 import (
 	"bufio"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,15 +18,12 @@ import (
 	"strings"
 	"syscall"
 
-	"image/color"
-
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	serman "codeberg.org/oSoWoSo/SysMan/src/serman"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	tea "github.com/charmbracelet/bubbletea"
@@ -286,26 +282,7 @@ func formatGB(bytes uint64) string {
 // logoImage tries to load a distro logo PNG from well-known paths.
 // Returns nil when no logo is found.
 func logoImage() *canvas.Image {
-	candidates := []string{}
-	if exe, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exe)
-		candidates = append(candidates, filepath.Join(dir, "void-transparent.png"))
-	}
-	candidates = append(candidates,
-		os.ExpandEnv("$HOME/.config/fastfetch/void-transparent.png"),
-		os.ExpandEnv("$HOME/.dotfiles/config/fastfetch/void-transparent.png"),
-		"/usr/share/pixmaps/void-transparent.png",
-		"/usr/share/pixmaps/void-logo.png",
-	)
-	for _, path := range candidates {
-		if _, err := os.Stat(path); err == nil {
-			img := canvas.NewImageFromURI(storage.NewFileURI(path))
-			img.FillMode = canvas.ImageFillContain
-			img.SetMinSize(fyne.NewSize(200, 200))
-			return img
-		}
-	}
-	return nil
+	return common.LogoImage()
 }
 
 // ── GUI ────────────────────────────────────────────────────────────────
@@ -349,31 +326,17 @@ func (l *fixedWidthLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 
 // showAbout displays the About dialog for infoman.
 func showAbout(win fyne.Window) {
-	title := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
-	title.TextSize = 26
-	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
-	subtitle := canvas.NewText(t("app.subtitle"), color.NRGBA{R: 0x88, G: 0x88, B: 0x88, A: 0xff})
-	subtitle.TextSize = 12
-	infoForm := widget.NewForm(
-		widget.NewFormItem(t("about.version"), widget.NewLabel(serman.Version)),
-		widget.NewFormItem(t("about.author"), widget.NewLabel(serman.AppAuthor)),
-		widget.NewFormItem(t("about.license"), widget.NewLabel(serman.AppLicense)),
-	)
-	repoURL, _ := url.Parse(serman.AppURL)
-	link := widget.NewHyperlink(serman.AppURL, repoURL)
-	descLabel := widget.NewLabel(t("about.description"))
-	descLabel.Wrapping = fyne.TextWrapWord
-	content := container.NewVBox(
-		container.NewCenter(title),
-		container.NewCenter(subtitle),
-		widget.NewSeparator(),
-		infoForm,
-		container.NewCenter(link),
-		widget.NewSeparator(),
-		descLabel,
-	)
-	d := dialog.NewCustom(t("btn.about"), t("btn.close"), content, win)
-	d.Show()
+	common.ShowAbout(common.AboutConfig{
+		Win:       win,
+		Title:     t("app.title"),
+		Subtitle:  t("app.subtitle"),
+		Version:   serman.Version,
+		Author:    serman.AppAuthor,
+		License:   serman.AppLicense,
+		URL:       serman.AppURL,
+		DialogBtn: t("btn.about"),
+		CloseBtn:  t("btn.close"),
+	})
 }
 
 // Content builds the Fyne widget tree showing system information.
