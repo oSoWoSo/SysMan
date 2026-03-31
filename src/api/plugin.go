@@ -9,8 +9,8 @@
 package api
 
 import (
-	"fyne.io/fyne/v2"
 	"codeberg.org/oSoWoSo/SysMan/src/common"
+	"fyne.io/fyne/v2"
 	tea "github.com/charmbracelet/bubbletea"
 )
 

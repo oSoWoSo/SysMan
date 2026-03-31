@@ -6,8 +6,8 @@ import (
 
 func TestPkgnameFromFull_Basic(t *testing.T) {
 	tests := []struct {
-		input    string
-		want    string
+		input string
+		want  string
 	}{
 		{"vim-9.2.0_1", "vim"},
 		{"bash-5.2.0", "bash"},

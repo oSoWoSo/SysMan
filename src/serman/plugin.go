@@ -31,7 +31,7 @@ import (
 // Plugin is the embeddable svman component.
 // Construct one with New() or NewWithBackend(); then call Content() or Model().
 type Plugin struct {
-	backend  Backend
+	backend   Backend
 	statusBar *common.StatusBar
 }
 

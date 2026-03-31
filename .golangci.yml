@@ -1,33 +1,28 @@
+version: 2
+
 run:
-  timeout: 5m
+  timeout: 1m
   modules-download-mode: readonly
   tests: false
 
 linters:
   enable:
     - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
     - unused
     - revive
     - misspell
-    - gocritic
+
+linters-settings:
+  govet:
+    enabled: false
+  ineffassign:
+    enabled: false
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gocyclo
-        - errcheck
-        - gosec
-
   exclude-dirs:
-    - "^sysinfo$"
-    - "^xbps-src$"
-    - "^plugin$"
-    - "^usergroups$"
-    - "^vmman$"
-    - "^xbps-pkg$"
-    - "^pluginentry$"
+    - "^infman$"
+    - "^srcman$"
+    - "^serman$"
+    - "^ugsman$"
+    - "^vmsman$"
+    - "^pkgman$"

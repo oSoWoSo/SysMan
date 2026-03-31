@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	commonconfig "codeberg.org/oSoWoSo/SysMan/src/common"
 	"codeberg.org/oSoWoSo/SysMan/src/common"
+	commonconfig "codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
 	tea "github.com/charmbracelet/bubbletea"
 )
