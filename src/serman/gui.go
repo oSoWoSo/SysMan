@@ -379,20 +379,20 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		s.serviceList.Refresh()
 		s.updateCount()
 		s.clearDetail()
-		btnFilterAll.Button.Importance = widget.MediumImportance
-		btnFilterEnabled.Button.Importance = widget.MediumImportance
-		btnFilterDisabled.Button.Importance = widget.MediumImportance
+		btnFilterAll.Importance = widget.MediumImportance
+		btnFilterEnabled.Importance = widget.MediumImportance
+		btnFilterDisabled.Importance = widget.MediumImportance
 		switch f {
 		case FilterEnabled:
-			btnFilterEnabled.Button.Importance = widget.HighImportance
+			btnFilterEnabled.Importance = widget.HighImportance
 		case FilterDisabled:
-			btnFilterDisabled.Button.Importance = widget.HighImportance
+			btnFilterDisabled.Importance = widget.HighImportance
 		default:
-			btnFilterAll.Button.Importance = widget.HighImportance
+			btnFilterAll.Importance = widget.HighImportance
 		}
-		btnFilterAll.Button.Refresh()
-		btnFilterEnabled.Button.Refresh()
-		btnFilterDisabled.Button.Refresh()
+		btnFilterAll.Refresh()
+		btnFilterEnabled.Refresh()
+		btnFilterDisabled.Refresh()
 	}
 
 	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.filter_all"), s.statusBar, func() { applyFilter(FilterAll) })
@@ -439,7 +439,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 			s.serviceList.Select(s.selected)
 		}
 	})
-	s.btnEnable.Button.Importance = widget.HighImportance
+	s.btnEnable.Importance = widget.HighImportance
 
 	s.btnDisable = common.NewHoverableButton(t("btn.disable"), theme.DeleteIcon(), t("tooltip.disable"), s.statusBar, func() {
 		list := s.filtered()
@@ -491,7 +491,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 			s.refreshOneStatus(name)
 		}()
 	})
-	s.btnStart.Button.Importance = widget.SuccessImportance
+	s.btnStart.Importance = widget.SuccessImportance
 
 	s.btnStop = common.NewHoverableButton(t("btn.stop"), theme.MediaStopIcon(), t("tooltip.stop"), s.statusBar, func() {
 		list := s.filtered()
@@ -517,7 +517,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 				}()
 			}, s.win)
 	})
-	s.btnStop.Button.Importance = widget.DangerImportance
+	s.btnStop.Importance = widget.DangerImportance
 
 	s.btnRestart = common.NewHoverableButton(t("btn.restart"), theme.ViewRefreshIcon(), t("tooltip.restart"), s.statusBar, func() {
 		list := s.filtered()

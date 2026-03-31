@@ -65,12 +65,10 @@ type tuiModel struct {
 type tuiVMMsg struct{ vms []VM }
 type tuiErrMsg struct{ err error }
 type tuiStatusMsg struct{ msg string }
-type tuiOpDoneMsg struct{ name, action string }
 
 var (
 	tkeyUp      = key.NewBinding(key.WithKeys("up", "k"))
 	tkeyDown    = key.NewBinding(key.WithKeys("down", "j"))
-	tkeyToggle  = key.NewBinding(key.WithKeys("enter", " "))
 	tkeyConnect = key.NewBinding(key.WithKeys("c"))
 	tkeyBoot    = key.NewBinding(key.WithKeys("b"))
 	tkeyKill    = key.NewBinding(key.WithKeys("k"))
@@ -110,14 +108,6 @@ func (m tuiModel) clampCursor() tuiModel {
 		m.cursor = len(list) - 1
 	}
 	return m
-}
-
-func (m tuiModel) currentName() string {
-	list := m.filtered()
-	if m.cursor < 0 || m.cursor >= len(list) {
-		return ""
-	}
-	return list[m.cursor].Name
 }
 
 func (m tuiModel) selectedVM() *VM {

@@ -266,7 +266,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 			CloseBtn:  t("btn.close"),
 		})
 	})
-	s.btnAbout.Button.Importance = widget.LowImportance
+	s.btnAbout.Importance = widget.LowImportance
 
 	buttonRow := container.NewHBox(s.btnBoot, s.btnKill, s.btnConnect, layout.NewSpacer())
 

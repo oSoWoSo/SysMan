@@ -48,7 +48,7 @@ func LoadUsers(showSystem bool) []User {
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	groups := gidToName()
 
@@ -99,7 +99,7 @@ func LoadGroups() []Group {
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var groups []Group
 	scanner := bufio.NewScanner(f)
@@ -137,7 +137,7 @@ func gidToName() map[int]string {
 	if err != nil {
 		return m
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		fields := strings.Split(scanner.Text(), ":")

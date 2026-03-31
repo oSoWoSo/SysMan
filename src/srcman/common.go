@@ -201,8 +201,8 @@ func RunXbpsPtyCtx(ctx context.Context, distDir string, w io.Writer, args ...str
 	if err != nil {
 		return "", err
 	}
-	defer pty.Close()
-	defer tty.Close()
+	defer func() { _ = pty.Close() }()
+	defer func() { _ = tty.Close() }()
 
 	dir := ResolveDistDir(distDir)
 	cmd := exec.Command(args[0], args[1:]...) //nolint:gosec
@@ -215,7 +215,7 @@ func RunXbpsPtyCtx(ctx context.Context, distDir string, w io.Writer, args ...str
 	if err := cmd.Start(); err != nil {
 		return "", err
 	}
-	tty.Close()
+	_ = tty.Close()
 
 	// Kill the whole process group when context is cancelled.
 	pgid := cmd.Process.Pid
@@ -230,7 +230,7 @@ func RunXbpsPtyCtx(ctx context.Context, distDir string, w io.Writer, args ...str
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
-			break
+			return strings.TrimSpace(buf.String()), ctx.Err()
 		default:
 		}
 		line := scanner.Text()
@@ -239,7 +239,7 @@ func RunXbpsPtyCtx(ctx context.Context, distDir string, w io.Writer, args ...str
 			_, _ = io.WriteString(w, line+"\n")
 		}
 	}
-	pty.Close()
+	_ = pty.Close()
 	err = cmd.Wait()
 	if ctx.Err() != nil {
 		return strings.TrimSpace(buf.String()), ctx.Err()
@@ -267,11 +267,11 @@ func RunXbpsStreamCtx(ctx context.Context, distDir string, w io.Writer, args ...
 	cmd.Stderr = pw
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
-		pw.Close()
-		pr.Close()
+		_ = pw.Close()
+		_ = pr.Close()
 		return "", err
 	}
-	pw.Close()
+	_ = pw.Close()
 
 	// Kill the whole process group when context is cancelled.
 	pgid := cmd.Process.Pid
@@ -290,7 +290,7 @@ func RunXbpsStreamCtx(ctx context.Context, distDir string, w io.Writer, args ...
 			_, _ = io.WriteString(w, line+"\n")
 		}
 	}
-	pr.Close()
+	_ = pr.Close()
 	err = cmd.Wait()
 	if ctx.Err() != nil {
 		return strings.TrimSpace(buf.String()), ctx.Err()

@@ -82,7 +82,7 @@ func LoadVMs(vmDir string) []VM {
 
 		pidPath := filepath.Join(vmDir, name+".pid")
 		if data, err := os.ReadFile(pidPath); err == nil {
-			fmt.Sscanf(strings.TrimSpace(string(data)), "%d", &vm.PID)
+			_, _ = fmt.Sscanf(strings.TrimSpace(string(data)), "%d", &vm.PID)
 			if vm.PID > 0 {
 				if _, err := os.Stat(fmt.Sprintf("/proc/%d", vm.PID)); err == nil {
 					vm.Running = true
@@ -95,7 +95,7 @@ func LoadVMs(vmDir string) []VM {
 			lines := strings.Split(string(data), "\n")
 			for _, line := range lines {
 				if strings.HasPrefix(line, "SPICE=") {
-					fmt.Sscanf(strings.TrimPrefix(line, "SPICE="), "%d", &vm.SPICEPort)
+					_, _ = fmt.Sscanf(strings.TrimPrefix(line, "SPICE="), "%d", &vm.SPICEPort)
 				}
 			}
 		}
