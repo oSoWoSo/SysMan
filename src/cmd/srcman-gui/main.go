@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	srcman.InitI18n()
 	mode := "auto"
 	distDir := os.Getenv("XBPS_DISTDIR")
 	for _, arg := range os.Args[1:] {

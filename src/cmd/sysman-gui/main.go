@@ -48,6 +48,11 @@ import (
 
 func main() {
 	serman.InitI18n()
+	pkgman.InitI18n()
+	srcman.InitI18n()
+	infman.InitI18n()
+	ugsman.InitI18n()
+	vmman.InitI18n()
 
 	serviceDir := os.Getenv("SERVICEDIR")
 	if serviceDir == "" {

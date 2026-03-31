@@ -14,6 +14,7 @@ import (
 
 func main() {
 	serman.InitI18n()
+	serman.InitI18n()
 
 	serviceDir := os.Getenv("SERVICEDIR")
 	if serviceDir == "" {
