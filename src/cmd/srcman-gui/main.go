@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	xbpssrc "codeberg.org/oSoWoSo/SysMan/src/xbps_src"
+	"codeberg.org/oSoWoSo/SysMan/src/srcman"
 )
 
 func main() {
@@ -14,7 +14,7 @@ func main() {
 	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "--help", "-h":
-			fmt.Println(xbpssrc.Usage)
+			fmt.Println(srcman.Usage)
 			os.Exit(0)
 		case "--tui", "-t":
 			mode = "tui"
@@ -41,8 +41,8 @@ func main() {
 
 	switch mode {
 	case "tui":
-		xbpssrc.RunTUI(distDir)
+		srcman.RunTUI(distDir)
 	default:
-		xbpssrc.RunGUI(distDir)
+		srcman.RunGUI(distDir)
 	}
 }

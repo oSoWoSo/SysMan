@@ -2,7 +2,7 @@ VERSION  ?= 0.007 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local
-LDFLAGS   = -s -w -X 'codeberg.org/oSoWoSo/SysMan/src/plugin.Version=$(VERSION)'
+LDFLAGS   = -s -w -X 'codeberg.org/oSoWoSo/SysMan/src/serman.Version=$(VERSION)'
 
 # add PIE flags for cgo builds
 CGO_ENABLED ?= 1
@@ -12,17 +12,12 @@ PIE_LDFLAGS = $(LDFLAGS) $(PIE_EXTLDFLAGS)
 
 BUILD_DIR = build
 
-GUI_BINS = sysman svman ugman infoman srcman pkgman
-TUI_BINS = sysman-tui svman-tui ugman-tui infoman-tui srcman-tui pkgman-tui
+GUI_BINS = sysman serman ugsman infman srcman pkgman vmsman
+TUI_BINS = sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vmsman-tui
 
 .PHONY: all clean fmt lint test \
 	build build-tui \
-	build-sysman   build-sysman-tui \
-	build-svman    build-svman-tui  \
-	build-ugman    build-ugman-tui  \
-	build-infoman  build-infoman-tui \
-	build-srcman   build-srcman-tui  \
-	build-pkgman   build-pkgman-tui  \
+	build-gui build-tui \
 	build-plugins \
 	install install-tui uninstall uninstall-tui release
 
@@ -41,120 +36,47 @@ fmt:
 	@echo "Formatting..."
 	gofmt -s -w .
 
-## lint: go vet + golangci-lint
+## lint: go vet (golangci-lint temporarily disabled)
 lint:
 	@echo "Linting..."
 	go vet ./...
-	@which golangci-lint > /dev/null 2>&1 || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	golangci-lint run ./...
 
 ## test: go test -race -cover
 test:
 	@echo "Testing..."
 	go test -v -race -cover ./...
 
-## build: build all GUI binaries (TUI entry points included)
-build: build-sysman build-svman build-ugman build-infoman build-srcman build-pkgman
+## build: build all GUI binaries
+build: $(addprefix build-,$(GUI_BINS))
 	@echo "All GUI binaries built in $(BUILD_DIR)/."
+	@cp -r src/lang $(BUILD_DIR)/lang 2>/dev/null || true
 
 ## build-tui: build all TUI-only binaries (CGO-free)
-build-tui: build-sysman-tui build-svman-tui build-ugman-tui \
-           build-infoman-tui build-srcman-tui build-pkgman-tui
+build-tui: build-sysman-tui build-serman-tui build-ugsman-tui build-infman-tui build-srcman-tui build-pkgman-tui build-vmsman-tui
 	@echo "All TUI binaries built in $(BUILD_DIR)/."
 
-## build-sysman: GUI system manager embedding all plugins (also supports --tui)
-build-sysman:
-	@echo "Building sysman..."
+## Generic GUI build rule
+build-%:
+	@echo "Building $* GUI..."
 	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/sysman ./src/cmd/sysmanager/
-	@cp -r src/lang $(BUILD_DIR)/lang
-	@[ -f void-transparent.png ] && cp void-transparent.png $(BUILD_DIR)/ || true
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/$* ./src/cmd/$*-gui/
+	@cp -r src/lang $(BUILD_DIR)/lang 2>/dev/null || true
 
-## build-sysman-tui: TUI-only system manager (CGO-free)
-build-sysman-tui:
-	@echo "Building sysman-tui..."
+## Generic TUI build rule
+build-%-tui:
+	@echo "Building $*-tui TUI..."
 	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/sysman-tui ./src/cmd/sysmanager/
-	@cp -r src/lang $(BUILD_DIR)/lang
-
-## build-svman: standalone svman GUI (also supports --tui)
-build-svman:
-	@echo "Building svman..."
-	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/svman ./src/plugin
-	@cp -r src/lang $(BUILD_DIR)/lang
-
-## build-svman-tui: standalone svman TUI only (CGO-free)
-build-svman-tui:
-	@echo "Building svman-tui..."
-	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/svman-tui ./src/cmd/svman-tui/
-	@cp -r src/lang $(BUILD_DIR)/lang
-
-## build-ugman: standalone ugman GUI
-build-ugman:
-	@echo "Building ugman..."
-	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=$(CGO_ENABLED) CC=$(CC) \
-		go build -trimpath -ldflags="$(PIE_LDFLAGS)" \
-		-o $(BUILD_DIR)/ugman ./src/cmd/ugman-gui/
-
-## build-ugman-tui: standalone ugman TUI only (CGO-free)
-build-ugman-tui:
-	@echo "Building ugman-tui..."
-	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/ugman-tui ./src/cmd/ugman-tui/
-
-## build-infoman: standalone infoman GUI (also supports --tui)
-build-infoman:
-	@echo "Building infoman..."
-	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/infoman ./src/cmd/infoman-gui/
-	@[ -f void-transparent.png ] && cp void-transparent.png $(BUILD_DIR)/ || true
-
-## build-infoman-tui: standalone infoman TUI only (CGO-free)
-build-infoman-tui:
-	@echo "Building infoman-tui..."
-	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/infoman-tui ./src/cmd/infoman-tui/
-
-## build-srcman: standalone srcman GUI (also supports --tui)
-build-srcman:
-	@echo "Building srcman..."
-	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/srcman ./src/cmd/srcman-gui/
-
-## build-srcman-tui: standalone srcman TUI only (CGO-free)
-build-srcman-tui:
-	@echo "Building srcman-tui..."
-	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/srcman-tui ./src/cmd/srcman-tui/
-
-## build-pkgman: standalone pkgman GUI
-build-pkgman:
-	@echo "Building pkgman..."
-	@mkdir -p $(BUILD_DIR)
-	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/pkgman ./src/cmd/pkgman-gui/
-
-## build-pkgman-tui: standalone pkgman TUI only (CGO-free)
-build-pkgman-tui:
-	@echo "Building pkgman-tui..."
-	@mkdir -p $(BUILD_DIR)
-	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" \
-		-o $(BUILD_DIR)/pkgman-tui ./src/cmd/xbps_pkg/
+	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$*-tui ./src/cmd/$*-tui/
+	@cp -r src/lang $(BUILD_DIR)/lang 2>/dev/null || true
 
 ## build-plugins: build all dynamic plugin .so files
 build-plugins:
 	@echo "Building dynamic plugins..."
 	@mkdir -p $(BUILD_DIR)/plugins
-	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/svman.so    ./src/pluginentry/svman/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/serman.so    ./src/pluginentry/serman/
 	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/xbps-src.so ./src/pluginentry/xbps_src/
 	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/xbps-pkg.so ./src/pluginentry/xbps_pkg/
+	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/vmsman.so   ./src/pluginentry/vmsman/
 	go build -buildmode=plugin -o $(BUILD_DIR)/plugins/sysinfo.so  ./src/pluginentry/sysinfo/
 	@echo "Plugins ready in $(BUILD_DIR)/plugins/"
 

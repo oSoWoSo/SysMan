@@ -4,23 +4,23 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/oSoWoSo/SysMan/src/plugin"
+	"codeberg.org/oSoWoSo/SysMan/src/serman"
 )
 
 // main is the application entry point.
 // It initializes translations, parses command-line arguments,
 // reads environment configuration, and launches the selected UI mode.
 func main() {
-	plugin.InitI18n()
+	serman.InitI18n()
 
 	// Read service directories from environment or use defaults.
 	serviceDir := os.Getenv("SERVICEDIR")
 	if serviceDir == "" {
-		serviceDir = plugin.DefaultServiceDir
+		serviceDir = serman.DefaultServiceDir
 	}
 	serviceDestDir := os.Getenv("SERVICEDESTDIR")
 	if serviceDestDir == "" {
-		serviceDestDir = plugin.DefaultServiceDestDir
+		serviceDestDir = serman.DefaultServiceDestDir
 	}
 
 	// Parse command-line arguments and select UI mode.
@@ -32,7 +32,7 @@ func main() {
 		case "--gui", "-g":
 			mode = "gui"
 		case "--help", "-h":
-			fmt.Println(plugin.Usage)
+			fmt.Println(serman.Usage)
 			os.Exit(0)
 		}
 	}
@@ -57,8 +57,8 @@ func main() {
 	// Launch the selected UI mode.
 	switch mode {
 	case "tui":
-		plugin.RunTUI(serviceDir, serviceDestDir)
+		serman.RunTUI(serviceDir, serviceDestDir)
 	default:
-		plugin.RunGUI(serviceDir, serviceDestDir)
+		serman.RunGUI(serviceDir, serviceDestDir)
 	}
 }

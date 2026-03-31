@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
 
-	"codeberg.org/oSoWoSo/SysMan/src/sysinfo"
+	"codeberg.org/oSoWoSo/SysMan/src/infman"
 )
 
 // ansiColoredSegment is a RichTextSegment that renders text in a specific color.
@@ -43,7 +43,7 @@ func (s *ansiColoredSegment) Update(o fyne.CanvasObject) {
 
 // HasAnsiCodes checks if text contains ANSI SGR escape sequences.
 func HasAnsiCodes(text string) bool {
-	return sysinfo.AnsiRe.MatchString(text)
+	return infman.AnsiRe.MatchString(text)
 }
 
 // AnsiToRichSegments converts text with ANSI SGR codes into Fyne RichText segments.
@@ -75,7 +75,7 @@ func AnsiToRichSegments(text string) []widget.RichTextSegment {
 
 // parseAnsiLine converts a single line with ANSI codes to RichText segments.
 func parseAnsiLine(line string) []widget.RichTextSegment {
-	if !sysinfo.AnsiRe.MatchString(line) {
+	if !infman.AnsiRe.MatchString(line) {
 		// No ANSI codes - return plain text segment
 		if line == "" {
 			return []widget.RichTextSegment{
@@ -94,21 +94,21 @@ func parseAnsiLine(line string) []widget.RichTextSegment {
 	}
 
 	// Split by ANSI codes
-	parts := sysinfo.AnsiRe.Split(line, -1)
-	codes := sysinfo.AnsiRe.FindAllString(line, -1)
+	parts := infman.AnsiRe.Split(line, -1)
+	codes := infman.AnsiRe.FindAllString(line, -1)
 
 	var segs []widget.RichTextSegment
-	curColor := color.Color(sysinfo.DefaultFG)
+	curColor := color.Color(infman.DefaultFG)
 
 	for i, part := range parts {
 		// Process ANSI code BEFORE this text part (if any)
 		if i < len(codes) {
 			code := codes[i]
-			if c, ok := sysinfo.ParseSeq(code); ok {
+			if c, ok := infman.ParseSeq(code); ok {
 				curColor = c
 			} else {
 				// Reset or unknown code - revert to default
-				curColor = sysinfo.DefaultFG
+				curColor = infman.DefaultFG
 			}
 		}
 

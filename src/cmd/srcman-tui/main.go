@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"os"
 
-	xbpssrc "codeberg.org/oSoWoSo/SysMan/src/xbps_src"
+	"codeberg.org/oSoWoSo/SysMan/src/srcman"
 )
 
 func main() {
 	for _, arg := range os.Args[1:] {
 		if arg == "--help" || arg == "-h" {
-			fmt.Println(xbpssrc.Usage)
+			fmt.Println(srcman.Usage)
 			os.Exit(0)
 		}
 	}
-	xbpssrc.RunTUI(os.Getenv("XBPS_DISTDIR"))
+	srcman.RunTUI(os.Getenv("XBPS_DISTDIR"))
 }
