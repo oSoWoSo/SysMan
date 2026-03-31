@@ -4,6 +4,22 @@ All notable changes to SysMan are documented here.
 
 ---
 
+## [0.013 Alpha]
+
+### Added
+- **ForkURL** — personal void-packages clone support in srcman settings
+- **LangDir** — configurable language directory in settings panel
+- **Version mismatch fix** — updated documentation to reflect v0.009+ changes
+- **Module naming** — updated README.md, README-cs.md, AGENTS.md to use new module names (serman, pkgman, srcman, infman, ugsman, vmsman)
+
+### Fixed
+- **Settings panel** — rebuilds on click, preserves LangDir on save
+- **Duplicate config** — removed duplicate serman config from settings
+- **SearchEngine** — fixed default value in srcman settings
+- **Language files** — updated serman lang files to use "serman" instead of "svman"
+
+---
+
 ## [0.009 Alpha]
 
 ### Added
