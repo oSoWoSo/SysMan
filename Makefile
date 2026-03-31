@@ -49,7 +49,7 @@ test:
 ## build: build all GUI binaries
 build: $(addprefix build-,$(GUI_BINS))
 	@echo "All GUI binaries built in $(BUILD_DIR)/."
-	@cp -r src/lang $(BUILD_DIR)/lang 2>/dev/null || true
+	@cp -r src/lang/. $(BUILD_DIR)/lang 2>/dev/null || true
 
 ## build-tui: build all TUI-only binaries (CGO-free)
 build-tui: build-sysman-tui build-serman-tui build-ugsman-tui build-infman-tui build-srcman-tui build-pkgman-tui build-vmsman-tui
@@ -60,14 +60,14 @@ build-%:
 	@echo "Building $* GUI..."
 	@mkdir -p $(BUILD_DIR)
 	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/$* ./src/cmd/$*-gui/
-	@cp -r src/lang $(BUILD_DIR)/lang 2>/dev/null || true
+	@cp -r src/lang/. $(BUILD_DIR)/lang 2>/dev/null || true
 
 ## Generic TUI build rule
 build-%-tui:
 	@echo "Building $*-tui TUI..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$*-tui ./src/cmd/$*-tui/
-	@cp -r src/lang $(BUILD_DIR)/lang 2>/dev/null || true
+	@cp -r src/lang/. $(BUILD_DIR)/lang 2>/dev/null || true
 
 ## build-plugins: build all dynamic plugin .so files
 build-plugins:
