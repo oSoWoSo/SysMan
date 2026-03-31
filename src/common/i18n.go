@@ -26,15 +26,44 @@ var langs = map[string]translations{}
 var T translations
 var i18nOnce sync.Once
 
-func langDirs(module string) []string {
-	dirs := []string{
+// GetLangDirs returns the search paths for language files.
+// Priority: SYSMAN_LANGDIR env > config lang_dir > default paths.
+func GetLangDirs(module string) []string {
+	var dirs []string
+
+	// 1. SYSMAN_LANGDIR environment variable (highest priority)
+	if langDir := os.Getenv("SYSMAN_LANGDIR"); langDir != "" {
+		dirs = append(dirs, filepath.Join(langDir, module))
+	}
+
+	// 2. Config file lang_dir (only if not already set via env)
+	if langDir := os.Getenv("SYSMAN_LANGDIR"); langDir == "" {
+		if cfg := LoadSysManConfig(); cfg.LangDir != "" {
+			dirs = append(dirs, filepath.Join(cfg.LangDir, module))
+		}
+	}
+
+	// 3. Default system paths
+	defaultDirs := []string{
 		"/usr/local/share/SysMan/lang/" + module,
 		"/usr/share/SysMan/lang/" + module,
 	}
 	if exe, err := os.Executable(); err == nil {
-		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", module)}, dirs...)
+		defaultDirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", module)}, defaultDirs...)
 	}
-	dirs = append([]string{"./lang/" + module}, dirs...)
+
+	// 4. Development paths (relative to CWD - various depths)
+	// These cover running from project root, src/, src/<module>/, or during tests
+	dirs = append(dirs, 
+		"./lang/"+module,         // from project root
+		"./src/lang/"+module,      // from project root
+		"../lang/"+module,        // from src/<module>/
+		"../../lang/"+module,     // from src/<module>/ (alternate)
+		"../src/lang/"+module,    // from src/<module>/
+		"../../src/lang/"+module, // from src/<module>/
+	)
+
+	dirs = append(dirs, defaultDirs...)
 	return dirs
 }
 
@@ -87,7 +116,7 @@ func detectLang() string {
 // InitI18n initializes the i18n system.
 func InitI18n() {
 	i18nOnce.Do(func() {
-		for _, dir := range langDirs(".") {
+		for _, dir := range GetLangDirs(".") {
 			loadLangDir(dir)
 		}
 		lang := detectLang()
@@ -106,7 +135,7 @@ func InitI18n() {
 // InitModuleI18n initializes i18n for a module.
 func InitModuleI18n(module string) {
 	i18nOnce.Do(func() {
-		for _, dir := range langDirs(module) {
+		for _, dir := range GetLangDirs(module) {
 			loadLangDir(dir)
 		}
 		lang := detectLang()

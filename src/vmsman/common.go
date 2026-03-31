@@ -203,15 +203,7 @@ var T map[string]string
 var i18nOnce sync.Once
 
 func langDirs() []string {
-	dirs := []string{
-		"/usr/local/share/SysMan/lang/vmsman",
-		"/usr/share/SysMan/lang/vmsman",
-	}
-	if exe, err := os.Executable(); err == nil {
-		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "vmsman")}, dirs...)
-	}
-	dirs = append([]string{"./lang/vmsman"}, dirs...)
-	return dirs
+	return common.GetLangDirs("vmsman")
 }
 
 func loadLangDir(dir string) {

@@ -15,6 +15,7 @@ type SysManConfig struct {
 	Vmsman VmsmanConfig `yaml:"vmsman,omitempty"`
 	Ugsman UgsmanConfig `yaml:"ugsman,omitempty"`
 	Infman InfmanConfig `yaml:"infman,omitempty"`
+	LangDir string      `yaml:"lang_dir,omitempty"`
 }
 
 // SermanConfig is the services configuration.

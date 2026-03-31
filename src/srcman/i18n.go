@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"gopkg.in/yaml.v3"
 )
 
@@ -27,14 +28,7 @@ var (
 )
 
 func langDirs() []string {
-	dirs := []string{
-		"/usr/local/share/SysMan/lang/srcman",
-		"/usr/share/SysMan/lang/srcman",
-	}
-	if exe, err := os.Executable(); err == nil {
-		dirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", "srcman")}, dirs...)
-	}
-	return append([]string{"./lang/srcman"}, dirs...)
+	return common.GetLangDirs("srcman")
 }
 
 func loadLangDir(dir string) {
