@@ -557,7 +557,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	)
 
 	// Build options: -Q (with tests), -C (confpkg) - can be used together
-	checkQ := widget.NewCheck("-Q", func(checked bool) {
+	checkQ := common.NewHoverableCheck("-Q", t("tooltip.srcman.build_q"), g.statusBar, func(checked bool) {
 		if checked {
 			g.buildMode = g.buildMode + " -Q"
 		} else {
@@ -565,7 +565,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		}
 		g.buildMode = strings.TrimSpace(g.buildMode)
 	})
-	checkC := widget.NewCheck("-C", func(checked bool) {
+	checkC := common.NewHoverableCheck("-C", t("tooltip.srcman.build_c"), g.statusBar, func(checked bool) {
 		if checked {
 			g.buildMode = g.buildMode + " -C"
 		} else {
