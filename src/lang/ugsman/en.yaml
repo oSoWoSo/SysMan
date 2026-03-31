@@ -100,4 +100,5 @@ strings:
   tooltip.ugsman.delete_group: "Delete selected group"
   tooltip.ugsman.edit_members: "Edit group members"
   tooltip.ugsman.refresh: "Refresh user and group lists"
+  tooltip.ugsman.show_system: "Show/hide system users (UID < 1000)"
   tooltip.ugsman.about: "About this application"

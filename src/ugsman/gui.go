@@ -399,7 +399,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	// ── Users tab ─────────────────────────────────────────────────────
 	userTable := g.buildUserTable()
 
-	showSystemChk := widget.NewCheck(t("chk.system_users"), func(v bool) {
+	showSystemChk := common.NewHoverableCheck(t("chk.system_users"), t("tooltip.ugsman.show_system"), g.statusBar, func(v bool) {
 		g.showSystem = v
 		g.users = LoadUsers(v)
 		g.selectedUser = -1

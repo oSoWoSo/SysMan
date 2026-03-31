@@ -100,4 +100,5 @@ strings:
   tooltip.ugsman.delete_group: "Smazat vybranou skupinu"
   tooltip.ugsman.edit_members: "Upravit členy skupiny"
   tooltip.ugsman.refresh: "Obnovit seznam uživatelů a skupin"
+  tooltip.ugsman.show_system: "Zobrazit/skrýt systémové uživatele (UID < 1000)"
   tooltip.ugsman.about: "O této aplikaci"
