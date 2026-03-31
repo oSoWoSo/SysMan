@@ -152,3 +152,51 @@ func testLangConsistency(t *testing.T, langDir string) {
 		}
 	}
 }
+func TestTooltipKeysMatch(t *testing.T) {
+	langDir := findLangDir("pkgman")
+	if langDir == "" {
+		t.Skip("lang directory not found")
+	}
+
+	testTooltipKeysMatch(t, langDir, "pkgman")
+}
+
+func testTooltipKeysMatch(t *testing.T, langDir, modName string) {
+	path := filepath.Join(langDir, "en.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read en.yaml: %v", err)
+	}
+
+	var lf struct {
+		Strings map[string]string `yaml:"strings"`
+	}
+	if err := yaml.Unmarshal(data, &lf); err != nil {
+		t.Fatalf("failed to parse YAML: %v", err)
+	}
+
+	goKeys := make(map[string]bool)
+	goFiles := []string{"gui.go", "tui.go"}
+	for _, f := range goFiles {
+		fp := filepath.Join("..", modName, f)
+		if data, err := os.ReadFile(fp); err == nil {
+			content := string(data)
+			prefix := "tooltip." + modName + "."
+			for _, line := range strings.Split(content, "\n") {
+				if idx := strings.Index(line, `t("`+prefix); idx >= 0 {
+					start := idx + len(`t("`+prefix)
+					end := strings.Index(line[start:], `")`)
+					if end > 0 {
+						goKeys[prefix+line[start:start+end]] = true
+					}
+				}
+			}
+		}
+	}
+
+	for key := range goKeys {
+		if _, ok := lf.Strings[key]; !ok {
+			t.Errorf("Go code uses tooltip key '%s' but it's not defined in en.yaml", key)
+		}
+	}
+}
