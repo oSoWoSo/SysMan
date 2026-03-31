@@ -45,6 +45,8 @@ jobs:
           for module in sysman serman pkgman srcman infman ugsman vmsman; do
             # Check if GUI binary exists
             if [ -f "$module" ]; then
+              # Remove any existing directory from previous runs
+              rm -rf "$module"
               mkdir -p "$module"
               cp "$module" "$module/" 2>/dev/null || true
               cp "${module}-tui" "$module/" 2>/dev/null || true
