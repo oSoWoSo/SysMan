@@ -158,7 +158,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	filterAll := common.NewHoverableButtonText(t("filter.all"), t("tooltip.vmsman.filter_all"), s.statusBar, func() { s.applyFilter(FilterAll) })
 	filterRunning := common.NewHoverableButtonText(t("filter.running"), t("tooltip.vmsman.filter_running"), s.statusBar, func() { s.applyFilter(FilterRunning) })
 	filterStopped := common.NewHoverableButtonText(t("filter.stopped"), t("tooltip.vmsman.filter_stopped"), s.statusBar, func() { s.applyFilter(FilterStopped) })
-	filterRow := container.NewHBox(filterAll.Button, filterRunning.Button, filterStopped.Button)
+	filterRow := container.NewHBox(filterAll, filterRunning, filterStopped)
 
 	s.countLabel = widget.NewLabel("")
 	s.countLabel.Alignment = fyne.TextAlignCenter
