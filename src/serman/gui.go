@@ -398,7 +398,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.serman.filter_all"), s.statusBar, func() { applyFilter(FilterAll) })
 	btnFilterEnabled = common.NewHoverableButtonText(t("filter.enabled"), t("tooltip.serman.filter_enabled"), s.statusBar, func() { applyFilter(FilterEnabled) })
 	btnFilterDisabled = common.NewHoverableButtonText(t("filter.disabled"), t("tooltip.serman.filter_disabled"), s.statusBar, func() { applyFilter(FilterDisabled) })
-	filterRow := container.NewHBox(btnFilterAll.Button, btnFilterEnabled.Button, btnFilterDisabled.Button)
+	filterRow := container.NewHBox(btnFilterAll, btnFilterEnabled, btnFilterDisabled)
 
 	// ── Detail panel ─────────────────────────────────────────────────
 	s.detailName = widget.NewLabel(t("detail.empty"))

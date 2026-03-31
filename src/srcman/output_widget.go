@@ -77,7 +77,7 @@ func newOutputPanel(canvas fyne.Canvas, statusBar *common.StatusBar, onSecondary
 	btnClose := common.NewHoverableButton("", theme.CancelIcon(), t("tooltip.srcman.find_close"), p.statusBar, func() { p.HideFind() })
 	btnClose.Importance = widget.LowImportance
 
-	findRight := container.NewHBox(btnPrev.Button, btnNext.Button, p.findLabel, btnClose.Button)
+	findRight := container.NewHBox(btnPrev, btnNext, p.findLabel, btnClose)
 	findEntryWrap := container.New(layout.NewGridWrapLayout(fyne.NewSize(240, 36)), p.findEntry)
 	p.findBar = container.NewHBox(findEntryWrap, findRight)
 	p.findBar.Hide()

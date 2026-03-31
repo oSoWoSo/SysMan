@@ -304,7 +304,7 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.pkgman.filter_all"), g.statusBar, func() { applyFilter(FilterAll) })
 	btnFilterInstalled = common.NewHoverableButtonText(t("filter.installed"), t("tooltip.pkgman.filter_installed"), g.statusBar, func() { applyFilter(FilterInstalled) })
 	btnFilterAvailable = common.NewHoverableButtonText(t("filter.available"), t("tooltip.pkgman.filter_available"), g.statusBar, func() { applyFilter(FilterAvailable) })
-	filterRow := container.NewHBox(btnFilterAll.Button, btnFilterInstalled.Button, btnFilterAvailable.Button)
+	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable)
 
 	// ── Package list ──────────────────────────────────────────────────
 	installedColor := color.RGBA{R: 0x44, G: 0xDD, B: 0x77, A: 0xFF} // grn
