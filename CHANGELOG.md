@@ -71,6 +71,32 @@ All notable changes to SysMan are documented here.
 
 ---
 
+## [0.008 Alpha]
+
+### Added
+- **Common package** (`src/common/`) — unified shared helpers for all plugins:
+  - `common.Filter[T]` — generic filter function replacing 3 duplicate implementations
+  - `common.ShowAbout()` — standardized About dialog replacing 5 duplicate implementations
+  - `common.HoverableButton` — button with hover status text replacing 4 duplicate implementations
+  - `common.SetWindowIcon()` / `common.AppIcon()` / `common.LogoImage()` — application icon helpers
+  - `common.Version`, `common.AppAuthor`, `common.AppLicense`, `common.AppURL` — centralized app metadata
+  - `common.AnsiRe`, `common.ParseSeq`, `common.AnsiToRichSegments` — ANSI rendering helpers
+- **vmsman tooltips** — Czech and English translations for boot, kill, connect, about, reload, filter, search
+- **Window icons** — sysman-gui now sets application icon on startup
+
+### Changed
+- **Package consolidation** — `src/config/` and `src/tui/` merged into `src/common/`
+- **Version management** — ldflags now targets `common.Version` instead of `serman.Version`
+- **All GUI modules** (vmsman, serman, ugsman, infman, pkgman, srcman) use `common.HoverableButton` and `common.ShowAbout`
+- **sysman settings** — fixed config field names (`Serman`, `Vmsman` instead of `Svman`, `Vmman`)
+- **infman** — logo loading now delegates to `common.LogoImage()`
+
+### Fixed
+- **Import cycle** — ANSI constants moved from `infman` to `common` to break `serman → common → infman → serman` cycle
+- **sysman settings** — `dialog.ShowError` now receives an `error` instead of a string
+
+---
+
 ## Earlier history
 
 See `git log` for full history prior to the changelog being introduced.
