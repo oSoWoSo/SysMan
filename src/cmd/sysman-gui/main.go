@@ -88,6 +88,8 @@ func main() {
 	}
 
 	// Built-in plugins — always present, no rebuild needed for these.
+	// Create a shared status bar for all plugins.
+	statusBar := common.NewStatusBar()
 	plugins := []api.PluginIF{
 		infman.New(),
 		pkgman.New(),
@@ -97,10 +99,20 @@ func main() {
 		vmman.New(vmman.DefaultVmDir),
 	}
 
+	// Set the shared status bar on all plugins.
+	for _, p := range plugins {
+		p.SetStatusBar(statusBar)
+	}
+
 	// Dynamic plugins — loaded from PLUGIN_DIR (default: ./plugins/).
 	// Drop a compiled .so here and restart; no rebuild of sysmanager required.
 	extra := loadDynamic(pluginDir())
 	plugins = append(plugins, extra...)
+
+	// Set shared status bar on dynamic plugins too.
+	for _, p := range extra {
+		p.SetStatusBar(statusBar)
+	}
 
 	switch mode {
 	case "tui":
