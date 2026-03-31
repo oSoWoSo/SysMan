@@ -379,30 +379,18 @@ func showAbout(win fyne.Window) {
 // Content builds the Fyne widget tree showing system information.
 // Implements api.PluginIF.
 func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
-	placeholder := widget.NewLabel(t("status.loading"))
+	entries := collectNative()
+	infoView := buildNativeView(entries)
 
-	// infoBox holds the real content after loading; starts hidden.
-	infoBox := container.NewVBox()
-	infoBox.Hide()
+	var inner fyne.CanvasObject
+	if img := logoImage(); img != nil {
+		logoCol := container.NewVBox(layout.NewSpacer(), img, layout.NewSpacer())
+		inner = container.NewHBox(logoCol, infoView)
+	} else {
+		inner = infoView
+	}
 
-	stack := container.NewStack(placeholder, container.NewScroll(infoBox))
-
-	go func() {
-		entries := collectNative()
-		infoView := buildNativeView(entries)
-
-		var inner fyne.CanvasObject
-		if img := logoImage(); img != nil {
-			// Center the logo vertically alongside the key/value list.
-			logoCol := container.NewVBox(layout.NewSpacer(), img, layout.NewSpacer())
-			inner = container.NewHBox(logoCol, infoView)
-		} else {
-			inner = infoView
-		}
-		infoBox.Add(inner)
-		infoBox.Show()
-		placeholder.Hide()
-	}()
+	scroll := container.NewScroll(inner)
 
 	btnAbout := widget.NewButtonWithIcon("", theme.InfoIcon(), func() { showAbout(win) })
 	btnAbout.Importance = widget.LowImportance
@@ -411,7 +399,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 		container.NewPadded(container.NewHBox(btnAbout)),
 	)
 
-	return container.NewBorder(nil, statusBar, nil, nil, stack)
+	return container.NewBorder(nil, statusBar, nil, nil, scroll)
 }
 
 // Model returns a Bubbletea tea.Model showing system information.

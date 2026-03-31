@@ -91,6 +91,20 @@ func isSymlink(path string) bool {
 	return err == nil && info.Mode()&os.ModeSymlink != 0
 }
 
+// runElevated runs a command with privilege escalation and returns an error
+// that includes the exit code when available.
+func runElevated(args ...string) error {
+	cmd := exec.Command(args[0], args[1:]...) //nolint:gosec
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("exit %d: %s", exitErr.ExitCode(), strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("%s: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // ── Loading ──────────────────────────────────────────────────────────
 
 // LoadServices scans the service directory and returns a sorted list of services.
@@ -128,11 +142,7 @@ func EnableService(serviceDir, destDir, name string) error {
 	src := filepath.Join(serviceDir, name)
 	dst := filepath.Join(destDir, name)
 	args := api.Elevate("ln", "-s", src, dst)
-	out, err := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
-	if err != nil {
-		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
-	}
-	return nil
+	return runElevated(args...)
 }
 
 // DisableService removes the symlink from the destination directory,
@@ -141,11 +151,7 @@ func EnableService(serviceDir, destDir, name string) error {
 func DisableService(destDir, name string) error {
 	dst := filepath.Join(destDir, name)
 	args := api.Elevate("rm", dst)
-	out, err := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
-	if err != nil {
-		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
-	}
-	return nil
+	return runElevated(args...)
 }
 
 // ── Runtime status ───────────────────────────────────────────────────
@@ -291,11 +297,7 @@ func (b *RunitBackend) Kill(name string) error     { return svCmd(b.DestDir, nam
 func svCmd(destDir, name, action string) error {
 	path := filepath.Join(destDir, name)
 	args := api.Elevate("sv", action, path)
-	out, err := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
-	if err != nil {
-		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
-	}
-	return nil
+	return runElevated(args...)
 }
 
 // StartService starts an enabled service via `sv start`.

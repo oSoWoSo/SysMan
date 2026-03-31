@@ -31,25 +31,22 @@ func (p *Plugin) Model() tea.Model {
 	return NewTuiModel(NewQEMUBackend(p.resolveVmDir()))
 }
 
+func expandHome(p string) string {
+	if strings.HasPrefix(p, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, p[2:])
+		}
+	}
+	return p
+}
+
 func (p *Plugin) resolveVmDir() string {
 	if p.vmDir != "" && p.vmDir != DefaultVmDir {
-		if strings.HasPrefix(p.vmDir, "~/") {
-			home, err := os.UserHomeDir()
-			if err == nil {
-				return filepath.Join(home, p.vmDir[2:])
-			}
-		}
-		return p.vmDir
+		return expandHome(p.vmDir)
 	}
 	cfg := config.LoadSysManConfig()
 	if cfg.Vmsman.VmDir != "" {
-		if strings.HasPrefix(cfg.Vmsman.VmDir, "~/") {
-			home, err := os.UserHomeDir()
-			if err == nil {
-				return filepath.Join(home, cfg.Vmsman.VmDir[2:])
-			}
-		}
-		return cfg.Vmsman.VmDir
+		return expandHome(cfg.Vmsman.VmDir)
 	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, DefaultVmDir)

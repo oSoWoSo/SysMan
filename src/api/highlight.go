@@ -121,71 +121,71 @@ func parseConfig(data string) []parsedRule {
 		if line == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
 			continue
 		}
-
-		var colName, attr, matchType, pattern string
-
-		// Detect full grc format: line is long enough and col 21-23 (0-based) is a known colour.
-		if len(line) >= 32 && isGRCColor(line[21:24]) {
-			// Fixed-column layout (0-based, matching grc spec with 1-based col numbers):
-			//  0-20  : HTML color name (ignored)
-			// 21-23  : COL (3 chars)
-			// 24     : space
-			// 25     : A attribute
-			// 26     : space
-			// 27     : N (ignored)
-			// 28     : space
-			// 29     : T
-			// 30     : space
-			// 31+    : PATTERN
-			colName = line[21:24]
-			attr = string(line[25])
-			matchType = string(line[29])
-			if len(line) <= 31 {
-				continue
-			}
-			pattern = strings.TrimLeft(line[30:], " ")
-		} else {
-			// Short format: whitespace-separated fields
-			// COL [A] T PATTERN   (A may be absent / collapsed with spaces)
-			fields := strings.Fields(line)
-			if len(fields) < 3 {
-				continue
-			}
-			colName = fields[0]
-			if !isGRCColor(colName) {
-				continue
-			}
-			// Determine if second field is an attribute or a match-type.
-			if isMatchType(fields[1]) {
-				// "col T pattern…"  (no explicit A)
-				attr = " "
-				matchType = fields[1]
-				pattern = strings.Join(fields[2:], " ")
-			} else {
-				// "col A T pattern…"
-				if len(fields) < 4 {
-					continue
-				}
-				attr = fields[1]
-				matchType = fields[2]
-				pattern = strings.Join(fields[3:], " ")
-			}
-		}
-
-		if !isMatchType(matchType) {
-			continue
-		}
-
-		col := grcColor(colName)
-		bold := attr == "b"
-
-		re, err := compilePattern(matchType, pattern)
-		if err != nil {
-			continue
-		}
-		rules = append(rules, parsedRule{re: re, col: col, bold: bold})
+		rules = append(rules, parseLine(line)...)
 	}
 	return rules
+}
+
+func parseLine(line string) []parsedRule {
+	if len(line) >= 32 && isGRCColor(line[21:24]) {
+		return parseGRCFormat(line)
+	}
+	return parseShortFormat(line)
+}
+
+func parseGRCFormat(line string) []parsedRule {
+	if len(line) <= 31 {
+		return nil
+	}
+	colName := line[21:24]
+	attr := string(line[25])
+	matchType := string(line[29])
+	pattern := strings.TrimLeft(line[30:], " ")
+
+	if !isMatchType(matchType) {
+		return nil
+	}
+	return buildRule(colName, attr, matchType, pattern)
+}
+
+func parseShortFormat(line string) []parsedRule {
+	fields := strings.Fields(line)
+	if len(fields) < 3 {
+		return nil
+	}
+	colName := fields[0]
+	if !isGRCColor(colName) {
+		return nil
+	}
+
+	var attr, matchType, pattern string
+	if isMatchType(fields[1]) {
+		attr = " "
+		matchType = fields[1]
+		pattern = strings.Join(fields[2:], " ")
+	} else {
+		if len(fields) < 4 {
+			return nil
+		}
+		attr = fields[1]
+		matchType = fields[2]
+		pattern = strings.Join(fields[3:], " ")
+	}
+
+	if !isMatchType(matchType) {
+		return nil
+	}
+	return buildRule(colName, attr, matchType, pattern)
+}
+
+func buildRule(colName, attr, matchType, pattern string) []parsedRule {
+	col := grcColor(colName)
+	bold := attr == "b"
+	re, err := compilePattern(matchType, pattern)
+	if err != nil {
+		return nil
+	}
+	return []parsedRule{{re: re, col: col, bold: bold}}
 }
 
 func isGRCColor(s string) bool {
@@ -257,6 +257,7 @@ type Highlighter struct {
 	mu      sync.RWMutex
 	rules   []parsedRule
 	watcher *fsnotify.Watcher // nil when watching is unavailable
+	done    chan struct{}     // signals goroutine to exit
 }
 
 // NewHighlighter loads rules from ~/.config/SysMan/highlight.conf (grc format).
@@ -295,10 +296,13 @@ func (h *Highlighter) watch() {
 		return
 	}
 	h.watcher = w
+	h.done = make(chan struct{})
 	go func() {
 		defer w.Close() //nolint:errcheck
 		for {
 			select {
+			case <-h.done:
+				return
 			case ev, ok := <-w.Events:
 				if !ok {
 					return
@@ -320,6 +324,9 @@ func (h *Highlighter) watch() {
 
 // Close stops the file watcher. Call when the Highlighter is no longer needed.
 func (h *Highlighter) Close() {
+	if h.done != nil {
+		close(h.done)
+	}
 	if h.watcher != nil {
 		h.watcher.Close() //nolint:errcheck
 	}

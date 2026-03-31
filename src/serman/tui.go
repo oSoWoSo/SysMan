@@ -168,6 +168,43 @@ func (m tuiModel) selectedEnabled() *Service {
 // Init implements tea.Model; returns no initial command.
 func (m tuiModel) Init() tea.Cmd { return nil }
 
+// handleSearchMode handles keyboard input when the search field is active.
+func (m tuiModel) handleSearchMode(msg tea.KeyMsg) (tuiModel, tea.Cmd) {
+	switch {
+	case key.Matches(msg, tkeyEsc):
+		m.search.SetValue("")
+		m.search.Blur()
+		m.searchMode = false
+		m.cursor = 0
+		m.svStatName = m.currentName()
+		return m, m.fetchStatusCmd()
+	case key.Matches(msg, tkeyEnter):
+		m.search.Blur()
+		m.searchMode = false
+		m.cursor = 0
+		m.svStatName = m.currentName()
+		return m, m.fetchStatusCmd()
+	case key.Matches(msg, tkeyUp):
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case key.Matches(msg, tkeyDown):
+		list := m.filtered()
+		if m.cursor < len(list)-1 {
+			m.cursor++
+		}
+	default:
+		var cmd tea.Cmd
+		prev := m.search.Value()
+		m.search, cmd = m.search.Update(msg)
+		if m.search.Value() != prev {
+			m.cursor = 0
+		}
+		return m, cmd
+	}
+	return m, nil
+}
+
 // Update implements tea.Model; processes keyboard input, window resizes, and async messages.
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -176,39 +213,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.searchMode {
-			switch {
-			case key.Matches(msg, tkeyEsc):
-				m.search.SetValue("")
-				m.search.Blur()
-				m.searchMode = false
-				m.cursor = 0
-				m.svStatName = m.currentName()
-				return m, m.fetchStatusCmd()
-			case key.Matches(msg, tkeyEnter):
-				m.search.Blur()
-				m.searchMode = false
-				m.cursor = 0
-				m.svStatName = m.currentName()
-				return m, m.fetchStatusCmd()
-			case key.Matches(msg, tkeyUp):
-				if m.cursor > 0 {
-					m.cursor--
-				}
-			case key.Matches(msg, tkeyDown):
-				list := m.filtered()
-				if m.cursor < len(list)-1 {
-					m.cursor++
-				}
-			default:
-				var cmd tea.Cmd
-				prev := m.search.Value()
-				m.search, cmd = m.search.Update(msg)
-				if m.search.Value() != prev {
-					m.cursor = 0
-				}
-				return m, cmd
-			}
-			return m, nil
+			return m.handleSearchMode(msg)
 		}
 
 		switch {
