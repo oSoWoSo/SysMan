@@ -4,6 +4,17 @@ All notable changes to SysMan are documented here.
 
 ---
 
+## [0.014 Alpha]
+
+### Added
+- **Makefile help** — `make` and `make help` now show all available targets
+- **Makefile improvements** — removed broken build-plugins target, fixed duplicate .PHONY entry
+
+### Changed
+- **Default target** — `make` without arguments now shows help instead of running full build
+
+---
+
 ## [0.013 Alpha]
 
 ### Added
