@@ -1,0 +1,96 @@
+# SysMan - Modular system manager for Void Linux
+#
+# This template builds all SysMan modules. Each module can also be built
+# and installed separately using the individual pkgname: sysman-serman,
+# sysman-pkgman, sysman-srcman, sysman-infman, sysman-ugsman, sysman-vmsman
+#
+# Variables for individual modules:
+#   sysman-serman  - Services manager (runit)
+#   sysman-pkgman - Packages manager (xbps)
+#   sysman-srcman - Templates manager (xbps-src)
+#   sysman-infman - System info (fastfetch)
+#   sysman-ugsman - Users & Groups manager
+#   sysman-vmsman - VM manager (QEMU)
+#   sysman         - Full system manager (all modules)
+
+# Full package (all modules)
+pkgname=sysman
+version=0.014
+revision=1
+archs="x86_64*"
+hostmakedepends="go pkg-config"
+makedepends="libX11-devel libXrandr-devel libXxf86vm-devel libXi-devel
+ libXcursor-devel libXinerama-devel glu-devel"
+short_desc="Full system manager - services, packages, templates, users, VMs"
+maintainer="zenobit <zenobit@disroot.org>"
+license="MIT"
+homepage="https://codeberg.org/oSoWoSo/SysMan"
+changelog="https://codeberg.org/oSoWoSo/SysMan/raw/branch/main/CHANGELOG.md"
+distfiles="https://codeberg.org/oSoWoSo/SysMan/archive/v${version}.tar.gz"
+checksum=skip
+build_style=gnu-makefile
+make_build_args="build build-tui"
+make_install_args="install"
+export PREFIX=/usr
+
+do_build() {
+	make build
+	make build-tui
+}
+
+do_check() {
+	make test
+}
+
+do_install() {
+	make install
+
+	# Install main binary
+	vbin build/sysman
+
+	# Install lang files
+	vmkdir usr/share/SysMan/lang
+	vcopy build/lang/* usr/share/SysMan/lang/
+
+	# Install icon
+	vmkdir usr/share/pixmaps
+	vcopy src/common/void-transparent.png usr/share/pixmaps
+}
+
+# Individual module packages
+# Uncomment and build separately if needed
+
+# # Services manager (runit)
+# pkgname=sysman-serman
+# short_desc="Services manager (runit)"
+# depends="void-repo"
+# # ... same structure, but builds serman only
+
+# # Packages manager (xbps)
+# pkgname=sysman-pkgman
+# short_desc="Packages manager (xbps)"
+# depends="xbps"
+# # ... same structure
+
+# # Templates manager (xbps-src)
+# pkgname=sysman-srcman
+# short_desc="Templates manager (xbps-src)"
+# depends="xbps"
+# # ... same structure
+
+# # System info (fastfetch)
+# pkgname=sysman-infman
+# short_desc="System information (fastfetch)"
+# depends="fastfetch"
+# # ... same structure
+
+# # Users & Groups manager
+# pkgname=sysman-ugsman
+# short_desc="Users and groups manager"
+# # ... same structure
+
+# # VM manager (QEMU)
+# pkgname=sysman-vmsman
+# short_desc="VM manager (QEMU)"
+# depends="qemu"
+# # ... same structure

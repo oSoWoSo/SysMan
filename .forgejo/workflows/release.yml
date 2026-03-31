@@ -28,8 +28,46 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Build and package all binaries
-        run: VERSION=${{ steps.version.outputs.VERSION }} make release
+      - name: Build all binaries
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          make build
+          make build-tui
+
+      - name: Create per-module tarballs
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          cd build
+          
+          # Individual module tarballs (GUI + TUI)
+          for module in sysman serman pkgman srcman infman ugsman vmsman; do
+            # Check if GUI binary exists
+            if [ -f "$module" ]; then
+              mkdir -p "$module"
+              cp "$module" "$module/" 2>/dev/null || true
+              cp "${module}-tui" "$module/" 2>/dev/null || true
+              cp -r lang/"$module" "$module/" 2>/dev/null || true
+              tar czf "${module}-${VERSION}-linux-amd64.tar.gz" "$module"
+              sha256sum "${module}-${VERSION}-linux-amd64.tar.gz" > "${module}-${VERSION}-linux-amd64.tar.gz.sha256"
+              rm -rf "$module"
+              echo "Created ${module}-${VERSION}-linux-amd64.tar.gz"
+            fi
+          done
+          
+          # Create "all" tarball with all binaries
+          mkdir -p all
+          for f in sysman serman pkgman srcman infman ugsman vmsman; do
+            [ -f "$f" ] && cp "$f" all/ 2>/dev/null || true
+          done
+          for f in sysman-tui serman-tui pkgman-tui srcman-tui infman-tui ugsman-tui vmsman-tui; do
+            [ -f "$f" ] && cp "$f" all/ 2>/dev/null || true
+          done
+          cp -r lang/* all/ 2>/dev/null || true
+          tar czf "SysMan-0.014-Alpha-linux-amd64.tar.gz" all/
+          sha256sum "SysMan-0.014-Alpha-linux-amd64.tar.gz" > "SysMan-0.014-Alpha-linux-amd64.tar.gz.sha256"
+          rm -rf all
 
       - name: Create release and upload assets
         env:
@@ -46,12 +84,14 @@ jobs:
             CHANGELOG="Initial release"
           fi
 
+          # Create release with changelog
           curl -s -X POST "${API}/repos/${REPO}/releases" \
             -H "Authorization: token ${CODEBERG_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"${CHANGELOG}\",\"draft\":false}" \
             || true
 
+          # Upload all tarballs and checksums
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
             curl -s -X POST "${API}/repos/${REPO}/releases/tags/${VERSION}/assets" \
