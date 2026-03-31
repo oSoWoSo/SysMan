@@ -1,4 +1,4 @@
-package tui
+package common
 
 import (
 	"fyne.io/fyne/v2"

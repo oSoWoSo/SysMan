@@ -12,7 +12,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"codeberg.org/oSoWoSo/SysMan/src/tui"
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 )
 
 // outputPanel is a selectable, scrollable output area with an inline find bar.
@@ -129,11 +129,11 @@ func (p *outputPanel) scrollToBottom() {
 // renderContent updates the output based on whether ANSI codes are present.
 func (p *outputPanel) renderContent() {
 	content := p.plain.String()
-	if tui.HasAnsiCodes(content) {
+	if common.HasAnsiCodes(content) {
 		// Switch to RichText for ANSI content
 		p.entry.Hide()
 		p.richScroll.Show()
-		p.rich.Segments = tui.AnsiToRichSegments(content)
+		p.rich.Segments = common.AnsiToRichSegments(content)
 		p.rich.Refresh()
 	} else {
 		// Use plain Entry for non-ANSI content

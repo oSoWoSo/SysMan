@@ -11,8 +11,8 @@ import (
 	"image/color"
 
 	"codeberg.org/oSoWoSo/SysMan/src/api"
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	serman "codeberg.org/oSoWoSo/SysMan/src/serman"
-	"codeberg.org/oSoWoSo/SysMan/src/tui"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -66,8 +66,8 @@ type pkgGuiApp struct {
 	outputScroll  *container.Scroll
 	highlighter   *api.Highlighter
 	statusBar     *widget.Label
-	btnInstall    *tui.HoverableButton
-	btnRemove     *tui.HoverableButton
+	btnInstall    *common.HoverableButton
+	btnRemove     *common.HoverableButton
 }
 
 func (g *pkgGuiApp) doUI(fn func()) {
@@ -227,8 +227,8 @@ func (sw *streamWriter) Write(p []byte) (int, error) {
 // otherwise falls back to the Highlighter regex-based coloring.
 func (g *pkgGuiApp) setOutput(text string) {
 	var segs []widget.RichTextSegment
-	if tui.HasAnsiCodes(text) {
-		segs = tui.AnsiToRichSegments(text)
+	if common.HasAnsiCodes(text) {
+		segs = common.AnsiToRichSegments(text)
 	} else {
 		segs = g.highlighter.RichSegments(text)
 	}
@@ -381,33 +381,33 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	// ── Action buttons ────────────────────────────────────────────────
-	g.btnInstall = tui.NewHoverableButton(t("btn.install"), theme.DownloadIcon(), t("tooltip.install"), g.statusBar, func() {
+	g.btnInstall = common.NewHoverableButton(t("btn.install"), theme.DownloadIcon(), t("tooltip.install"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runOp("install "+name, func(w io.Writer) (string, error) { return g.backend.Install([]string{name}, w) })
 		}
 	})
 	g.btnInstall.Button.Importance = widget.HighImportance
 
-	g.btnRemove = tui.NewHoverableButton(t("btn.remove"), theme.DeleteIcon(), t("tooltip.remove"), g.statusBar, func() {
+	g.btnRemove = common.NewHoverableButton(t("btn.remove"), theme.DeleteIcon(), t("tooltip.remove"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runOp("remove "+name, func(w io.Writer) (string, error) { return g.backend.Remove([]string{name}, w) })
 		}
 	})
 	g.btnRemove.Button.Importance = widget.DangerImportance
 
-	btnUpdate := tui.NewHoverableButton(t("btn.update_all"), theme.UploadIcon(), t("tooltip.update_all"), g.statusBar, func() {
+	btnUpdate := common.NewHoverableButton(t("btn.update_all"), theme.UploadIcon(), t("tooltip.update_all"), g.statusBar, func() {
 		g.runOp("update", func(w io.Writer) (string, error) { return g.backend.Update(w) })
 	})
 	btnUpdate.Button.Importance = widget.MediumImportance
 
-	btnReload := tui.NewHoverableButton("", theme.ViewRefreshIcon(), t("tooltip.reload"), g.statusBar, func() {
+	btnReload := common.NewHoverableButton("", theme.ViewRefreshIcon(), t("tooltip.reload"), g.statusBar, func() {
 		g.reload()
 	})
 	btnReload.Button.Importance = widget.LowImportance
 
 	actionRow := container.NewHBox(g.btnInstall, g.btnRemove, layout.NewSpacer(), btnUpdate)
 
-	btnAbout := tui.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
+	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
 	btnAbout.Button.Importance = widget.LowImportance
 	statusBar := container.NewHBox(btnAbout, btnReload, g.statusBar, layout.NewSpacer())
 

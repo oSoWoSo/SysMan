@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"codeberg.org/oSoWoSo/SysMan/src/config"
+	commonconfig "codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -44,7 +44,7 @@ func (p *Plugin) resolveVmDir() string {
 	if p.vmDir != "" && p.vmDir != DefaultVmDir {
 		return expandHome(p.vmDir)
 	}
-	cfg := config.LoadSysManConfig()
+	cfg := commonconfig.LoadSysManConfig()
 	if cfg.Vmsman.VmDir != "" {
 		return expandHome(cfg.Vmsman.VmDir)
 	}

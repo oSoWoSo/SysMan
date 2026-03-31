@@ -1,7 +1,7 @@
 package srcman
 
 import (
-	"codeberg.org/oSoWoSo/SysMan/src/config"
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 )
 
 const defaultSearchEngine = "https://duckduckgo.com/?q="
@@ -12,7 +12,7 @@ type SrcmanConfig struct {
 }
 
 func LoadConfig() SrcmanConfig {
-	c := config.LoadSysManConfig()
+	c := common.LoadSysManConfig()
 	se := c.Srcman.SearchEngine
 	if se == "" {
 		se = defaultSearchEngine
@@ -24,8 +24,8 @@ func LoadConfig() SrcmanConfig {
 }
 
 func SaveConfig(cfg SrcmanConfig) error {
-	c := config.LoadSysManConfig()
+	c := common.LoadSysManConfig()
 	c.Srcman.DistDir = cfg.DistDir
 	c.Srcman.SearchEngine = cfg.SearchEngine
-	return config.SaveSysManConfig(c)
+	return common.SaveSysManConfig(c)
 }

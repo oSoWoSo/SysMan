@@ -1,5 +1,5 @@
-// Package tui provides TUI helpers for SysMan plugins.
-package tui
+// Package common provides shared helpers for SysMan plugins.
+package common
 
 import (
 	"image/color"

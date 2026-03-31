@@ -13,6 +13,7 @@ import (
 
 	"image/color"
 
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	serman "codeberg.org/oSoWoSo/SysMan/src/serman"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -22,8 +23,6 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-
-	"codeberg.org/oSoWoSo/SysMan/src/tui"
 )
 
 // ── App state ─────────────────────────────────────────────────────────
@@ -43,21 +42,21 @@ type xbpsGuiApp struct {
 	output       *outputPanel
 	statusBar    *widget.Label
 
-	btnBuild   *tui.HoverableButton
-	btnInstall *tui.HoverableButton
-	btnClean   *tui.HoverableButton
+	btnBuild   *common.HoverableButton
+	btnInstall *common.HoverableButton
+	btnClean   *common.HoverableButton
 	buildMode  string // "" = default, "-Q" = with tests, "-C" = with confpkg
-	btnBack    *tui.HoverableButton
-	btnFwd     *tui.HoverableButton
+	btnBack    *common.HoverableButton
+	btnFwd     *common.HoverableButton
 
 	// always-visible inline editor
 	editorEntry   *focusEntry
 	editorPath    string          // path of the file currently loaded
 	editorTop     *fyne.Container // toolbar+separators
-	editorBtnSave *tui.HoverableButton
-	editorBtnLint *tui.HoverableButton
-	editorBtnSum  *tui.HoverableButton
-	editorBtnBump *tui.HoverableButton
+	editorBtnSave *common.HoverableButton
+	editorBtnLint *common.HoverableButton
+	editorBtnSum  *common.HoverableButton
+	editorBtnBump *common.HoverableButton
 	editorTitle   *widget.Label
 	outerSplit    *container.Split
 
@@ -580,7 +579,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	// Build button
-	g.btnBuild = tui.NewHoverableButton(t("btn.build"), theme.MediaPlayIcon(), t("tooltip.build"), g.statusBar, func() {
+	g.btnBuild = common.NewHoverableButton(t("btn.build"), theme.MediaPlayIcon(), t("tooltip.build"), g.statusBar, func() {
 		if g.buildCancel != nil {
 			g.buildCancel()
 			return
@@ -603,20 +602,20 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	g.btnBuild.Importance = widget.HighImportance
 
 	// Clean button
-	g.btnClean = tui.NewHoverableButton(t("btn.clean"), theme.DeleteIcon(), t("tooltip.clean"), g.statusBar, func() {
+	g.btnClean = common.NewHoverableButton(t("btn.clean"), theme.DeleteIcon(), t("tooltip.clean"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("clean", "./xbps-src", "clean", name)
 		}
 	})
 
 	// Install button - moved after Clean
-	g.btnInstall = tui.NewHoverableButton(t("btn.install"), theme.DownloadIcon(), t("tooltip.install"), g.statusBar, func() {
+	g.btnInstall = common.NewHoverableButton(t("btn.install"), theme.DownloadIcon(), t("tooltip.install"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("install", "xi", name)
 		}
 	})
 
-	btnHomepage := tui.NewHoverableButton(t("btn.homepage"), theme.HomeIcon(), t("tooltip.homepage"), g.statusBar, func() {
+	btnHomepage := common.NewHoverableButton(t("btn.homepage"), theme.HomeIcon(), t("tooltip.homepage"), g.statusBar, func() {
 		name := g.selectedName()
 		if name == "" {
 			return
@@ -627,13 +626,13 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		}
 	})
 
-	btnRepology := tui.NewHoverableButton(t("btn.repology"), theme.SearchIcon(), t("tooltip.repology"), g.statusBar, func() {
+	btnRepology := common.NewHoverableButton(t("btn.repology"), theme.SearchIcon(), t("tooltip.repology"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			OpenBrowser("https://repology.org/projects/?search=" + name)
 		}
 	})
 
-	btnBootstrap := tui.NewHoverableButton(t("btn.bootstrap"), theme.ViewRefreshIcon(), t("tooltip.bootstrap"), g.statusBar, func() {
+	btnBootstrap := common.NewHoverableButton(t("btn.bootstrap"), theme.ViewRefreshIcon(), t("tooltip.bootstrap"), g.statusBar, func() {
 		g.runCmd("bootstrap-update", "./xbps-src", "bootstrap-update")
 	})
 	btnBootstrap.Button.Importance = widget.LowImportance
@@ -650,21 +649,21 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	dirLabel := widget.NewLabel(diskText)
 	dirLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
-	btnReload := tui.NewHoverableButton("", theme.ViewRefreshIcon(), t("tooltip.reload"), g.statusBar, func() {
+	btnReload := common.NewHoverableButton("", theme.ViewRefreshIcon(), t("tooltip.reload"), g.statusBar, func() {
 		g.reload()
 		g.setStatus(t("status.reloaded"))
 	})
 	btnReload.Button.Importance = widget.LowImportance
 
-	btnFind := tui.NewHoverableButton("", theme.SearchIcon(), t("tooltip.find"), g.statusBar, func() { g.output.ShowFind() })
+	btnFind := common.NewHoverableButton("", theme.SearchIcon(), t("tooltip.find"), g.statusBar, func() { g.output.ShowFind() })
 	btnFind.Button.Importance = widget.LowImportance
-	btnAbout := tui.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
+	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.about"), g.statusBar, func() { g.showAbout() })
 	btnAbout.Button.Importance = widget.LowImportance
 
-	g.btnBack = tui.NewHoverableButton("", theme.NavigateBackIcon(), t("tooltip.back"), g.statusBar, func() { g.logBack() })
+	g.btnBack = common.NewHoverableButton("", theme.NavigateBackIcon(), t("tooltip.back"), g.statusBar, func() { g.logBack() })
 	g.btnBack.Button.Importance = widget.LowImportance
 	g.btnBack.Button.Hide()
-	g.btnFwd = tui.NewHoverableButton("", theme.NavigateNextIcon(), t("tooltip.forward"), g.statusBar, func() { g.logForward() })
+	g.btnFwd = common.NewHoverableButton("", theme.NavigateNextIcon(), t("tooltip.forward"), g.statusBar, func() { g.logForward() })
 	g.btnFwd.Button.Importance = widget.LowImportance
 	g.btnFwd.Button.Hide()
 
@@ -685,7 +684,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 
 	g.clearDetail()
 
-	g.editorBtnSave = tui.NewHoverableButton(t("btn.save"), theme.DocumentSaveIcon(), t("tooltip.save"), g.statusBar, func() {
+	g.editorBtnSave = common.NewHoverableButton(t("btn.save"), theme.DocumentSaveIcon(), t("tooltip.save"), g.statusBar, func() {
 		if g.editorPath == "" {
 			return
 		}
@@ -697,19 +696,19 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	})
 	g.editorBtnSave.Button.Importance = widget.HighImportance
 
-	g.editorBtnLint = tui.NewHoverableButton(t("btn.lint"), theme.WarningIcon(), t("tooltip.lint"), g.statusBar, func() {
+	g.editorBtnLint = common.NewHoverableButton(t("btn.lint"), theme.WarningIcon(), t("tooltip.lint"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("lint", "xlint", name)
 		}
 	})
 
-	g.editorBtnSum = tui.NewHoverableButton(t("btn.sum"), theme.ConfirmIcon(), t("tooltip.sum"), g.statusBar, func() {
+	g.editorBtnSum = common.NewHoverableButton(t("btn.sum"), theme.ConfirmIcon(), t("tooltip.sum"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("checksum", "xgensum", "-i", name)
 		}
 	})
 
-	g.editorBtnBump = tui.NewHoverableButton(t("btn.bump"), theme.MoveUpIcon(), t("tooltip.bump"), g.statusBar, func() {
+	g.editorBtnBump = common.NewHoverableButton(t("btn.bump"), theme.MoveUpIcon(), t("tooltip.bump"), g.statusBar, func() {
 		if name := g.selectedName(); name != "" {
 			g.runCmd("bump", "xxautobump", name)
 		}
