@@ -254,33 +254,39 @@ func (s *guiApp) showDetail(svc Service) {
 // (start/stop/restart/…) where only one service changes.
 func (s *guiApp) refreshOneStatus(name string) {
 	st := s.backend.Status(name)
-	if s.statusCache == nil {
-		s.statusCache = make(map[string]ServiceStatus)
-	}
-	s.statusCache[name] = st
-	s.updateRunningStatus(st)
+	fyne.Do(func() {
+		if s.statusCache == nil {
+			s.statusCache = make(map[string]ServiceStatus)
+		}
+		s.statusCache[name] = st
+		s.updateRunningStatus(st)
+	})
 }
 
 func (s *guiApp) updateRunningStatus(st ServiceStatus) {
-	if st.Running {
-		s.detailRunning.SetText(t("state.running"))
-	} else {
-		s.detailRunning.SetText(t("state.stopped"))
-	}
-	if st.PID > 0 {
-		s.detailPID.SetText(fmt.Sprintf("%d", st.PID))
-	} else {
-		s.detailPID.SetText(t("detail.empty"))
-	}
-	if st.Uptime != "" {
-		s.detailUptime.SetText(st.Uptime)
-	} else {
-		s.detailUptime.SetText(t("detail.empty"))
-	}
+	fyne.Do(func() {
+		if st.Running {
+			s.detailRunning.SetText(t("state.running"))
+		} else {
+			s.detailRunning.SetText(t("state.stopped"))
+		}
+		if st.PID > 0 {
+			s.detailPID.SetText(fmt.Sprintf("%d", st.PID))
+		} else {
+			s.detailPID.SetText(t("detail.empty"))
+		}
+		if st.Uptime != "" {
+			s.detailUptime.SetText(st.Uptime)
+		} else {
+			s.detailUptime.SetText(t("detail.empty"))
+		}
+	})
 }
 
 func (s *guiApp) setStatus(msg string) {
-	s.statusBar.SetText(msg)
+	fyne.Do(func() {
+		s.statusBar.SetText(msg)
+	})
 }
 
 // showAbout displays the About dialog with app metadata.
