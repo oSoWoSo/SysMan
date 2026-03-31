@@ -36,8 +36,8 @@ Each plugin can also run independently:
 |---|---|---|
 | `sysman` | Full system manager (all plugins, GUI + TUI) | required |
 | `sysman-tui` | Full system manager (TUI entry) | required |
-| `svman` | Services manager (GUI + TUI) | required |
-| `svman-tui` | Services manager (TUI only) | free |
+| `serman` | Services manager (GUI + TUI) | required |
+| `serman-tui` | Services manager (TUI only) | free |
 | `ugman` | Users & Groups manager (GUI + TUI) | required |
 | `ugman-tui` | Users & Groups manager (TUI only) | free |
 | `infoman` | System info (GUI + TUI) | required |
@@ -46,11 +46,13 @@ Each plugin can also run independently:
 | `srcman-tui` | xbps-src template manager (TUI only) | free |
 | `pkgman` | Package manager (GUI + TUI) | required |
 | `pkgman-tui` | Package manager (TUI only) | free |
+| `vmsman` | VM manager (GUI + TUI) | required |
+| `vmsman-tui` | VM manager (TUI only) | free |
 
 ```bash
-make build          # build all 12 binaries
-make build-svman    # build/svman only
-make build-svman-tui
+make build          # all GUI binaries
+make build-serman   # build/serman only
+make build-serman-tui
 # … see Makefile targets below
 ```
 
