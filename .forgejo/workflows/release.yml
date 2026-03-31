@@ -76,7 +76,7 @@ jobs:
           CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          REPO="${{ github.repository }}"
+          REPO="oSoWoSo/SysMan"
           API="https://codeberg.org/api/v1"
 
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
@@ -96,7 +96,8 @@ jobs:
           # Upload all tarballs and checksums
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
-            curl -s -X POST "${API}/repos/${REPO}/releases/tags/${VERSION}/assets" \
+            ASSET_URL="${API}/repos/${REPO}/releases/tags/${VERSION}/assets"
+            curl -s -X POST "${ASSET_URL}" \
               -H "Authorization: token ${CODEBERG_TOKEN}" \
               -F "attachment=@${f}"
           done
@@ -162,7 +163,7 @@ jobs:
           CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          REPO="${{ github.repository }}"
+          REPO="oSoWoSo/SysMan"
           API="https://codeberg.org/api/v1"
 
           # Ensure release exists (linux/amd64 job may still be running)
@@ -174,7 +175,8 @@ jobs:
 
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
-            curl -s -X POST "${API}/repos/${REPO}/releases/tags/${VERSION}/assets" \
+            ASSET_URL="${API}/repos/${REPO}/releases/tags/${VERSION}/assets"
+            curl -s -X POST "${ASSET_URL}" \
               -H "Authorization: token ${CODEBERG_TOKEN}" \
               -F "attachment=@${f}"
           done
