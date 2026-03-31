@@ -30,7 +30,7 @@ import (
 type xbpsGuiApp struct {
 	win       fyne.Window
 	distDir   string
-	cfg       SrcmanConfig
+	cfg       Config
 	templates []Template
 	selected  int
 	search    string

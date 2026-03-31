@@ -26,3 +26,7 @@ issues:
     - "^ugsman$"
     - "^vmsman$"
     - "^pkgman$"
+  exclude-rules:
+    - linters:
+        - revive
+      text: "type name will be used as srcman.SrcmanConfig"

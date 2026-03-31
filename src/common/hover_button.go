@@ -6,12 +6,14 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// HoverableButton is a button with hover status text.
 type HoverableButton struct {
 	*widget.Button
 	StatusText string
 	statusBar  *StatusBar
 }
 
+// NewHoverableButton creates a new HoverableButton.
 func NewHoverableButton(label string, icon fyne.Resource, statusText string, statusBar *StatusBar, tapped func()) *HoverableButton {
 	btn := widget.NewButtonWithIcon(label, icon, tapped)
 	return &HoverableButton{
@@ -31,12 +33,14 @@ func NewHoverableButtonText(label string, statusText string, statusBar *StatusBa
 	}
 }
 
-func (b *HoverableButton) MouseIn(e *desktop.MouseEvent) {
+// MouseIn handles mouse in event.
+func (b *HoverableButton) MouseIn(_ *desktop.MouseEvent) {
 	if b.statusBar != nil && b.StatusText != "" {
 		b.statusBar.SetText(b.StatusText)
 	}
 }
 
+// MouseOut handles mouse out event.
 func (b *HoverableButton) MouseOut() {
 	if b.statusBar != nil {
 		b.statusBar.SetText("")

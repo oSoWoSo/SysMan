@@ -79,6 +79,7 @@ var (
 	tkeyFilter  = key.NewBinding(key.WithKeys("tab"))
 )
 
+// NewTuiModel creates a new TUI model.
 func NewTuiModel(b Backend) tea.Model {
 	ti := textinput.New()
 	ti.Placeholder = t("search.placeholder")
@@ -421,6 +422,7 @@ func vmmanBackendCmd(b Backend, vm *VM, action string) tea.Cmd {
 	}
 }
 
+// RunTUI runs the TUI.
 func RunTUI(vmDir string) {
 	InitI18n()
 	b := NewQEMUBackend(vmDir)

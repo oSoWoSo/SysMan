@@ -1,29 +1,34 @@
 package srcman
 
+// Package srcman provides templates configuration.
+
 import (
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 )
 
 const defaultSearchEngine = "https://duckduckgo.com/?q="
 
-type SrcmanConfig struct {
+// Config holds the srcman configuration.
+type Config struct {
 	SearchEngine string
 	DistDir      string
 }
 
-func LoadConfig() SrcmanConfig {
+// LoadConfig loads the srcman configuration.
+func LoadConfig() Config {
 	c := common.LoadSysManConfig()
 	se := c.Srcman.SearchEngine
 	if se == "" {
 		se = defaultSearchEngine
 	}
-	return SrcmanConfig{
+	return Config{
 		SearchEngine: se,
 		DistDir:      c.Srcman.DistDir,
 	}
 }
 
-func SaveConfig(cfg SrcmanConfig) error {
+// SaveConfig saves the srcman configuration.
+func SaveConfig(cfg Config) error {
 	c := common.LoadSysManConfig()
 	c.Srcman.DistDir = cfg.DistDir
 	c.Srcman.SearchEngine = cfg.SearchEngine

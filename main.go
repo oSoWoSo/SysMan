@@ -1,3 +1,4 @@
+// Command sysman is a demo system manager.
 package main
 
 import (

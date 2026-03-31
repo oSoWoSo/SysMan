@@ -325,6 +325,7 @@ func (s *guiApp) setStatus(msg string) {
 	})
 }
 
+// RunGUI runs the GUI.
 func RunGUI(vmDir string) {
 	InitI18n()
 	a := app.New()

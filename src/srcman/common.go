@@ -1,4 +1,4 @@
-// Package xbpssrc provides an xbps-src template manager as an embeddable plugin.
+// Package srcman provides an xbps-src template manager plugin.
 //
 // It scans $XBPS_DISTDIR/srcpkgs/ (default ~/void/srcpkgs/) and exposes
 // build, lint, checksum, bump, install, and clean operations for each template.
@@ -36,9 +36,8 @@ type Template struct {
 // FilterMode represents the filter state for template lists.
 type FilterMode int
 
-const (
-	FilterAll FilterMode = iota
-)
+// FilterAll selects all templates.
+const FilterAll FilterMode = iota
 
 // Filter filters templates by search query.
 func Filter(templates []Template, search string) []Template {

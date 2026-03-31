@@ -18,7 +18,7 @@ func main() {
 
 	vmDir := os.Getenv("VMDIR")
 	if vmDir == "" {
-		vmDir = vmman.DefaultVmDir
+		vmDir = vmman.DefaultVMDir
 	}
 
 	vmman.RunTUI(vmDir)

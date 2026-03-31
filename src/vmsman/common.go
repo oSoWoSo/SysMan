@@ -1,5 +1,7 @@
 package vmman
 
+// Package vmman provides a VM manager plugin.
+
 import (
 	"fmt"
 	"os"
@@ -13,17 +15,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Version is the application version.
 var Version = common.Version
 
 const (
+	// AppAuthor is the application author.
 	AppAuthor  = common.AppAuthor
+	// AppLicense is the application license.
 	AppLicense = common.AppLicense
-	AppURL     = "https://codeberg.org/oSoWoSo/VMman"
-	Usage      = "vmman [-g|-t] [--vm NAME] [--port PORT]\n\nOptions:\n  -g, --gui     GUI (default)\n  -t, --tui     TUI\n  --vm NAME     VM name (from config)\n  --port PORT   SPICE port (auto-detected if not provided)\n  -h, --help    show this help\n\nEnvironment:\n  VMDIR          VM directory (default: ~/vm)\n  SYSMAN_LANG    language override (e.g. cs)"
+	// AppURL is the application URL.
+	AppURL = "https://codeberg.org/oSoWoSo/VMman"
+	// Usage is the command line usage information.
+	Usage = "vmman [-g|-t] [--vm NAME] [--port PORT]\n\nOptions:\n  -g, --gui     GUI (default)\n  -t, --tui     TUI\n  --vm NAME     VM name (from config)\n  --port PORT   SPICE port (auto-detected if not provided)\n  -h, --help    show this help\n\nEnvironment:\n  VMDIR          VM directory (default: ~/vm)\n  SYSMAN_LANG    language override (e.g. cs)"
 )
 
-const DefaultVmDir = "vm"
+// DefaultVMDir is the default VM directory.
+const DefaultVMDir = "vm"
 
+// VM represents a virtual machine.
 type VM struct {
 	Name      string
 	Config    string
@@ -34,6 +43,7 @@ type VM struct {
 	Running   bool
 }
 
+ // VMStatus represents the status of a virtual machine.
 type VMStatus struct {
 	Running   bool
 	PID       int
@@ -44,14 +54,19 @@ type VMStatus struct {
 	Raw       string
 }
 
+ // FilterMode represents the filter mode for VMs.
 type FilterMode int
 
 const (
+	// FilterAll represents filtering all VMs.
 	FilterAll FilterMode = iota
+	// FilterRunning represents filtering running VMs.
 	FilterRunning
+	// FilterStopped represents filtering stopped VMs.
 	FilterStopped
 )
 
+ // Filter filters VMs by mode and search term.
 func Filter[T any](
 	items []T,
 	mode FilterMode,
@@ -62,6 +77,7 @@ func Filter[T any](
 	return common.Filter(items, int(mode), search, isRunning, matchesSearch)
 }
 
+ // LoadVMs loads VMs from the specified directory.
 func LoadVMs(vmDir string) []VM {
 	entries, err := os.ReadDir(vmDir)
 	if err != nil {
@@ -106,6 +122,7 @@ func LoadVMs(vmDir string) []VM {
 	return vms
 }
 
+ // Backend defines the interface for VM backends.
 type Backend interface {
 	List() []VM
 	Boot(vm *VM) error
@@ -113,18 +130,22 @@ type Backend interface {
 	Status(vm *VM) VMStatus
 }
 
+ // QEMUBackend is a backend for QEMU VMs.
 type QEMUBackend struct {
 	VMDir string
 }
 
+ // NewQEMUBackend creates a new QEMU backend.
 func NewQEMUBackend(vmDir string) *QEMUBackend {
 	return &QEMUBackend{VMDir: vmDir}
 }
 
+ // List returns the list of VMs.
 func (b *QEMUBackend) List() []VM {
 	return LoadVMs(b.VMDir)
 }
 
+ // Boot boots a VM.
 func (b *QEMUBackend) Boot(vm *VM) error {
 	args := []string{"quickemu", "--vm", vm.Config}
 	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
@@ -134,6 +155,7 @@ func (b *QEMUBackend) Boot(vm *VM) error {
 	return nil
 }
 
+ // Kill stops a VM.
 func (b *QEMUBackend) Kill(vm *VM) error {
 	if vm.PID <= 0 {
 		return fmt.Errorf("VM not running")
@@ -146,6 +168,7 @@ func (b *QEMUBackend) Kill(vm *VM) error {
 	return nil
 }
 
+ // Status returns the status of a VM.
 func (b *QEMUBackend) Status(vm *VM) VMStatus {
 	st := VMStatus{}
 	if vm.PID <= 0 {
@@ -159,6 +182,7 @@ func (b *QEMUBackend) Status(vm *VM) VMStatus {
 	return st
 }
 
+ // ConnectToVM connects to a VM via SPICE.
 func ConnectToVM(port int, viewer string) error {
 	var args []string
 	switch viewer {
@@ -174,6 +198,7 @@ func ConnectToVM(port int, viewer string) error {
 }
 
 var langs = map[string]map[string]string{}
+ // T is the translation map.
 var T map[string]string
 var i18nOnce sync.Once
 
@@ -242,6 +267,7 @@ func detectLang() string {
 	return "en"
 }
 
+ // InitI18n loads the translation files.
 func InitI18n() {
 	i18nOnce.Do(func() {
 		for _, dir := range langDirs() {

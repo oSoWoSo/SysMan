@@ -1,4 +1,4 @@
-// Package sysinfo is a system manager plugin that displays system information
+// Package infman is a system manager plugin that displays system information
 // using native Go (reading /proc, /etc/os-release, syscall.Statfs, etc.).
 // The fastfetch/neofetch runner and ANSI colour parser live in ansi.go and
 // are exported for reuse by other packages.

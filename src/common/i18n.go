@@ -21,6 +21,8 @@ type langFile struct {
 }
 
 var langs = map[string]translations{}
+
+// T is the translation map.
 var T translations
 var i18nOnce sync.Once
 
@@ -82,6 +84,7 @@ func detectLang() string {
 	return "en"
 }
 
+// InitI18n initializes the i18n system.
 func InitI18n() {
 	i18nOnce.Do(func() {
 		for _, dir := range langDirs(".") {
@@ -100,6 +103,7 @@ func InitI18n() {
 	})
 }
 
+// InitModuleI18n initializes i18n for a module.
 func InitModuleI18n(module string) {
 	i18nOnce.Do(func() {
 		for _, dir := range langDirs(module) {
@@ -128,6 +132,7 @@ func t(key string) string {
 	return key
 }
 
+// TFunc returns the translation for a key.
 func TFunc(key string) string {
 	return t(key)
 }
