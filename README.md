@@ -10,11 +10,11 @@ It is also a plugin framework — each tab is an independently embeddable compon
 
 | Tab | Plugin | Backend |
 |---|---|---|
-| **SysInfo** | `sysinfo` | fastfetch |
-| **Packages** | `xbps-pkg` | xbps (`xbps-query`, `xbps-install`) |
-| **Templates** | `xbps-src` | xbps-src void-packages |
-| **Services** | `plugin` (svman) | runit (`sv`, `pkexec`/`doas`/`sudo`) |
-| **Users & Groups** | `usergroups` | `/etc/passwd`, `/etc/group` |
+| **SysInfo** | `infman` | fastfetch |
+| **Packages** | `pkgman` | xbps (`xbps-query`, `xbps-install`) |
+| **Templates** | `srcman` | xbps-src void-packages |
+| **Services** | `serman` | runit (`sv`, `pkexec`/`doas`/`sudo`) |
+| **Users & Groups** | `ugsman` | `/etc/passwd`, `/etc/group` |
 
 ---
 
@@ -38,12 +38,12 @@ Each plugin can also run independently:
 | `sysman-tui` | Full system manager (TUI entry) | required |
 | `serman` | Services manager (GUI + TUI) | required |
 | `serman-tui` | Services manager (TUI only) | free |
-| `ugman` | Users & Groups manager (GUI + TUI) | required |
-| `ugman-tui` | Users & Groups manager (TUI only) | free |
-| `infoman` | System info (GUI + TUI) | required |
-| `infoman-tui` | System info (TUI only) | free |
-| `srcman` | xbps-src template manager (GUI + TUI) | required |
-| `srcman-tui` | xbps-src template manager (TUI only) | free |
+| `ugsman` | Users & Groups manager (GUI + TUI) | required |
+| `ugsman-tui` | Users & Groups manager (TUI only) | free |
+| `infman` | System info (GUI + TUI) | required |
+| `infman-tui` | System info (TUI only) | free |
+| `srcman` | Templates manager (GUI + TUI) | required |
+| `srcman-tui` | Templates manager (TUI only) | free |
 | `pkgman` | Package manager (GUI + TUI) | required |
 | `pkgman-tui` | Package manager (TUI only) | free |
 | `vmsman` | VM manager (GUI + TUI) | required |
@@ -74,14 +74,14 @@ sysman              # GUI (default when display available)
 sysman --tui        # TUI
 sysman --help
 
-svman               # Services GUI
-svman --tui         # Services TUI
+serman               # Services GUI
+serman --tui         # Services TUI
 
-ugman               # Users & Groups GUI
-ugman-tui           # Users & Groups TUI only
+ugsman               # Users & Groups GUI
+ugsman-tui           # Users & Groups TUI only
 
-infoman             # SysInfo GUI
-infoman-tui         # SysInfo TUI only
+infman               # SysInfo GUI
+infman-tui           # SysInfo TUI only
 
 srcman              # Templates GUI (reads $XBPS_DISTDIR)
 srcman-tui          # Templates TUI only
@@ -158,45 +158,45 @@ pkgman-tui          # Packages TUI only
 
 ```
 SysMan/
-├── main.go                    # svman entry point (Services standalone)
+├── main.go                    # sysman entry point
 ├── Makefile
 ├── lang/                      # Translation files (cs, en)
 ├── api/
 │   └── plugin.go              # PluginIF interface
-├── plugin/                    # Services plugin (runit via sv)
+├── serman/                    # Services plugin (runit via sv)
 │   ├── plugin.go              # Plugin, New, NewRunit, NewWithBackend
 │   ├── plugin_gui.go          # Content / ShowAbout
 │   ├── gui.go                 # Fyne GUI
 │   ├── tui.go                 # Bubbletea TUI
 │   ├── common.go              # Service, Backend interface, RunitBackend
 │   └── i18n.go                # Translations
-├── xbps-pkg/                  # Packages plugin (xbps)
+├── pkgman/                    # Packages plugin (xbps)
 │   ├── plugin.go
 │   ├── common.go              # PkgBackend interface, XbpsBackend
 │   ├── plugin_gui.go          # Content
 │   └── tui.go                 # Bubbletea TUI
-├── xbps-src/                  # Templates plugin (xbps-src)
-├── sysinfo/                   # SysInfo plugin (fastfetch)
-├── usergroups/                # Users & Groups plugin
+├── srcman/                    # Templates plugin
+├── infman/                    # SysInfo plugin (fastfetch)
+├── ugsman/                    # Users & Groups plugin
 │   ├── plugin.go
 │   ├── gui.go                 # Fyne GUI + RunGUI
 │   ├── tui.go                 # Bubbletea TUI + RunTUI
 │   └── users.go               # User/Group loading
 ├── cmd/
-│   ├── sysmanager/            # sysman / sysman-tui
-│   ├── svman-tui/             # svman-tui (CGO-free)
-│   ├── ugman-gui/             # ugman
-│   ├── ugman-tui/             # ugman-tui (CGO-free)
+│   ├── sysman-gui/            # sysman / sysman-tui
+│   ├── serman-gui/            # serman
+│   ├── serman-tui/            # serman-tui (CGO-free)
+│   ├── ugsman-gui/            # ugsman
+│   ├── ugsman-tui/            # ugsman-tui (CGO-free)
 │   ├── pkgman-gui/            # pkgman
-│   ├── infoman-gui/           # infoman
-│   ├── infoman-tui/           # infoman-tui (CGO-free)
+│   ├── pkgman-tui/            # pkgman-tui (CGO-free)
+│   ├── infman-gui/            # infman
+│   ├── infman-tui/            # infman-tui (CGO-free)
 │   ├── srcman-gui/            # srcman
-│   └── srcman-tui/            # srcman-tui (CGO-free)
-└── pluginentry/               # Dynamic .so entry points
-    ├── svman/
-    ├── xbps-pkg/
-    ├── xbps-src/
-    └── sysinfo/
+│   ├── srcman-tui/            # srcman-tui (CGO-free)
+│   ├── vmsman-gui/            # vmsman
+│   └── vmsman-tui/            # vmsman-tui (CGO-free)
+└── vmsman/                    # VM manager plugin
 ```
 
 ---
@@ -216,12 +216,12 @@ type PluginIF interface {
 ### Embedding Services in a Fyne application
 
 ```go
-import svman "codeberg.org/oSoWoSo/SysMan/plugin"
+import serman "codeberg.org/oSoWoSo/SysMan/serman"
 
-svman.InitI18n()
-p := svman.New("/etc/sv", "/var/service")   // runit backend
+serman.InitI18n()
+p := serman.New("/etc/sv", "/var/service")   // runit backend
 // or with a custom backend:
-p = svman.NewWithBackend(&MyOpenRCBackend{})
+p = serman.NewWithBackend(&MyOpenRCBackend{})
 
 tabs := container.NewAppTabs(
     container.NewTabItem(p.Name(), p.Content(win)),
@@ -231,19 +231,19 @@ tabs := container.NewAppTabs(
 ### Embedding Packages in a Fyne application
 
 ```go
-import xbpspkg "codeberg.org/oSoWoSo/SysMan/xbps-pkg"
+import pkgman "codeberg.org/oSoWoSo/SysMan/pkgman"
 
-p := xbpspkg.New()                         // xbps backend
+p := pkgman.New()                         // xbps backend
 // or with a custom backend:
-p = xbpspkg.NewWithBackend(&MyAptBackend{})
+p = pkgman.NewWithBackend(&MyAptBackend{})
 ```
 
 ### Embedding Users & Groups in a Fyne application
 
 ```go
-import "codeberg.org/oSoWoSo/SysMan/usergroups"
+import "codeberg.org/oSoWoSo/SysMan/ugsman"
 
-p := usergroups.New()
+p := ugsman.New()
 tabs := container.NewAppTabs(
     container.NewTabItem(p.Name(), p.Content(win)),
 )
@@ -257,11 +257,11 @@ _ = p.Model()
 type MyOpenRCBackend struct{}
 
 func (b *MyOpenRCBackend) Dirs() (string, string)                         { return "/etc/init.d", "/etc/runlevels/default" }
-func (b *MyOpenRCBackend) List() []plugin.Service                         { … }
+func (b *MyOpenRCBackend) List() []serman.Service                         { … }
 func (b *MyOpenRCBackend) Enable(name string) error                       { … }
 func (b *MyOpenRCBackend) Disable(name string) error                      { … }
-func (b *MyOpenRCBackend) Status(name string) plugin.ServiceStatus        { … }
-func (b *MyOpenRCBackend) StatusAll(names []string) map[string]plugin.ServiceStatus { … }
+func (b *MyOpenRCBackend) Status(name string) serman.ServiceStatus        { … }
+func (b *MyOpenRCBackend) StatusAll(names []string) map[string]serman.ServiceStatus { … }
 func (b *MyOpenRCBackend) Start(name string) error                        { … }
 func (b *MyOpenRCBackend) Stop(name string) error                         { … }
 func (b *MyOpenRCBackend) Restart(name string) error                      { … }
@@ -270,7 +270,7 @@ func (b *MyOpenRCBackend) Pause(name string) error                        { … 
 func (b *MyOpenRCBackend) Continue(name string) error                     { … }
 func (b *MyOpenRCBackend) Kill(name string) error                         { … }
 
-p := svman.NewWithBackend(&MyOpenRCBackend{})
+p := serman.NewWithBackend(&MyOpenRCBackend{})
 ```
 
 ### Dynamic plugin loading
@@ -303,19 +303,21 @@ go build -buildmode=plugin -o plugins/myplugin.so ./myplugin/
 
 | Target | Output |
 |---|---|
-| `make build` | all 12 binaries |
+| `make build` | all 14 binaries |
 | `make build-sysman` | `build/sysman` — full system manager |
 | `make build-sysman-tui` | `build/sysman-tui` — full system manager (TUI entry) |
-| `make build-svman` | `build/svman` — Services standalone |
-| `make build-svman-tui` | `build/svman-tui` — Services TUI (CGO-free) |
-| `make build-ugman` | `build/ugman` — Users & Groups standalone |
-| `make build-ugman-tui` | `build/ugman-tui` — Users & Groups TUI (CGO-free) |
-| `make build-infoman` | `build/infoman` — SysInfo standalone |
-| `make build-infoman-tui` | `build/infoman-tui` — SysInfo TUI (CGO-free) |
+| `make build-serman` | `build/serman` — Services standalone |
+| `make build-serman-tui` | `build/serman-tui` — Services TUI (CGO-free) |
+| `make build-ugsman` | `build/ugsman` — Users & Groups standalone |
+| `make build-ugsman-tui` | `build/ugsman-tui` — Users & Groups TUI (CGO-free) |
+| `make build-infman` | `build/infman` — SysInfo standalone |
+| `make build-infman-tui` | `build/infman-tui` — SysInfo TUI (CGO-free) |
 | `make build-srcman` | `build/srcman` — Templates standalone |
 | `make build-srcman-tui` | `build/srcman-tui` — Templates TUI (CGO-free) |
 | `make build-pkgman` | `build/pkgman` — Packages standalone |
 | `make build-pkgman-tui` | `build/pkgman-tui` — Packages TUI (CGO-free) |
+| `make build-vmsman` | `build/vmsman` — VM manager standalone |
+| `make build-vmsman-tui` | `build/vmsman-tui` — VM manager TUI (CGO-free) |
 | `make build-plugins` | `build/plugins/*.so` — dynamic plugins |
 | `make test` | run tests with race detector |
 | `make lint` | `go vet` + golangci-lint |

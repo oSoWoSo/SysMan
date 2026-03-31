@@ -3,9 +3,9 @@ meta:
   name: Čeština
 
 strings:
-  app.title: "svman"
+  app.title: "serman"
   app.subtitle: "správa runit služeb - Void Linux"
-  app.window: "svman — správa runit služeb"
+  app.window: "serman — správa runit služeb"
   tab.name: "Služby"
 
   filter.all: "Vše"
@@ -49,7 +49,7 @@ strings:
   btn.close: "Zavřít"
 
   menu.help: "Nápověda"
-  menu.about: "O aplikaci svman"
+  menu.about: "O aplikaci serman"
 
   about.version: "Verze"
   about.author: "Autor"
