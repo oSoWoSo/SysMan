@@ -96,9 +96,10 @@ pkgman-tui          # Packages TUI only
 |---|---|---|
 | `SERVICEDIR` | runit service definitions | `/etc/sv` |
 | `SERVICEDESTDIR` | enabled services directory | `/var/service` |
-| `SVMAN_LANG` | language override (`cs`, `en`) | auto from `LANG` |
-| `XBPS_DISTDIR` | path to void-packages clone | — |
+| `SYSMAN_LANG` | language override (`cs`, `en`) | auto from `LANG` |
+| `XBPS_DISTDIR` | path to void-packages clone | `~/void` |
 | `PLUGIN_DIR` | directory for dynamic `.so` plugins | `./plugins` |
+| `VMDIR` | VM directory | `~/vm` |
 
 ---
 

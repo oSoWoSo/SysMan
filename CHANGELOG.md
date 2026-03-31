@@ -8,10 +8,17 @@ All notable changes to SysMan are documented here.
 
 ### Added
 - **Makefile help** — `make` and `make help` now show all available targets
-- **Makefile improvements** — removed broken build-plugins target, fixed duplicate .PHONY entry
+- **Per-module release tarballs** — each binary now builds with its own lang/ directory for standalone distribution
+- **XBPS template** — added proper subpackages for v0.014 (sysman, sysman-tui, serman, pkgman, srcman, infman, ugsman, vmsman)
+- **Unit tests for src/common** — comprehensive test coverage for common package
 
 ### Changed
 - **Default target** — `make` without arguments now shows help instead of running full build
+- **golangci-lint** — pinned to v2.1.1 in CI to match config
+
+### Fixed
+- **Makefile improvements** — removed broken build-plugins target, fixed duplicate .PHONY entry
+- **release.yml** — updated module names (serman, pkgman, srcman, infman, ugsman, vmsman)
 
 ---
 

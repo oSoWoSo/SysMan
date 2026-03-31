@@ -96,9 +96,10 @@ pkgman-tui          # Packages (pouze TUI)
 |---|---|---|
 | `SERVICEDIR` | Adresář definic služeb runit | `/etc/sv` |
 | `SERVICEDESTDIR` | Adresář povolených služeb | `/var/service` |
-| `SVMAN_LANG` | Jazyk rozhraní (`cs`, `en`) | auto z `LANG` |
-| `XBPS_DISTDIR` | Cesta ke klonu void-packages | — |
+| `SYSMAN_LANG` | Jazyk rozhraní (`cs`, `en`) | auto z `LANG` |
+| `XBPS_DISTDIR` | Cesta ke klonu void-packages | `~/void` |
 | `PLUGIN_DIR` | Adresář pro dynamické `.so` pluginy | `./plugins` |
+| `VMDIR` | Adresář pro VM | `~/vm` |
 
 ---
 
