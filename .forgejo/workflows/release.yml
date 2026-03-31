@@ -106,7 +106,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           cd build
-          for bin in sysman-tui svman-tui ugman-tui infoman-tui srcman-tui pkgman-tui; do
+          for bin in sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vmsman-tui; do
             [ -f "$bin" ] || continue
             name="${bin}-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
             cp "$bin" "$name"
