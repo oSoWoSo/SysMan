@@ -12,16 +12,14 @@ import (
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 )
 
-// ── App metadata ─────────────────────────────────────────────────────
+// ── App metadata (re-exported from common for backward compatibility) ──
 
-// Version is set at build time via -ldflags "-X codeberg.org/oSoWoSo/SysMan/plugin.Version=<tag>".
-var Version = "0.001 Alpha"
+var Version = common.Version
 
-// App metadata used in the About dialog.
 const (
-	AppAuthor  = "zenobit @ oSoWoSo.org"
-	AppLicense = "MIT"
-	AppURL     = "https://codeberg.org/oSoWoSo/SysMan"
+	AppAuthor  = common.AppAuthor
+	AppLicense = common.AppLicense
+	AppURL     = common.AppURL
 	Usage      = "svman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SERVICEDIR      service dir (default: /etc/sv)\n  SERVICEDESTDIR  enabled services dir (default: /var/service)\n  SYSMAN_LANG  language override (e.g. cs)"
 )
 

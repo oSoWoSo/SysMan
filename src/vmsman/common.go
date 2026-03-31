@@ -13,11 +13,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var Version = "0.001 Alpha"
+var Version = common.Version
 
 const (
-	AppAuthor  = "zenobit @ oSoWoSo.org"
-	AppLicense = "MIT"
+	AppAuthor  = common.AppAuthor
+	AppLicense = common.AppLicense
 	AppURL     = "https://codeberg.org/oSoWoSo/VMman"
 	Usage      = "vmman [-g|-t] [--vm NAME] [--port PORT]\n\nOptions:\n  -g, --gui     GUI (default)\n  -t, --tui     TUI\n  --vm NAME     VM name (from config)\n  --port PORT   SPICE port (auto-detected if not provided)\n  -h, --help    show this help\n\nEnvironment:\n  VMDIR          VM directory (default: ~/vm)\n  SYSMAN_LANG    language override (e.g. cs)"
 )
