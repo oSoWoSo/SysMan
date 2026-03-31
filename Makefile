@@ -1,8 +1,8 @@
-VERSION  ?= 0.007 Alpha
+VERSION  ?= 0.008 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local
-LDFLAGS   = -s -w -X 'codeberg.org/oSoWoSo/SysMan/src/serman.Version=$(VERSION)'
+LDFLAGS   = -s -w -X 'codeberg.org/oSoWoSo/SysMan/src/common.Version=$(VERSION)'
 
 # add PIE flags for cgo builds
 CGO_ENABLED ?= 1
