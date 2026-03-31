@@ -32,6 +32,7 @@ type PkgmanConfig struct {
 type Config struct {
 	DistDir      string `yaml:"dist_dir,omitempty"`
 	SearchEngine string `yaml:"search_engine,omitempty"`
+	ForkURL      string `yaml:"fork_url,omitempty"`
 }
 
 // VmsmanConfig is the VM configuration.
@@ -119,6 +120,9 @@ func SaveSysManConfig(cfg SysManConfig) error {
 	}
 	if cfg.Srcman.SearchEngine == "" {
 		cfg.Srcman.SearchEngine = existing.Srcman.SearchEngine
+	}
+	if cfg.Srcman.ForkURL == "" {
+		cfg.Srcman.ForkURL = existing.Srcman.ForkURL
 	}
 	if cfg.Vmsman.VMDir == "" {
 		cfg.Vmsman.VMDir = existing.Vmsman.VMDir

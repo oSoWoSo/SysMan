@@ -268,7 +268,8 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	sermanServiceDestDir := newFormEntry(cfg.Serman.ServiceDestDir, serman.DefaultServiceDestDir)
 
 	srcmanDistDir := newFormEntry(cfg.Srcman.DistDir, "")
-	srcmanSearchEngine := newFormEntry(cfg.Srcman.SearchEngine, "https://duckduckgo.com/?q=")
+	srcmanSearchEngine := newFormEntry(cfg.Srcman.SearchEngine, "https://repology.org/projects/?search=")
+	srcmanForkURL := newFormEntry(cfg.Srcman.ForkURL, "")
 
 	vmsmanVMDir := newFormEntry(cfg.Vmsman.VMDir, vmman.DefaultVMDir)
 
@@ -279,6 +280,7 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 		cfg.Serman.ServiceDestDir = strings.TrimSpace(sermanServiceDestDir.Text)
 		cfg.Srcman.DistDir = strings.TrimSpace(srcmanDistDir.Text)
 		cfg.Srcman.SearchEngine = strings.TrimSpace(srcmanSearchEngine.Text)
+		cfg.Srcman.ForkURL = strings.TrimSpace(srcmanForkURL.Text)
 		cfg.Vmsman.VMDir = strings.TrimSpace(vmsmanVMDir.Text)
 		cfg.LangDir = strings.TrimSpace(langDir.Text)
 		if err := common.SaveSysManConfig(cfg); err != nil {
@@ -327,6 +329,7 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	formSrcman := widget.NewForm(
 		widget.NewFormItem("void-packages dir", srcmanDistDir),
 		widget.NewFormItem("Search engine URL", srcmanSearchEngine),
+		widget.NewFormItem("Fork URL (git push)", srcmanForkURL),
 	)
 
 	formVmsman := widget.NewForm(
