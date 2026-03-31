@@ -16,7 +16,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	serman "codeberg.org/oSoWoSo/SysMan/src/serman"
@@ -28,6 +27,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/sys/unix"
 )
 
 // Usage is the --help text for infoman.
@@ -259,9 +259,15 @@ func readUptime() string {
 }
 
 // readDisk returns (usedBytes, totalBytes, ok) for the given mount point.
+// Only available on Linux for now - returns false on other OSes.
 func readDisk(path string) (uint64, uint64, bool) {
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
+	// TODO: add proper cross-platform support for OpenBSD/FreeBSD
+	// For now, only Linux is fully supported
+	if runtime.GOOS != "linux" {
+		return 0, 0, false
+	}
+	var stat unix.Statfs_t
+	if err := unix.Statfs(path, &stat); err != nil {
 		return 0, 0, false
 	}
 	total := stat.Blocks * uint64(stat.Bsize)
