@@ -308,6 +308,12 @@ func (s *guiApp) showAbout() {
 // showHeader controls whether the svman title/subtitle bar is rendered.
 // Pass false when embedding in a parent app (e.g. sysmanager tab), true for standalone use.
 func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
+	// ── Status bar (must be created before any HoverableButton) ──────
+	if s.statusBar == nil {
+		s.statusBar = common.NewStatusBar()
+	}
+	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
+
 	// ── Header ───────────────────────────────────────────────────────
 	var header fyne.CanvasObject
 	if showHeader {
@@ -623,11 +629,6 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	controlRow := container.NewHBox(s.btnStart, s.btnStop, s.btnRestart, s.btnHup, s.btnPause, s.btnContinue, s.btnKill, layout.NewSpacer(), btnReload)
 	buttons := container.NewVBox(toggleRow, controlRow)
 
-	// ── Status bar ───────────────────────────────────────────────────
-	if s.statusBar == nil {
-		s.statusBar = common.NewStatusBar()
-	}
-	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 	// About button — info icon at the bottom-left corner
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.serman.about"), s.statusBar, func() { s.showAbout() })
 	btnAbout.Importance = widget.LowImportance

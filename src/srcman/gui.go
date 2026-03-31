@@ -486,6 +486,10 @@ func newFocusEntry(onFocus func(bool)) *focusEntry {
 // ── Build widget tree ─────────────────────────────────────────────────
 
 func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
+	// Status bar (must be created before any HoverableButton/HoverableCheck)
+	g.statusBar = common.NewStatusBar()
+	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
+
 	g.editorEntry = newFocusEntry(nil)
 
 	search := widget.NewEntry()
@@ -573,10 +577,6 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 		}
 		g.buildMode = strings.TrimSpace(g.buildMode)
 	})
-
-	// Status bar (created early for hover tooltips)
-	g.statusBar = common.NewStatusBar()
-	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	// Build button
 	g.btnBuild = common.NewHoverableButton(t("btn.build"), theme.MediaPlayIcon(), t("tooltip.srcman.build"), g.statusBar, func() {

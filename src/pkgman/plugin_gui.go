@@ -266,6 +266,12 @@ func (g *pkgGuiApp) runOp(label string, fn func(w io.Writer) (string, error)) {
 func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	g.filter = FilterAll
 
+	// ── Status bar (must be created before any HoverableButton) ──────
+	if g.statusBar == nil {
+		g.statusBar = common.NewStatusBar()
+	}
+	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
+
 	// ── Search ────────────────────────────────────────────────────────
 	search := widget.NewEntry()
 	search.SetPlaceHolder(t("search.placeholder"))
@@ -376,10 +382,6 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		widget.NewFormItem(t("detail.desc"), g.detailDesc),
 		widget.NewFormItem(t("detail.homepage"), g.detailHome),
 	)
-
-	// ── Status bar ────────────────────────────────────────────────────
-	g.statusBar = common.NewStatusBar()
-	g.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	// ── Action buttons ────────────────────────────────────────────────
 	g.btnInstall = common.NewHoverableButton(t("btn.install"), theme.DownloadIcon(), t("tooltip.pkgman.install"), g.statusBar, func() {

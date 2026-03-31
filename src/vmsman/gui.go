@@ -148,6 +148,9 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	header := canvas.NewText("VMman - Viewer Manager", color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
 	header.TextStyle = fyne.TextStyle{Bold: true}
 
+	s.statusBar = common.NewStatusBar()
+	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
+
 	search := widget.NewEntry()
 	search.SetPlaceHolder(t("search.placeholder"))
 	search.OnChanged = func(text string) {
@@ -201,9 +204,6 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		widget.NewLabel(t("detail.pid")+":"), s.detailPID,
 		widget.NewLabel(t("detail.spice")+":"), s.detailPort,
 	)
-
-	s.statusBar = common.NewStatusBar()
-	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	s.btnBoot = common.NewHoverableButton(t("btn.boot"), theme.MediaPlayIcon(), t("tooltip.vmsman.boot"), s.statusBar, func() {
 		vm := s.selectedVM()
