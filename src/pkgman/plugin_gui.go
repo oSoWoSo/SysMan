@@ -412,7 +412,7 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.pkgman.about"), g.statusBar, func() { g.showAbout() })
 	btnAbout.Importance = widget.LowImportance
-	statusBar := container.NewHBox(btnAbout, btnReload, g.statusBar, layout.NewSpacer())
+	statusBar := container.NewHBox(btnAbout, btnReload, layout.NewSpacer(), g.statusBar)
 
 	rightTop := container.NewVBox(detailForm, widget.NewSeparator(), actionRow, widget.NewSeparator())
 	rightPanel := container.NewBorder(rightTop, nil, nil, nil, g.outputScroll)

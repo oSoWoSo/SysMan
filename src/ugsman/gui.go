@@ -476,7 +476,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	btnAbout.Importance = widget.LowImportance
 	statusBar := container.NewVBox(
 		widget.NewSeparator(),
-		container.NewPadded(container.NewHBox(btnAbout, g.statusBar)),
+		container.NewPadded(container.NewHBox(btnAbout, layout.NewSpacer(), g.statusBar)),
 	)
 
 	return container.NewBorder(nil, statusBar, nil, nil, tabs)

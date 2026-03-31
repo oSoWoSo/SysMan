@@ -632,7 +632,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	// About button — info icon at the bottom-left corner
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.serman.about"), s.statusBar, func() { s.showAbout() })
 	btnAbout.Importance = widget.LowImportance
-	statusBar := container.NewHBox(btnAbout, s.statusBar)
+	statusBar := container.NewHBox(btnAbout, layout.NewSpacer(), s.statusBar)
 
 	// ── Dir info ─────────────────────────────────────────────────────
 	svcDir, destDir := s.backend.Dirs()

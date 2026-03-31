@@ -372,7 +372,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.infman.about"), statusBar, func() { showAbout(win) })
 	btnAbout.Importance = widget.LowImportance
-	statusBarRow := container.NewHBox(btnAbout, statusBar, layout.NewSpacer())
+	statusBarRow := container.NewHBox(btnAbout, layout.NewSpacer(), statusBar)
 	statusBarPanel := container.NewVBox(
 		widget.NewSeparator(),
 		container.NewPadded(statusBarRow),

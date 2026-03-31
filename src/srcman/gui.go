@@ -642,13 +642,6 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 
 	g.output = newOutputPanel(g.win.Canvas(), g.statusBar, func(sel string, pos fyne.Position) { g.showSelectionMenu(sel, pos) })
 
-	diskText := fmt.Sprintf("XBPS_DISTDIR=%s", filepath.Clean(ResolveDistDir(g.distDir)))
-	if disk := DiskInfo(g.distDir); disk != "" {
-		diskText += "  💾 " + disk
-	}
-	dirLabel := widget.NewLabel(diskText)
-	dirLabel.TextStyle = fyne.TextStyle{Monospace: true}
-
 	btnReload := common.NewHoverableButton("", theme.ViewRefreshIcon(), t("tooltip.srcman.reload"), g.statusBar, func() {
 		g.reload()
 		g.setStatus(t("status.reloaded"))
@@ -667,7 +660,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	g.btnFwd.Importance = widget.LowImportance
 	g.btnFwd.Hide()
 
-	statusBar := container.NewHBox(btnAbout, btnReload, btnFind, g.statusBar, layout.NewSpacer(), g.btnBack, g.btnFwd, layout.NewSpacer(), dirLabel)
+	statusBar := container.NewHBox(btnAbout, btnReload, btnFind, g.btnBack, g.btnFwd, layout.NewSpacer(), g.statusBar)
 
 	// Top split: left = search + list (4 rows), right = detail + buttons.
 	leftTop := container.NewVBox(search, widget.NewSeparator(), listScroll)
