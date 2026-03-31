@@ -91,7 +91,7 @@ common.ShowAbout(common.AboutConfig{
 
 Every module's language files (`src/lang/<name>/en.yaml` and `src/lang/<name>/cs.yaml`) must have:
 - `btn.*` keys for all action button labels
-- `tooltip.*` keys for all hover status texts
+- `tooltip.<module>.*` keys with module-specific prefix for all hover status texts
 
 ### 9. Thread safety with Fyne
 
@@ -104,6 +104,50 @@ go func() {
     })
 }()
 ```
+
+### 10. Tooltip keys must use module-specific prefixes
+
+**ALWAYS** prefix tooltip keys with the module name to prevent conflicts:
+
+```yaml
+# WRONG - causes conflicts between modules
+tooltip.enable: "Enable"
+tooltip.disable: "Disable"
+
+# CORRECT - unique per module
+tooltip.serman.enable: "Enable service to start on boot"
+tooltip.pkgman.enable: "Enable service"
+```
+
+Update both `src/lang/<module>/en.yaml` and `src/lang/<module>/cs.yaml`.
+
+### 11. Always call InitI18n() in main() before creating UI
+
+For any binary that uses multiple modules (e.g., sysman-gui), call `InitI18n()` for **each module** in main():
+
+```go
+func main() {
+    serman.InitI18n()
+    pkgman.InitI18n()
+    srcman.InitI18n()
+    infman.InitI18n()
+    ugsman.InitI18n()
+    vmsman.InitI18n()
+    // ... rest of main()
+}
+```
+
+This ensures translations are loaded **before** button labels and tooltips are set.
+
+### 12. Version management after changes
+
+After completing any implementation changes:
+
+1. **For single module changes**: Bump the module version in `src/<module>/version.go`
+2. **For sysman (all modules) changes**: Bump version in `src/common/version.go`
+3. Build with: `make build` or `make build-<binary>`
+4. Update CHANGELOG.md with all changes
+5. Update README.md and AGENTS.md if needed
 
 ## Project Structure
 
@@ -133,17 +177,17 @@ SysMan/
 │   ├── cmd/                     # Entry points
 │   │   ├── sysman-gui/          # Full system manager GUI
 │   │   ├── sysman-tui/          # Full system manager TUI
-│   │   ├── serman-gui/          # Services standalone GUI
+│   │   ├── serman-gui/          # Services standalone (builds to build/serman)
 │   │   ├── serman-tui/          # Services standalone TUI
-│   │   ├── ugsman-gui/          # Users & Groups GUI
+│   │   ├── ugsman-gui/          # Users & Groups GUI (builds to build/ugman)
 │   │   ├── ugsman-tui/          # Users & Groups TUI
-│   │   ├── infman-gui/          # System info GUI
+│   │   ├── infman-gui/          # System info GUI (builds to build/infoman)
 │   │   ├── infman-tui/          # System info TUI
-│   │   ├── srcman-gui/          # Templates GUI
+│   │   ├── srcman-gui/          # Templates GUI (builds to build/srcman)
 │   │   ├── srcman-tui/          # Templates TUI
-│   │   ├── pkgman-gui/          # Packages GUI
+│   │   ├── pkgman-gui/          # Packages GUI (builds to build/pkgman)
 │   │   ├── pkgman-tui/          # Packages TUI
-│   │   ├── vmsman-gui/          # VM manager GUI
+│   │   ├── vmsman-gui/          # VM manager GUI (builds to build/vmsman)
 │   │   └── vmsman-tui/          # VM manager TUI
 │   └── lang/                    # Translation files per module
 │       ├── serman/{en,cs}.yaml

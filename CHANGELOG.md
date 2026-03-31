@@ -34,6 +34,8 @@ All notable changes to SysMan are documented here.
 - **Tooltip translations** for all managers (infoman, pkgman, srcman, serman, ugsman)
 - **srcman build mode selection** — `-Q` (with tests) and `-C` (confpkg) checkboxes for xbps-src builds
 - **i18n tests** for all modules (infman, pkgman, serman, srcman, ugsman, vmsman)
+- **Module-specific tooltip keys** — all modules use `tooltip.<module>.*` prefix to prevent conflicts
+- **InitI18n() in main()** — all cmd entry points call `InitI18n()` for their modules before UI creation
 
 ### Changed
 - **Static website** — new website with 50+ retro/nostalgic themes (Amiga 500, C64, DOS, MacOS, etc.)
@@ -65,6 +67,10 @@ All notable changes to SysMan are documented here.
 - **Code review fixes** — simplified highlight.go, cleaned up sysinfo, improved serman TUI
 - **langDirs paths** — corrected language directory resolution paths across all modules
 - **vmsman plugin** — fixed config loading and i18n initialization
+- **Tooltip translations** — tooltips now show translated text instead of key names
+  - Added module-specific prefixes (`tooltip.serman.*`, `tooltip.pkgman.*`, etc.) to prevent key conflicts
+  - Added `InitI18n()` calls in main() for all modules before UI creation
+- **Makefile lang directory** — fixed `cp -r src/lang/. $(BUILD_DIR)/lang` to preserve module subdirectories
 
 ### Security
 - **PIE build** for `sysman` and `ugman` binaries — required for Void Linux packages
