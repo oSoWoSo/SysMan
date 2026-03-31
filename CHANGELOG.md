@@ -4,7 +4,7 @@ All notable changes to SysMan are documented here.
 
 ---
 
-## [Unreleased]
+## [0.009 Alpha]
 
 ### Added
 - **Users & Groups plugin** (`usergroups`) — new tab in sysman and standalone `ugman` / `ugman-tui` binaries
