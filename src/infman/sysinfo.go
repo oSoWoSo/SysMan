@@ -265,7 +265,7 @@ func readDisk(path string) (uint64, uint64, bool) {
 		return 0, 0, false
 	}
 	total := stat.Blocks * uint64(stat.Bsize)
-	avail := stat.Bavail * uint64(stat.Bsize)
+	avail := uint64(stat.Bavail) * uint64(stat.Bsize)
 	return total - avail, total, true
 }
 
