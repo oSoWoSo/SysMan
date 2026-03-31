@@ -36,10 +36,10 @@ fmt:
 	@echo "Formatting..."
 	gofmt -s -w .
 
-## lint: go vet (golangci-lint temporarily disabled)
+## lint: golangci-lint
 lint:
 	@echo "Linting..."
-	go vet ./...
+	golangci-lint run
 
 ## test: go test -race -cover
 test:
