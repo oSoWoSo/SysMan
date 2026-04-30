@@ -1,4 +1,5 @@
 # SysMan — System Manager
+(Wibe coded proof of concept)
 
 **SysMan** is a modular desktop and terminal application for Void Linux that combines service management, package management, template management, system information, and user/group management into a single tabbed interface.
 
