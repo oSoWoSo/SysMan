@@ -61,8 +61,6 @@ make build-serman-tui
 ```bash
 # Void Linux
 sudo xbps-install gcc pkg-config libXxf86vm libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel MesaLib-devel
-# Debian / Ubuntu
-sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
 ```
 
 ---
@@ -296,7 +294,7 @@ func New() api.PluginIF { return &myPlugin{} }
 go build -buildmode=plugin -o plugins/myplugin.so ./myplugin/
 ```
 
-> **Poznámka:** Go pluginy vyžadují shodnou verzi Go a závislostí s hostitelským programem. Dynamické načítání funguje pouze na Linuxu.
+> **Poznámka:** Go pluginy vyžadují shodnou verzi Go a závislostí s hostitelským programem.
 
 ---
 
