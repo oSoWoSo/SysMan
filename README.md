@@ -62,8 +62,6 @@ make build-serman-tui
 ```bash
 # Void Linux
 sudo xbps-install gcc pkg-config libXxf86vm libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel MesaLib-devel
-# Debian / Ubuntu
-sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
 ```
 
 ---
@@ -297,7 +295,7 @@ func New() api.PluginIF { return &myPlugin{} }
 go build -buildmode=plugin -o plugins/myplugin.so ./myplugin/
 ```
 
-> **Note:** Go plugins require the same Go version and module dependencies as the host binary. Dynamic loading is Linux-only.
+> **Note:** Go plugins require the same Go version and module dependencies as the host binary.
 
 ---
 
