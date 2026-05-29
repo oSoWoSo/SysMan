@@ -60,7 +60,7 @@ make build-serman-tui
 
 ```bash
 # Void Linux
-sudo xbps-install gcc pkg-config libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-devel
+sudo xbps-install gcc pkg-config libXxf86vm libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel MesaLib-devel
 # Debian / Ubuntu
 sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
 ```
