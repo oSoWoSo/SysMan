@@ -60,7 +60,12 @@ make build-serman-tui
 
 ```bash
 # Void Linux
-sudo xbps-install gcc pkg-config libXxf86vm libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel MesaLib-devel
+sudo xbps-install go gcc pkg-config libXxf86vm-devel libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel MesaLib-devel
+```
+
+### Závislosti pro běh
+```bash
+libGL libX11 libXcursor libXi libXinerama libXrandr libXxf86vm
 ```
 
 ---
