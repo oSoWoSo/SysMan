@@ -15,26 +15,54 @@ strings:
   btn.about: "O aplikaci"
   btn.close: "Zavřít"
 
+  about.hint: "Stiskněte libovolnou klávesu pro návrat"
+
   search.placeholder: "Hledat balíčky…"
 
   filter.all: "Vše"
   filter.installed: "Nainstalované"
   filter.available: "Dostupné"
+  filter.appimage: "AppImage"
+
+  action.install: "+"
+  action.remove: "-"
+  action.update: "Aktualizovat vše"
+  action.quit: "Konec"
+  action.dequeue: "[-]"
+  action.enqueue_install: "[+]"
+  action.enqueue_remove: "[-]"
+
+  action.copied: "Zkopírováno do schránky"
+  action.copy_err: "Kopírování selhalo"
 
   detail.name: "Název"
   detail.status: "Stav"
   detail.version: "Verze"
   detail.desc: "Popis"
   detail.homepage: "Domovská stránka"
+  detail.repository: "Repositář"
+  detail.size: "Velikost"
 
-  btn.install: "Instalovat"
-  btn.remove: "Odebrat"
+  btn.install: "+"
+  btn.remove: "-"
   btn.update_all: "Aktualizovat vše"
+  btn.toggle_queue: "+/-"
+  btn.queue_apply: "Provést"
+  btn.queue_clear: "Vymazat"
+  btn.copy: "Kopírovat"
 
   pkg.installed: "nainstalován"
   pkg.not_installed: "není nainstalován"
   pkg.count: "%d balíčků"
   pkg.loading: "Načítám…"
+  pkg.queue_count: "%d ve frontě"
+  pkg.queue_running: "Spouštím frontu (%d balíčků)…"
+  pkg.queue_ok: "✓ Fronta provedena"
+  status.copied: "✓ zkopírováno do schránky"
+  tooltip.common.copy: "Kopírovat výstup do schránky"
+
+  queue.install: "instalovat"
+  queue.remove: "odebrat"
 
   tui.search.placeholder: "hledat balíčky..."
   tui.none: "(žádné balíčky)"
@@ -48,6 +76,9 @@ strings:
   tui.status.updating: "Aktualizuji všechny balíčky…"
   tui.help.simple: "i=instalovat  d=odebrat  u=aktualizovat vše  mezera=označit  tab=filtr  /=hledat  q=konec"
   tui.help.full: "i=instalovat  d=odebrat  u=aktualizovat vše  mezera=označit  tab=filtr  /=hledat  h=web  r=obnovit  q=konec"
+  tui.repo: "Repo"
+  tui.size: "Velikost"
+  tui.deps: "Závislosti"
 
   tooltip.pkgman.install: "Nainstalovat vybraný balíček"
   tooltip.pkgman.remove: "Odebrat vybraný balíček"
@@ -57,3 +88,10 @@ strings:
   tooltip.pkgman.filter_all: "Zobrazit všechny balíčky"
   tooltip.pkgman.filter_installed: "Zobrazit pouze nainstalované balíčky"
   tooltip.pkgman.filter_available: "Zobrazit pouze dostupné balíčky"
+  tooltip.pkgman.toggle_queue: "Přepnout balíček ve frontě [+/-]"
+  tooltip.pkgman.queue_apply: "Provést operace ve frontě"
+  tooltip.pkgman.queue_clear: "Vymazat frontu"
+  tooltip.pkgman.copy: "Kopírovat výstup do schránky"
+
+  appimage.am_missing: "am/appman nenalezen v PATH"
+  tooltip.pkgman.backend: "Přepnout backend balíčků"

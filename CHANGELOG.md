@@ -4,6 +4,23 @@ All notable changes to SysMan are documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **`common.NewApp()` helper** — creates Fyne apps with the shared `common.AppID` (`org.oSoWoSo.SysMan`) and declares the fyneDo migration; all GUI entry points now use it instead of `app.New()`
+
+### Changed
+- **Go modules updated** — fyne v2.7.3 → v2.8.0, fsnotify v1.9.0 → v1.10.1, golang.org/x/term v0.29.0 → v0.45.0, Go directive 1.21 → 1.25.0
+- **Charm stack upgraded to v2** — bubbletea v1.3.10 → charm.land/bubbletea/v2 v2.0.9, bubbles v1.0.0 → charm.land/bubbles/v2 v2.2.0, lipgloss v1.1.0 → charm.land/lipgloss/v2 v2.0.6
+- **Version bumped to 0.019 Alpha**
+
+### Fixed
+- **Fyne "Preferences API requires a unique ID" error** — all GUI binaries now create apps via `common.NewApp()` with a unique application ID
+- **fyne.Do threading migration declared** — Fyne no longer warns about unmigrated threading model; verified all goroutine UI updates are wrapped in `fyne.Do`
+- **TUI migration for Bubble Tea v2** — `tea.KeyMsg` → `tea.KeyPressMsg` (key matching now via `Code`/`String()`), `View() string` → `View() tea.View` with alt screen enabled per model, `tea.WithAltScreen()` removed (v2 handles it via `View.AltScreen`), textinput `Width`/`PromptStyle` fields → `SetWidth()`/`SetStyles()`, adaptive colors moved to `compat.AdaptiveColor`
+
+---
+
 ## [0.014 Alpha]
 
 ### Added

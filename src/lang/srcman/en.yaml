@@ -14,6 +14,8 @@ strings:
   btn.about: "About"
   btn.close: "Close"
 
+  about.hint: "Press any key to go back"
+
   search.placeholder: "Search templates…"
 
   detail.name: "Name"
@@ -32,7 +34,10 @@ strings:
   btn.sum: "Sum"
   btn.bump: "Bump"
   btn.reload: "Reload"
+  btn.quit: "Quit"
+  btn.edit: "Edit"
   btn.find: "Find"
+  btn.copy: "Copy"
   find.placeholder: "Find in output…"
   find.no_matches: "no matches"
 
@@ -56,6 +61,10 @@ strings:
   status.ok: "✓ %s OK"
   status.failed: "✗ %s failed: %s"
   status.reloaded: "Reloaded"
+  status.copied: "✓ copied to clipboard"
+
+  action.copied: "Copied to clipboard"
+  action.copy_err: "Copy failed"
 
   tui.search.placeholder: "search templates..."
   tui.status.bootstrap: "Updating bootstrap..."
@@ -88,5 +97,11 @@ strings:
   tooltip.srcman.find_next: "Go to next match"
   tooltip.srcman.find_close: "Close find bar"
   tooltip.srcman.about: "About this application"
+  tooltip.srcman.settings: "Open settings"
   tooltip.srcman.back: "Go to previous command output"
   tooltip.srcman.forward: "Go to next command output"
+  tooltip.common.copy: "Copy output to clipboard"
+  tooltip.srcman.copy: "Copy output to clipboard"
+
+  tui.status.build_cancelled: "Build cancelled"
+  tui.build_flags: "Build flags"

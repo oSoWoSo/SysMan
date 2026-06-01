@@ -16,7 +16,6 @@ import (
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	serman "codeberg.org/oSoWoSo/SysMan/src/serman"
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
@@ -546,13 +545,16 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	// Fix the list height to show exactly 4 rows; output fills the rest below.
 	const listRowH float32 = 38
 	listScroll := container.NewVScroll(g.templateList)
-	listScroll.SetMinSize(fyne.NewSize(0, listRowH*4))
+	listScroll.SetMinSize(fyne.NewSize(0, listRowH*3))
 
 	g.detailName = widget.NewLabel("—")
 	g.detailName.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	g.detailName.Selectable = true
 	g.detailVer = widget.NewLabel("—")
+	g.detailVer.Selectable = true
 	g.detailDesc = widget.NewLabel("—")
 	g.detailDesc.Wrapping = fyne.TextWrapBreak
+	g.detailDesc.Selectable = true
 
 	detailForm := widget.NewForm(
 		widget.NewFormItem(t("detail.name"), g.detailName),
@@ -653,6 +655,23 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.srcman.about"), g.statusBar, func() { g.showAbout() })
 	btnAbout.Importance = widget.LowImportance
 
+	btnSettings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
+		common.ShowSettingsDialog(g.win, t("app.window"), []common.SettingsField{
+			{Label: "void-packages dir", Value: g.distDir, Placeholder: ""},
+			{Label: "Search engine URL", Value: g.cfg.SearchEngine, Placeholder: "https://repology.org/projects/?search="},
+			{Label: "Fork URL (git push)", Value: g.cfg.ForkURL, Placeholder: ""},
+		}, func(values map[string]string) {
+			cfg := common.LoadSysManConfig()
+			cfg.Srcman.DistDir = values["void-packages dir"]
+			cfg.Srcman.SearchEngine = values["Search engine URL"]
+			cfg.Srcman.ForkURL = values["Fork URL (git push)"]
+			if err := common.SaveSysManConfig(cfg); err != nil {
+				common.ShowSettingsError(g.win, err)
+			}
+		})
+	})
+	btnSettings.Importance = widget.LowImportance
+
 	g.btnBack = common.NewHoverableButton("", theme.NavigateBackIcon(), t("tooltip.srcman.back"), g.statusBar, func() { g.logBack() })
 	g.btnBack.Importance = widget.LowImportance
 	g.btnBack.Hide()
@@ -660,10 +679,10 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	g.btnFwd.Importance = widget.LowImportance
 	g.btnFwd.Hide()
 
-	statusBar := container.NewHBox(btnAbout, btnReload, btnFind, g.btnBack, g.btnFwd, layout.NewSpacer(), g.statusBar)
+	statusBar := container.NewHBox(btnSettings, btnAbout, btnReload, btnFind, g.btnBack, g.btnFwd, layout.NewSpacer(), g.statusBar)
 
-	// Top split: left = search + list (4 rows), right = detail + buttons.
-	leftTop := container.NewVBox(search, widget.NewSeparator(), listScroll)
+	// Top split: left = search + list, right = detail + buttons.
+	leftTop := container.NewBorder(search, nil, nil, nil, listScroll)
 	rightTop := container.NewVBox(detailForm, widget.NewSeparator(), actionRow1, actionRow2)
 
 	topSplit := container.NewHSplit(
@@ -672,8 +691,10 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 	)
 	topSplit.SetOffset(0.45)
 
-	// Output terminal spans full width below the split.
-	mainPanel := container.NewBorder(topSplit, nil, nil, nil, g.output.CanvasObject())
+	// Output terminal below the split (draggable divider).
+	outputSplit := container.NewVSplit(topSplit, g.output.CanvasObject())
+	outputSplit.SetOffset(0.55)
+	mainPanel := container.NewPadded(outputSplit)
 
 	g.clearDetail()
 
@@ -746,7 +767,7 @@ func (g *xbpsGuiApp) buildContent() fyne.CanvasObject {
 
 // RunGUI runs the xbps plugin as a standalone Fyne application.
 func RunGUI(distDir string) {
-	a := app.New()
+	a := common.NewApp(t("app.window"))
 	win := a.NewWindow(t("app.window"))
 	common.SetWindowIcon(win)
 	g := &xbpsGuiApp{

@@ -1,3 +1,5 @@
+//go:build !tui_only
+
 // Package serman provides a runit service manager plugin.
 //
 // Standalone use (GUI or TUI):
@@ -24,8 +26,8 @@
 package serman
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"codeberg.org/oSoWoSo/SysMan/src/common"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Plugin is the embeddable svman component.

@@ -1,0 +1,187 @@
+# Template file for 'sysman'
+pkgname=sysman
+version=0.018
+revision=1
+# GUI requires CGO + X11/OpenGL — restrict to archs with working cross-compilers
+# TUI is CGO_ENABLED=0 (fully static) — available on all archs via subpackages
+archs="x86_64 x86_64-musl aarch64 aarch64-musl armv7l armv7l-musl armv6l armv6l-musl i686 mipsel-musl"
+build_style=gnu-makefile
+hostmakedepends="go pkg-config"
+makedepends="libX11-devel libXrandr-devel libXxf86vm-devel libXi-devel
+ libXcursor-devel libXinerama-devel glu-devel"
+short_desc="Full system manager - services, packages, templates, users, VMs"
+maintainer="zenobit <zenobit@disroot.org>"
+license="AGPL-3.0-only"
+homepage="https://codeberg.org/oSoWoSo/SysMan"
+distfiles="https://codeberg.org/oSoWoSo/SysMan/archive/v${version}.tar.gz"
+checksum=changeme
+export PREFIX=/usr
+
+do_build() {
+	# GUI build requires CGO + X11/OpenGL — only for archs with full CGO support
+	# TUI build is CGO_ENABLED=0 — always built, works on all archs including musl
+	case "$XBPS_TARGET_MACHINE" in
+		x86_64*|aarch64*|armv7l*|armv6l*)
+			make build build-tui
+			;;
+		*)
+			make build-tui
+			;;
+	esac
+}
+
+do_check() {
+	make test
+}
+
+do_install() {
+	# Install GUI binaries (only on archs that built them)
+	case "$XBPS_TARGET_MACHINE" in
+		x86_64*|aarch64*|armv7l*|armv6l*)
+			make install
+			;;
+	esac
+
+	# Common data files (always installed)
+	vmkdir usr/share/SysMan/lang
+	vcopy build/lang/* usr/share/SysMan/lang/
+	vmkdir usr/share/pixmaps
+	vcopy src/common/void-transparent.png usr/share/pixmaps/sysman.png
+}
+
+# Subpackage: sysman-tui (TUI-only meta-package, all archs)
+sysman-tui_package() {
+	archs="*"
+	short_desc="Full system manager TUI (all modules)"
+	depends="sysman-serman-tui-${version}_${revision}
+	 sysman-pkgman-tui-${version}_${revision}
+	 sysman-srcman-tui-${version}_${revision}
+	 sysman-infman-tui-${version}_${revision}
+	 sysman-ugsman-tui-${version}_${revision}
+	 sysman-vmsman-tui-${version}_${revision}"
+	pkg_install() {
+		vbin build/sysman-tui
+	}
+}
+
+# Subpackage: sysman-serman (Services manager GUI - runit)
+sysman-serman_package() {
+	short_desc="Services manager GUI (runit)"
+	depends="sysman-${version}_${revision}"
+	pkg_install() {
+		vbin build/serman
+		vcopy build/lang/serman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-serman-tui (Services manager TUI, all archs)
+sysman-serman-tui_package() {
+	archs="*"
+	short_desc="Services manager TUI (runit)"
+	pkg_install() {
+		vbin build/serman-tui
+		vcopy build/lang/serman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-pkgman (Packages manager GUI - xbps)
+sysman-pkgman_package() {
+	short_desc="Packages manager GUI (xbps)"
+	depends="sysman-${version}_${revision}"
+	pkg_install() {
+		vbin build/pkgman
+		vcopy build/lang/pkgman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-pkgman-tui (Packages manager TUI, all archs)
+sysman-pkgman-tui_package() {
+	archs="*"
+	short_desc="Packages manager TUI (xbps)"
+	pkg_install() {
+		vbin build/pkgman-tui
+		vcopy build/lang/pkgman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-srcman (Templates manager GUI - xbps-src)
+sysman-srcman_package() {
+	short_desc="Templates manager GUI (xbps-src)"
+	depends="sysman-${version}_${revision}"
+	pkg_install() {
+		vbin build/srcman
+		vcopy build/lang/srcman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-srcman-tui (Templates manager TUI, all archs)
+sysman-srcman-tui_package() {
+	archs="*"
+	short_desc="Templates manager TUI (xbps-src)"
+	pkg_install() {
+		vbin build/srcman-tui
+		vcopy build/lang/srcman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-infman (System info GUI - fastfetch)
+sysman-infman_package() {
+	short_desc="System info GUI (fastfetch)"
+	depends="sysman-${version}_${revision} fastfetch"
+	pkg_install() {
+		vbin build/infman
+		vcopy build/lang/infman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-infman-tui (System info TUI, all archs)
+sysman-infman-tui_package() {
+	archs="*"
+	short_desc="System info TUI (fastfetch)"
+	depends="fastfetch"
+	pkg_install() {
+		vbin build/infman-tui
+		vcopy build/lang/infman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-ugsman (Users/Groups manager GUI)
+sysman-ugsman_package() {
+	short_desc="Users and groups manager GUI"
+	depends="sysman-${version}_${revision}"
+	pkg_install() {
+		vbin build/ugsman
+		vcopy build/lang/ugsman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-ugsman-tui (Users/Groups manager TUI, all archs)
+sysman-ugsman-tui_package() {
+	archs="*"
+	short_desc="Users and groups manager TUI"
+	pkg_install() {
+		vbin build/ugsman-tui
+		vcopy build/lang/ugsman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-vmsman (VM manager GUI - QEMU)
+sysman-vmsman_package() {
+	short_desc="Virtual machine manager GUI (QEMU)"
+	depends="sysman-${version}_${revision} qemu"
+	pkg_install() {
+		vbin build/vmsman
+		vcopy build/lang/vmsman usr/share/SysMan/lang/
+	}
+}
+
+# Subpackage: sysman-vmsman-tui (VM manager TUI, all archs)
+sysman-vmsman-tui_package() {
+	archs="*"
+	short_desc="Virtual machine manager TUI (QEMU)"
+	depends="qemu"
+	pkg_install() {
+		vbin build/vmsman-tui
+		vcopy build/lang/vmsman usr/share/SysMan/lang/
+	}
+}

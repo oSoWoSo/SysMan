@@ -47,6 +47,7 @@ strings:
   btn.continue: "Continue"
   btn.kill: "Kill"
   btn.close: "Close"
+  btn.about: "About"
 
   menu.help: "Help"
   menu.about: "About serman"
@@ -55,11 +56,13 @@ strings:
   about.author: "Author"
   about.license: "License"
   about.description: "Manage runit services on Void Linux.\n\nLeft panel: list of all services with filter (All / Enabled / Disabled)\nand search. Right panel: detail of selected service — state, PID, uptime,\nsource path. Bottom toolbar: enable, disable, start, stop, restart,\nHUP, pause, continue, kill."
+  about.hint: "Press any key to go back"
 
   confirm.title: "Confirm action"
-  confirm.disable: "Really disable '%s'?"
-  confirm.stop: "Really stop '%s'?"
-  confirm.kill: "Send SIGKILL to '%s'?"
+  confirm.disable: "Disable service %s?"
+  confirm.stop: "Stop service %s?"
+  confirm.kill: "Kill service %s?"
+  confirm.hint: "y = confirm, any key = cancel"
 
   status.enabled: "OK: '%s' enabled"
   status.disabled: "OK: '%s' disabled"
@@ -85,8 +88,18 @@ strings:
   services.none: "(no services)"
   services.header: "Services  "
 
+  help.select_service: "Select a service from the list"
+
   action.enable: "enter/space = enable"
   action.disable: "enter/space = disable"
+  action.start: "Start"
+  action.stop: "Stop"
+  action.restart: "Restart"
+  action.toggle: "Toggle"
+  action.reload: "Reload"
+  action.quit: "Quit"
+  search.ok: "OK"
+  search.cancel: "Cancel"
 
   tooltip.serman.enable: "Enable service to start on boot"
   tooltip.serman.disable: "Disable service from starting on boot"
@@ -102,3 +115,4 @@ strings:
   tooltip.serman.filter_all: "Show all services"
   tooltip.serman.filter_enabled: "Show only enabled services"
   tooltip.serman.filter_disabled: "Show only disabled services"
+  tooltip.serman.settings: "Open settings"

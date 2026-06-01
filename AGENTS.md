@@ -25,9 +25,22 @@ This document provides essential information for AI agents and human contributor
 | `common.SetWindowIcon()` | Set window icon from standard paths | `codeberg.org/oSoWoSo/SysMan/src/common` |
 | `common.LogoImage()` | Load distro logo for display | `codeberg.org/oSoWoSo/SysMan/src/common` |
 | `common.Version` | App version (set via ldflags) | `codeberg.org/oSoWoSo/SysMan/src/common` |
+| `common.AppID` | Unique Fyne application ID (`org.oSoWoSo.SysMan`) | `codeberg.org/oSoWoSo/SysMan/src/common` |
+| `common.NewApp(name)` | Create Fyne app with ID + fyne.Do migration declared | `codeberg.org/oSoWoSo/SysMan/src/common` |
 | `common.AnsiToRichSegments()` | Convert ANSI text to Fyne segments | `codeberg.org/oSoWoSo/SysMan/src/common` |
 
 Each module keeps its own `FilterMode` constants (e.g. `FilterEnabled`/`FilterDisabled` in serman, `FilterRunning`/`FilterStopped` in vmsman) but delegates filtering to `common.Filter`.
+
+### 1a. Always create Fyne apps via `common.NewApp()`
+
+**NEVER** call `app.New()` or `app.NewWithID()` directly:
+
+```go
+a := common.NewApp(t("app.window")) // sets AppID + declares fyneDo migration
+```
+
+All UI updates from goroutines must be wrapped in `fyne.Do()` — the app declares the
+fyneDo migration, so Fyne enforces strict threading (see rule 9).
 
 ### 2. Always verify the build after every change
 

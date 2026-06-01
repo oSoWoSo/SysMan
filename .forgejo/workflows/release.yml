@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.019)'
+        required: false
 
 jobs:
   release-linux-amd64:
@@ -40,35 +45,40 @@ jobs:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           cd build
-          
-          # Individual module tarballs (GUI + TUI)
+
+          # Individual module tarballs (GUI + TUI) for linux-x86_64
           for module in sysman serman pkgman srcman infman ugsman vmsman; do
-            # Check if GUI binary exists
             if [ -f "$module" ]; then
-              # Remove any existing directory from previous runs
-              rm -rf "$module"
-              mkdir -p "$module"
-              cp "$module" "$module/" 2>/dev/null || true
-              cp "${module}-tui" "$module/" 2>/dev/null || true
-              cp -r lang/"$module" "$module/" 2>/dev/null || true
-              tar czf "${module}-${VERSION}-linux-amd64.tar.gz" "$module"
-              sha256sum "${module}-${VERSION}-linux-amd64.tar.gz" > "${module}-${VERSION}-linux-amd64.tar.gz.sha256"
-              rm -rf "$module"
-              echo "Created ${module}-${VERSION}-linux-amd64.tar.gz"
+              mkdir -p "${module}_pkg"
+              cp "$module" "${module}_pkg/"
+              cp "${module}-tui" "${module}_pkg/" 2>/dev/null || true
+              cp -r lang/ "${module}_pkg/" 2>/dev/null || true
+              tar czf "${module}-${VERSION}-linux-x86_64.tar.gz" "${module}_pkg"
+              sha256sum "${module}-${VERSION}-linux-x86_64.tar.gz" > "${module}-${VERSION}-linux-x86_64.tar.gz.sha256"
+              rm -rf "${module}_pkg"
+              echo "Created ${module}-${VERSION}-linux-x86_64.tar.gz"
             fi
           done
-          
-          # Create "all" tarball with all binaries
-          mkdir -p all
-          for f in sysman serman pkgman srcman infman ugsman vmsman; do
-            [ -f "$f" ] && cp "$f" all/ 2>/dev/null || true
+
+          # TUI-only tarballs for linux-x86_64-musl (same static binary, musl-labelled)
+          for bin in sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vmsman-tui; do
+            [ -f "$bin" ] || continue
+            name="${bin}-${VERSION}-linux-x86_64-musl"
+            cp "$bin" "$name"
+            sha256sum "$name" > "${name}.sha256"
+            tar czf "${name}.tar.gz" "$name" lang/ 2>/dev/null || tar czf "${name}.tar.gz" "$name"
+            rm "$name"
           done
-          for f in sysman-tui serman-tui pkgman-tui srcman-tui infman-tui ugsman-tui vmsman-tui; do
+
+          # Create "all" tarball with all binaries (linux-x86_64)
+          mkdir -p all
+          for f in sysman serman pkgman srcman infman ugsman vmsman \
+                   sysman-tui serman-tui pkgman-tui srcman-tui infman-tui ugsman-tui vmsman-tui; do
             [ -f "$f" ] && cp "$f" all/ 2>/dev/null || true
           done
           cp -r lang/* all/ 2>/dev/null || true
-          tar czf "SysMan-0.014-Alpha-linux-amd64.tar.gz" all/
-          sha256sum "SysMan-0.014-Alpha-linux-amd64.tar.gz" > "SysMan-0.014-Alpha-linux-amd64.tar.gz.sha256"
+          tar czf "SysMan-${VERSION}-linux-x86_64.tar.gz" all/
+          sha256sum "SysMan-${VERSION}-linux-x86_64.tar.gz" > "SysMan-${VERSION}-linux-x86_64.tar.gz.sha256"
           rm -rf all
 
       - name: Create release and upload assets
@@ -104,22 +114,53 @@ jobs:
 
   release-cross:
     runs-on: codeberg-medium
+    needs: release-linux-amd64
 
     strategy:
       matrix:
         include:
+          # Void Linux supported architectures (TUI only — CGO-free, fully static)
+          # glibc variants
           - goos: linux
             goarch: arm64
+            label: linux-aarch64
+            musl_label: linux-aarch64-musl
           - goos: linux
             goarch: "386"
+            label: linux-i686
+            musl_label: ""
+          - goos: linux
+            goarch: arm
+            goarm: "7"
+            label: linux-armv7l
+            musl_label: linux-armv7l-musl
+          - goos: linux
+            goarch: arm
+            goarm: "6"
+            label: linux-armv6l
+            musl_label: linux-armv6l-musl
+          - goos: linux
+            goarch: mipsle
+            gomips: softfloat
+            label: ""
+            musl_label: linux-mipsel-musl
+          # Other platforms
           - goos: freebsd
             goarch: amd64
+            label: freebsd-amd64
+            musl_label: ""
           - goos: freebsd
             goarch: arm64
+            label: freebsd-arm64
+            musl_label: ""
           - goos: openbsd
             goarch: amd64
+            label: openbsd-amd64
+            musl_label: ""
           - goos: openbsd
             goarch: arm64
+            label: openbsd-arm64
+            musl_label: ""
 
     steps:
       - uses: actions/checkout@v4
@@ -141,21 +182,39 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
           CGO_ENABLED: "0"
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: make build-tui
 
       - name: Package TUI binaries
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
+          LABEL: ${{ matrix.label }}
+          MUSL_LABEL: ${{ matrix.musl_label }}
         run: |
           cd build
           for bin in sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vmsman-tui; do
             [ -f "$bin" ] || continue
-            name="${bin}-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
-            cp "$bin" "$name"
-            sha256sum "$name" > "${name}.sha256"
-            tar czf "${name}.tar.gz" "$name" lang/ 2>/dev/null || tar czf "${name}.tar.gz" "$name"
-            rm "$name"
+
+            # glibc-labelled tarball
+            if [ -n "${LABEL}" ]; then
+              name="${bin}-${VERSION}-${LABEL}"
+              cp "$bin" "$name"
+              sha256sum "$name" > "${name}.sha256"
+              tar czf "${name}.tar.gz" "$name" lang/ 2>/dev/null || tar czf "${name}.tar.gz" "$name"
+              rm "$name"
+            fi
+
+            # musl-labelled tarball (same static binary, different name)
+            if [ -n "${MUSL_LABEL}" ]; then
+              name="${bin}-${VERSION}-${MUSL_LABEL}"
+              cp "$bin" "$name"
+              sha256sum "$name" > "${name}.sha256"
+              tar czf "${name}.tar.gz" "$name" lang/ 2>/dev/null || tar czf "${name}.tar.gz" "$name"
+              rm "$name"
+            fi
           done
 
       - name: Upload assets
@@ -166,16 +225,13 @@ jobs:
           REPO="oSoWoSo/SysMan"
           API="https://codeberg.org/api/v1"
 
-          # Ensure release exists (linux/amd64 job may still be running)
-          curl -s -X POST "${API}/repos/${REPO}/releases" \
-            -H "Authorization: token ${CODEBERG_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"draft\":false}" \
-            || true
+          # Get release ID by tag (release was created by release-linux-amd64 job)
+          RELEASE_ID=$(curl -s "${API}/repos/${REPO}/releases/tags/${VERSION}" \
+            -H "Authorization: token ${CODEBERG_TOKEN}" | grep '"id"' | head -1 | grep -o '[0-9]*')
 
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
-            ASSET_URL="${API}/repos/${REPO}/releases/tags/${VERSION}/assets"
+            ASSET_URL="${API}/repos/${REPO}/releases/${RELEASE_ID}/assets"
             curl -s -X POST "${ASSET_URL}" \
               -H "Authorization: token ${CODEBERG_TOKEN}" \
               -F "attachment=@${f}"

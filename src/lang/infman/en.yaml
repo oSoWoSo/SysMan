@@ -15,6 +15,10 @@ strings:
   btn.about: "About"
   btn.close: "Close"
 
+  about.hint: "Press any key to go back"
+
+  action.quit: "Quit"
+
   info.hostname: "Hostname"
   info.os: "OS"
   info.kernel: "Kernel"
@@ -28,6 +32,7 @@ strings:
   info.desktop: "Desktop"
   info.disk: "Disk /"
   info.disk.fmt: "%s used / %s total"
+  info.entries: "entries"
 
   status.loading: "Loading…"
   status.loading_info: "Loading system info…"

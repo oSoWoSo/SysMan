@@ -5,15 +5,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"codeberg.org/oSoWoSo/SysMan/src/common"
+	zone "github.com/lrstanley/bubblezone/v2"
 )
 
 // newTestModel builds a tuiModel suitable for unit tests.
 // It uses empty-dir backend so Dirs() and List() are safe to call without real paths.
 func newTestModel(services []Service) tuiModel {
+	common.EnsureZone()
 	ti := textinput.New()
 	return tuiModel{
+		id:       zone.NewPrefix(),
 		backend:  NewRunitBackend("", ""),
 		services: services,
 		search:   ti,
@@ -207,7 +211,7 @@ func TestUpdate_ErrMsg_SetsErrorStatus(t *testing.T) {
 func TestUpdate_KeyDown_MovesCursor(t *testing.T) {
 	m := newTestModel([]Service{{Name: "a"}, {Name: "b"}, {Name: "c"}})
 	m.cursor = 0
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	tm := updated.(tuiModel)
 	if tm.cursor != 1 {
 		t.Errorf("expected cursor 1 after 'j', got %d", tm.cursor)
@@ -217,7 +221,7 @@ func TestUpdate_KeyDown_MovesCursor(t *testing.T) {
 func TestUpdate_KeyDown_ClampedAtEnd(t *testing.T) {
 	m := newTestModel([]Service{{Name: "a"}, {Name: "b"}})
 	m.cursor = 1
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	tm := updated.(tuiModel)
 	if tm.cursor != 1 {
 		t.Errorf("expected cursor clamped at 1, got %d", tm.cursor)
@@ -227,7 +231,7 @@ func TestUpdate_KeyDown_ClampedAtEnd(t *testing.T) {
 func TestUpdate_KeyUp_MovesCursor(t *testing.T) {
 	m := newTestModel([]Service{{Name: "a"}, {Name: "b"}})
 	m.cursor = 1
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	tm := updated.(tuiModel)
 	if tm.cursor != 0 {
 		t.Errorf("expected cursor 0 after 'k', got %d", tm.cursor)
@@ -237,7 +241,7 @@ func TestUpdate_KeyUp_MovesCursor(t *testing.T) {
 func TestUpdate_KeyUp_ClampedAtStart(t *testing.T) {
 	m := newTestModel([]Service{{Name: "a"}, {Name: "b"}})
 	m.cursor = 0
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	tm := updated.(tuiModel)
 	if tm.cursor != 0 {
 		t.Errorf("expected cursor clamped at 0, got %d", tm.cursor)
@@ -248,21 +252,21 @@ func TestUpdate_KeyTab_CyclesFilter(t *testing.T) {
 	m := newTestModel(nil)
 
 	// All → Enabled
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	tm := updated.(tuiModel)
 	if tm.filter != FilterEnabled {
 		t.Errorf("expected filterEnabled after tab, got %d", tm.filter)
 	}
 
 	// Enabled → Disabled
-	updated, _ = tm.Update(tea.KeyMsg{Type: tea.KeyTab})
+	updated, _ = tm.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	tm = updated.(tuiModel)
 	if tm.filter != FilterDisabled {
 		t.Errorf("expected filterDisabled after second tab, got %d", tm.filter)
 	}
 
 	// Disabled → All
-	updated, _ = tm.Update(tea.KeyMsg{Type: tea.KeyTab})
+	updated, _ = tm.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	tm = updated.(tuiModel)
 	if tm.filter != FilterAll {
 		t.Errorf("expected filterAll after third tab, got %d", tm.filter)
@@ -271,7 +275,7 @@ func TestUpdate_KeyTab_CyclesFilter(t *testing.T) {
 
 func TestUpdate_KeySlash_EntersSearchMode(t *testing.T) {
 	m := newTestModel(nil)
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: '/', Text: "/"})
 	tm := updated.(tuiModel)
 	if !tm.searchMode {
 		t.Error("expected searchMode true after '/'")
@@ -280,7 +284,7 @@ func TestUpdate_KeySlash_EntersSearchMode(t *testing.T) {
 
 func TestUpdate_KeyQ_Quits(t *testing.T) {
 	m := newTestModel(nil)
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	if cmd == nil {
 		t.Error("expected quit command after 'q'")
 	}
@@ -293,7 +297,7 @@ func TestUpdate_SearchMode_EscExitsAndClears(t *testing.T) {
 	m.searchMode = true
 	m.search.SetValue("ng")
 
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
 	tm := updated.(tuiModel)
 	if tm.searchMode {
 		t.Error("expected searchMode false after Esc")
@@ -308,7 +312,7 @@ func TestUpdate_SearchMode_EnterExitsWithoutClearing(t *testing.T) {
 	m.searchMode = true
 	m.search.SetValue("ng")
 
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	tm := updated.(tuiModel)
 	if tm.searchMode {
 		t.Error("expected searchMode false after Enter")
@@ -325,7 +329,7 @@ func TestView_DoesNotPanic(t *testing.T) {
 		{Name: "nginx", Enabled: true},
 		{Name: "sshd", Enabled: false},
 	})
-	out := m.View()
+	out := m.render()
 	if out == "" {
 		t.Error("expected non-empty View output")
 	}
@@ -333,7 +337,7 @@ func TestView_DoesNotPanic(t *testing.T) {
 
 func TestView_EmptyServices_DoesNotPanic(t *testing.T) {
 	m := newTestModel(nil)
-	out := m.View()
+	out := m.render()
 	if out == "" {
 		t.Error("expected non-empty View output even with no services")
 	}
@@ -343,7 +347,7 @@ func TestView_WithErrorStatus(t *testing.T) {
 	m := newTestModel(nil)
 	m.status = "something went wrong"
 	m.statusErr = true
-	out := m.View()
+	out := m.render()
 	if !strings.Contains(out, "something went wrong") {
 		t.Errorf("expected error status in View output, got:\n%s", out)
 	}
@@ -352,7 +356,7 @@ func TestView_WithErrorStatus(t *testing.T) {
 func TestView_WithOkStatus(t *testing.T) {
 	m := newTestModel(nil)
 	m.status = "service enabled"
-	out := m.View()
+	out := m.render()
 	if !strings.Contains(out, "service enabled") {
 		t.Errorf("expected ok status in View output, got:\n%s", out)
 	}
@@ -361,7 +365,7 @@ func TestView_WithOkStatus(t *testing.T) {
 func TestView_SearchMode_DoesNotPanic(t *testing.T) {
 	m := newTestModel([]Service{{Name: "nginx"}})
 	m.searchMode = true
-	out := m.View()
+	out := m.render()
 	if out == "" {
 		t.Error("expected non-empty View output in search mode")
 	}
@@ -371,7 +375,7 @@ func TestView_WithTerminalSize(t *testing.T) {
 	m := newTestModel([]Service{{Name: "nginx"}, {Name: "sshd"}})
 	m.width = 160
 	m.height = 50
-	out := m.View()
+	out := m.render()
 	if out == "" {
 		t.Error("expected non-empty View output with terminal size set")
 	}

@@ -9,7 +9,6 @@ import (
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	serman "codeberg.org/oSoWoSo/SysMan/src/serman"
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -484,7 +483,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 
 // RunGUI runs the Users & Groups manager as a standalone Fyne application.
 func RunGUI() {
-	a := app.New()
+	a := common.NewApp(t("app.window"))
 	win := a.NewWindow(t("app.window"))
 	common.SetWindowIcon(win)
 	win.SetContent(New().Content(win))

@@ -14,7 +14,6 @@ import (
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	serman "codeberg.org/oSoWoSo/SysMan/src/serman"
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
@@ -32,7 +31,7 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 
 // RunGUI runs the package manager as a standalone Fyne application with a header.
 func RunGUI() {
-	a := app.New()
+	a := common.NewApp(t("app.window"))
 	win := a.NewWindow(t("app.window"))
 	common.SetWindowIcon(win)
 	g := &pkgGuiApp{win: win, backend: NewXbpsBackend()}
@@ -47,6 +46,14 @@ func RunGUI() {
 	win.ShowAndRun()
 }
 
+// ── Queue ──────────────────────────────────────────────────────────────
+
+// QueueEntry represents a single package operation in the batch queue.
+type QueueEntry struct {
+	Name   string
+	Action string // "install" or "remove"
+}
+
 // ── GUI state ──────────────────────────────────────────────────────────
 
 type pkgGuiApp struct {
@@ -56,6 +63,10 @@ type pkgGuiApp struct {
 	search   string
 	filter   pkgFilter
 	selected int
+	queue    []QueueEntry
+
+	btnAppImage *common.HoverableButton
+	appImageOn  bool
 
 	pkgList       *widget.List
 	detailName    *widget.Label
@@ -63,12 +74,17 @@ type pkgGuiApp struct {
 	detailDesc    *widget.Label
 	detailHome    *widget.Hyperlink
 	detailInstall *widget.Label
+	detailRepo    *widget.Label
+	detailSize    *widget.Label
 	outputRich    *widget.RichText
 	outputScroll  *container.Scroll
+	btnCopy       *common.HoverableButton
 	highlighter   *api.Highlighter
 	statusBar     *common.StatusBar
-	btnInstall    *common.HoverableButton
-	btnRemove     *common.HoverableButton
+	queueLabel    *widget.Label
+	queueContent  *fyne.Container
+	queueScroll   *container.Scroll
+	lastOutput    string
 }
 
 func (g *pkgGuiApp) doUI(fn func()) {
@@ -114,34 +130,49 @@ func (g *pkgGuiApp) filtered() []Package {
 }
 
 func (g *pkgGuiApp) reload() {
-	g.packages = g.backend.List()
+	g.backend.Reload()
 	g.selected = -1
-	g.pkgList.Refresh()
 	g.clearDetail()
-	g.statusBar.SetText(fmt.Sprintf(t("pkg.count"), len(g.packages)))
+	g.statusBar.SetText(t("pkg.loading"))
+	go func() {
+		pkgs := g.backend.List()
+		g.doUI(func() {
+			g.packages = pkgs
+			g.pkgList.Refresh()
+			g.statusBar.SetText(fmt.Sprintf(t("pkg.count"), len(g.packages)))
+		})
+	}()
 }
 
 // reloadAndReselect reloads the package list and re-selects the package named
 // prevName (if still present), refreshing buttons to reflect the new installed state.
 func (g *pkgGuiApp) reloadAndReselect(prevName string) {
-	g.packages = g.backend.List()
+	g.backend.Reload()
 	g.selected = -1
-	g.pkgList.Refresh()
-	if prevName != "" {
-		list := g.filtered()
-		for i, pkg := range list {
-			if pkg.Name == prevName {
-				g.selected = i
-				g.pkgList.Select(i)
-				g.showDetail(prevName)
-				break
+	g.clearDetail()
+	g.statusBar.SetText(t("pkg.loading"))
+	go func() {
+		pkgs := g.backend.List()
+		g.doUI(func() {
+			g.packages = pkgs
+			g.pkgList.Refresh()
+			if prevName != "" {
+				list := g.filtered()
+				for i, pkg := range list {
+					if pkg.Name == prevName {
+						g.selected = i
+						g.pkgList.Select(i)
+						g.showDetail(prevName)
+						break
+					}
+				}
 			}
-		}
-	}
-	if g.selected == -1 {
-		g.clearDetail()
-	}
-	g.statusBar.SetText(fmt.Sprintf(t("pkg.count"), len(g.packages)))
+			if g.selected == -1 {
+				g.clearDetail()
+			}
+			g.statusBar.SetText(fmt.Sprintf(t("pkg.count"), len(g.packages)))
+		})
+	}()
 }
 
 func (g *pkgGuiApp) selectedName() string {
@@ -153,24 +184,20 @@ func (g *pkgGuiApp) selectedName() string {
 }
 
 func (g *pkgGuiApp) showDetail(name string) {
-	// Set name immediately; fetch details asynchronously to avoid blocking the UI.
 	g.detailName.SetText(name)
 	g.detailVer.SetText("…")
 	g.detailDesc.SetText("…")
 	g.detailHome.Hide()
+	g.detailRepo.SetText("…")
+	g.detailSize.SetText("…")
 
-	// Enable/disable buttons based on installed status already known from the list.
 	list := g.filtered()
 	if g.selected >= 0 && g.selected < len(list) {
 		pkg := list[g.selected]
 		if pkg.Installed {
 			g.detailInstall.SetText(t("pkg.installed"))
-			g.btnInstall.Disable()
-			g.btnRemove.Enable()
 		} else {
 			g.detailInstall.SetText(t("pkg.not_installed"))
-			g.btnInstall.Enable()
-			g.btnRemove.Disable()
 		}
 	}
 
@@ -194,6 +221,22 @@ func (g *pkgGuiApp) showDetail(name string) {
 					g.detailHome.Show()
 				}
 			}
+			if d.Repository != "" {
+				g.detailRepo.SetText(d.Repository)
+			} else {
+				g.detailRepo.SetText("—")
+			}
+			size := ""
+			if d.InstalledSize != "" {
+				size = d.InstalledSize
+			} else if d.FilenameSize != "" {
+				size = d.FilenameSize
+			}
+			if size != "" {
+				g.detailSize.SetText(size)
+			} else {
+				g.detailSize.SetText("—")
+			}
 		})
 	}()
 }
@@ -204,8 +247,8 @@ func (g *pkgGuiApp) clearDetail() {
 	g.detailDesc.SetText("—")
 	g.detailInstall.SetText("—")
 	g.detailHome.Hide()
-	g.btnInstall.Disable()
-	g.btnRemove.Disable()
+	g.detailRepo.SetText("—")
+	g.detailSize.SetText("—")
 }
 
 // streamWriter is an io.Writer that appends each line to the outputRich widget
@@ -224,9 +267,8 @@ func (sw *streamWriter) Write(p []byte) (int, error) {
 }
 
 // setOutput renders text into outputRich with highlighting and scrolls to bottom.
-// It automatically detects ANSI escape sequences and renders them with colors,
-// otherwise falls back to the Highlighter regex-based coloring.
 func (g *pkgGuiApp) setOutput(text string) {
+	g.lastOutput = text
 	var segs []widget.RichTextSegment
 	if common.HasAnsiCodes(text) {
 		segs = common.AnsiToRichSegments(text)
@@ -239,7 +281,6 @@ func (g *pkgGuiApp) setOutput(text string) {
 }
 
 func (g *pkgGuiApp) runOp(label string, fn func(w io.Writer) (string, error)) {
-	// Remember selected package name so we can re-select after reload.
 	prevName := g.selectedName()
 	g.statusBar.SetText(fmt.Sprintf("Running: %s…", label))
 	g.outputRich.Segments = nil
@@ -257,6 +298,116 @@ func (g *pkgGuiApp) runOp(label string, fn func(w io.Writer) (string, error)) {
 				g.statusBar.SetText(fmt.Sprintf("✗ %s failed: %s", label, err.Error()))
 			} else {
 				g.statusBar.SetText(fmt.Sprintf("✓ %s OK", label))
+			}
+			g.reloadAndReselect(prevName)
+		})
+	}()
+}
+
+// ── Queue ──────────────────────────────────────────────────────────────
+
+func (g *pkgGuiApp) toggleQueue() {
+	name := g.selectedName()
+	if name == "" {
+		return
+	}
+	for i, e := range g.queue {
+		if e.Name == name {
+			g.queue = append(g.queue[:i], g.queue[i+1:]...)
+			g.statusBar.SetText(fmt.Sprintf("Removed %s from queue", name))
+			g.refreshQueue()
+			return
+		}
+	}
+	action := "install"
+	if g.selected >= 0 && g.selected < len(g.packages) && g.packages[g.selected].Installed {
+		action = "remove"
+	}
+	g.queue = append(g.queue, QueueEntry{Name: name, Action: action})
+	g.statusBar.SetText(fmt.Sprintf("Added %s to queue (%s)", name, action))
+	g.refreshQueue()
+}
+
+func (g *pkgGuiApp) refreshQueue() {
+	n := len(g.queue)
+	if n == 0 {
+		g.queueLabel.SetText("")
+		g.queueContent.Objects = nil
+		g.queueContent.Refresh()
+	} else {
+		g.queueLabel.SetText(fmt.Sprintf(t("pkg.queue_count"), n))
+		var lines []string
+		for _, e := range g.queue {
+			symbol := "[+]"
+			if e.Action == "remove" {
+				symbol = "[-]"
+			}
+			lines = append(lines, fmt.Sprintf("%s %s", symbol, e.Name))
+		}
+		lbl := widget.NewLabel(strings.Join(lines, "\n"))
+		lbl.TextStyle = fyne.TextStyle{Monospace: true}
+		lbl.Wrapping = fyne.TextWrapOff
+		g.queueContent.Objects = []fyne.CanvasObject{lbl}
+		g.queueContent.Refresh()
+	}
+}
+
+func (g *pkgGuiApp) clearQueue() {
+	g.queue = nil
+	g.refreshQueue()
+}
+
+func (g *pkgGuiApp) applyQueue() {
+	if len(g.queue) == 0 {
+		return
+	}
+	var installs, removes []string
+	for _, e := range g.queue {
+		switch e.Action {
+		case "install":
+			installs = append(installs, e.Name)
+		case "remove":
+			removes = append(removes, e.Name)
+		}
+	}
+	g.queue = nil
+	g.refreshQueue()
+
+	prevName := g.selectedName()
+	g.statusBar.SetText(fmt.Sprintf(t("pkg.queue_running"), len(installs)+len(removes)))
+	g.outputRich.Segments = nil
+	g.outputRich.Refresh()
+
+	go func() {
+		var allOutput strings.Builder
+		var firstErr error
+		sw := &streamWriter{app: g}
+		if len(installs) > 0 {
+			out, err := g.backend.Install(installs, sw)
+			if out != "" {
+				allOutput.WriteString(out + "\n")
+			}
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		if len(removes) > 0 {
+			out, err := g.backend.Remove(removes, sw)
+			if out != "" {
+				allOutput.WriteString(out + "\n")
+			}
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+		g.doUI(func() {
+			if allOutput.Len() > 0 {
+				g.setOutput(strings.TrimSpace(allOutput.String()))
+			}
+			if firstErr != nil {
+				g.statusBar.SetText(fmt.Sprintf("✗ queue failed: %s", firstErr.Error()))
+			} else {
+				g.statusBar.SetText(t("pkg.queue_ok"))
 			}
 			g.reloadAndReselect(prevName)
 		})
@@ -310,7 +461,23 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	btnFilterAll = common.NewHoverableButtonText(t("filter.all"), t("tooltip.pkgman.filter_all"), g.statusBar, func() { applyFilter(FilterAll) })
 	btnFilterInstalled = common.NewHoverableButtonText(t("filter.installed"), t("tooltip.pkgman.filter_installed"), g.statusBar, func() { applyFilter(FilterInstalled) })
 	btnFilterAvailable = common.NewHoverableButtonText(t("filter.available"), t("tooltip.pkgman.filter_available"), g.statusBar, func() { applyFilter(FilterAvailable) })
-	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable)
+
+	// ── AppImage toggle button ───────────────────────────────────────
+	g.btnAppImage = common.NewHoverableButtonText(t("filter.appimage"), t("tooltip.pkgman.backend"), g.statusBar, func() {
+		g.appImageOn = !g.appImageOn
+		if g.appImageOn {
+			g.backend = NewAppImageBackend()
+			g.btnAppImage.Importance = widget.HighImportance
+		} else {
+			g.backend = NewXbpsBackend()
+			g.btnAppImage.Importance = widget.MediumImportance
+		}
+		g.btnAppImage.Refresh()
+		g.reload()
+	})
+	g.btnAppImage.Importance = widget.MediumImportance
+
+	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable, widget.NewSeparator(), g.btnAppImage)
 
 	// ── Package list ──────────────────────────────────────────────────
 	installedColor := color.RGBA{R: 0x44, G: 0xDD, B: 0x77, A: 0xFF} // grn
@@ -365,15 +532,28 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	g.outputScroll = container.NewScroll(g.outputRich)
 	g.outputScroll.SetMinSize(fyne.NewSize(0, 200))
 
+	g.btnCopy = common.NewHoverableButton(t("btn.copy"), theme.ContentCopyIcon(), t("tooltip.common.copy"), g.statusBar, func() {
+		fyne.CurrentApp().Clipboard().SetContent(g.lastOutput)
+		g.statusBar.SetText(t("status.copied"))
+	})
+
 	// ── Detail panel ──────────────────────────────────────────────────
 	g.detailName = widget.NewLabel("—")
 	g.detailName.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	g.detailName.Selectable = true
 	g.detailVer = widget.NewLabel("—")
+	g.detailVer.Selectable = true
 	g.detailDesc = widget.NewLabel("—")
 	g.detailDesc.Wrapping = fyne.TextWrapBreak
+	g.detailDesc.Selectable = true
 	g.detailInstall = widget.NewLabel("—")
+	g.detailInstall.Selectable = true
 	g.detailHome = widget.NewHyperlink("", nil)
 	g.detailHome.Hide()
+	g.detailRepo = widget.NewLabel("—")
+	g.detailRepo.Selectable = true
+	g.detailSize = widget.NewLabel("—")
+	g.detailSize.Selectable = true
 
 	detailForm := widget.NewForm(
 		widget.NewFormItem(t("detail.name"), g.detailName),
@@ -381,22 +561,25 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		widget.NewFormItem(t("detail.version"), g.detailVer),
 		widget.NewFormItem(t("detail.desc"), g.detailDesc),
 		widget.NewFormItem(t("detail.homepage"), g.detailHome),
+		widget.NewFormItem(t("detail.repository"), g.detailRepo),
+		widget.NewFormItem(t("detail.size"), g.detailSize),
 	)
 
 	// ── Action buttons ────────────────────────────────────────────────
-	g.btnInstall = common.NewHoverableButton(t("btn.install"), theme.DownloadIcon(), t("tooltip.pkgman.install"), g.statusBar, func() {
-		if name := g.selectedName(); name != "" {
-			g.runOp("install "+name, func(w io.Writer) (string, error) { return g.backend.Install([]string{name}, w) })
-		}
+	btnToggle := common.NewHoverableButtonText(t("btn.toggle_queue"), t("tooltip.pkgman.toggle_queue"), g.statusBar, func() {
+		g.toggleQueue()
 	})
-	g.btnInstall.Importance = widget.HighImportance
+	btnToggle.Importance = widget.HighImportance
 
-	g.btnRemove = common.NewHoverableButton(t("btn.remove"), theme.DeleteIcon(), t("tooltip.pkgman.remove"), g.statusBar, func() {
-		if name := g.selectedName(); name != "" {
-			g.runOp("remove "+name, func(w io.Writer) (string, error) { return g.backend.Remove([]string{name}, w) })
-		}
+	btnApply := common.NewHoverableButton(t("btn.queue_apply"), theme.ConfirmIcon(), t("tooltip.pkgman.queue_apply"), g.statusBar, func() {
+		g.applyQueue()
 	})
-	g.btnRemove.Importance = widget.DangerImportance
+	btnApply.Importance = widget.HighImportance
+
+	btnClear := common.NewHoverableButton(t("btn.queue_clear"), theme.CancelIcon(), t("tooltip.pkgman.queue_clear"), g.statusBar, func() {
+		g.clearQueue()
+	})
+	btnClear.Importance = widget.LowImportance
 
 	btnUpdate := common.NewHoverableButton(t("btn.update_all"), theme.UploadIcon(), t("tooltip.pkgman.update_all"), g.statusBar, func() {
 		g.runOp("update", func(w io.Writer) (string, error) { return g.backend.Update(w) })
@@ -408,14 +591,26 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	btnReload.Importance = widget.LowImportance
 
-	actionRow := container.NewHBox(g.btnInstall, g.btnRemove, layout.NewSpacer(), btnUpdate)
+	actionRow := container.NewHBox(btnToggle, btnApply, btnClear, layout.NewSpacer(), btnUpdate)
+
+	// ── Queue panel ──────────────────────────────────────────────────
+	g.queueLabel = widget.NewLabel("")
+	g.queueLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	g.queueContent = container.NewVBox()
+	g.queueScroll = container.NewVScroll(g.queueContent)
 
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.pkgman.about"), g.statusBar, func() { g.showAbout() })
 	btnAbout.Importance = widget.LowImportance
 	statusBar := container.NewHBox(btnAbout, btnReload, layout.NewSpacer(), g.statusBar)
 
 	rightTop := container.NewVBox(detailForm, widget.NewSeparator(), actionRow, widget.NewSeparator())
-	rightPanel := container.NewBorder(rightTop, nil, nil, nil, g.outputScroll)
+	outputToolbar := container.NewHBox(g.btnCopy, layout.NewSpacer())
+	queueArea := container.NewBorder(g.queueLabel, nil, nil, nil, g.queueScroll)
+	outputArea := container.NewBorder(outputToolbar, nil, nil, nil, g.outputScroll)
+	queueOutputSplit := container.NewVSplit(queueArea, outputArea)
+	queueOutputSplit.SetOffset(0.15)
+	rightPanel := container.NewBorder(rightTop, nil, nil, nil, queueOutputSplit)
 
 	split := container.NewHSplit(
 		container.NewPadded(leftPanel),
@@ -423,7 +618,7 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	)
 	split.SetOffset(0.38)
 
-	highlightFilter(FilterAll) // highlight "All" button (detail widgets now initialized)
+	highlightFilter(FilterAll)
 	g.clearDetail()
 
 	// Load packages asynchronously.

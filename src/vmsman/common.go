@@ -31,6 +31,23 @@ const (
 // DefaultVMDir is the default VM directory.
 const DefaultVMDir = "vm"
 
+// ResolveVMDir expands ~ in the given path and falls back to ~/vm.
+func ResolveVMDir(vmDir string) string {
+	if vmDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return DefaultVMDir
+		}
+		return filepath.Join(home, DefaultVMDir)
+	}
+	if strings.HasPrefix(vmDir, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, vmDir[2:])
+		}
+	}
+	return vmDir
+}
+
 // VM represents a virtual machine.
 type VM struct {
 	Name      string
@@ -76,7 +93,27 @@ func Filter[T any](
 	return common.Filter(items, int(mode), search, isRunning, matchesSearch)
 }
 
+// CheckVMDir checks if the VM directory exists and is accessible.
+// Returns an error message if the directory doesn't exist or can't be read.
+func CheckVMDir(vmDir string) string {
+	if vmDir == "" {
+		return t("error.vm_dir_empty")
+	}
+	info, err := os.Stat(vmDir)
+	if os.IsNotExist(err) {
+		return fmt.Sprintf(t("error.vm_dir_not_found"), vmDir)
+	}
+	if err != nil {
+		return fmt.Sprintf(t("error.vm_dir_access"), vmDir)
+	}
+	if !info.IsDir() {
+		return fmt.Sprintf(t("error.vm_dir_not_dir"), vmDir)
+	}
+	return ""
+}
+
 // LoadVMs loads VMs from the specified directory.
+// Returns nil if the directory doesn't exist or can't be read.
 func LoadVMs(vmDir string) []VM {
 	entries, err := os.ReadDir(vmDir)
 	if err != nil {
@@ -127,21 +164,27 @@ type Backend interface {
 	Boot(vm *VM) error
 	Kill(vm *VM) error
 	Status(vm *VM) VMStatus
+	VMDir() string
 }
 
 // QEMUBackend is a backend for QEMU VMs.
 type QEMUBackend struct {
-	VMDir string
+	vmDir string
 }
 
 // NewQEMUBackend creates a new QEMU backend.
 func NewQEMUBackend(vmDir string) *QEMUBackend {
-	return &QEMUBackend{VMDir: vmDir}
+	return &QEMUBackend{vmDir: vmDir}
+}
+
+// VMDir returns the VM directory path.
+func (b *QEMUBackend) VMDir() string {
+	return b.vmDir
 }
 
 // List returns the list of VMs.
 func (b *QEMUBackend) List() []VM {
-	return LoadVMs(b.VMDir)
+	return LoadVMs(b.vmDir)
 }
 
 // Boot boots a VM.

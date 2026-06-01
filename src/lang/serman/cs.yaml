@@ -47,6 +47,8 @@ strings:
   btn.continue: "Pokračovat"
   btn.kill: "Zabít"
   btn.close: "Zavřít"
+  btn.about: "O aplikaci"
+  about.hint: "Stiskněte libovolnou klávesu pro návrat"
 
   menu.help: "Nápověda"
   menu.about: "O aplikaci serman"
@@ -57,9 +59,10 @@ strings:
   about.description: "Správa runit služeb na Void Linuxu.\n\nLevý panel: seznam všech služeb s filtrem (Vše / Povolené / Nepovolené)\na vyhledáváním. Pravý panel: detail vybrané služby — stav, PID, uptime,\ncesta ke zdroji. Spodní panel: povolit, zakázat, spustit, zastavit,\nrestartovat, HUP, pozastavit, pokračovat, zabít."
 
   confirm.title: "Potvrdit akci"
-  confirm.disable: "Opravdu zakázat '%s'?"
-  confirm.stop: "Opravdu zastavit '%s'?"
-  confirm.kill: "Poslat SIGKILL procesu '%s'?"
+  confirm.disable: "Zakázat službu %s?"
+  confirm.stop: "Zastavit službu %s?"
+  confirm.kill: "Zabít službu %s?"
+  confirm.hint: "y = potvrdit, jiná klávesa = zrušit"
 
   status.enabled: "OK: '%s' povolena"
   status.disabled: "OK: '%s' zakázána"
@@ -85,8 +88,18 @@ strings:
   services.none: "(žádné služby)"
   services.header: "Služby  "
 
+  help.select_service: "Vyberte službu ze seznamu"
+
   action.enable: "enter/mezera = povolit"
   action.disable: "enter/mezera = zakázat"
+  action.start: "Spustit"
+  action.stop: "Zastavit"
+  action.restart: "Restart"
+  action.toggle: "Přepnout"
+  action.reload: "Obnovit"
+  action.quit: "Konec"
+  search.ok: "OK"
+  search.cancel: "Zrušit"
 
   tooltip.serman.enable: "Povolit službu při startu"
   tooltip.serman.disable: "Zakázat službu při startu"
@@ -102,3 +115,4 @@ strings:
   tooltip.serman.filter_all: "Zobrazit všechny služby"
   tooltip.serman.filter_enabled: "Zobrazit pouze povolené služby"
   tooltip.serman.filter_disabled: "Zobrazit pouze zakázané služby"
+  tooltip.serman.settings: "Otevřít nastavení"

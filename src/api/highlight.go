@@ -356,7 +356,7 @@ type coloredSegment struct {
 	bold bool
 }
 
-func (s *coloredSegment) Inline() bool              { return false }
+func (s *coloredSegment) Inline() bool              { return true }
 func (s *coloredSegment) Textual() string           { return s.text }
 func (s *coloredSegment) Select(_, _ fyne.Position) {}
 func (s *coloredSegment) SelectedText() string      { return "" }
@@ -383,6 +383,9 @@ func (h *Highlighter) RichSegments(text string) []widget.RichTextSegment {
 	var segs []widget.RichTextSegment
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {
+		if line == "" {
+			continue
+		}
 		col, bold := h.matchLine(line)
 		var seg widget.RichTextSegment
 		if col != nil {

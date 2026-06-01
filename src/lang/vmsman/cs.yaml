@@ -41,6 +41,8 @@ strings:
   status.err: Chyba
 
   confirm.title: Potvrzení
+  confirm.kill: "Zabít VM %s?"
+  confirm.hint: "y = potvrdit, jiná klávesa = zrušit"
 
   help.normal: "↑↓=nav  Enter=přepnout  c=připojit  b=spustit  k=zastavit  /=hledat  tab=filtr  q=quit"
   help.search: "Enter/esc=zavřít  ↑↓=nav"
@@ -48,8 +50,16 @@ strings:
   btn.boot: Spustit
   btn.kill: Zabít
   btn.connect: Připojit
+  btn.reload: Znovu načíst
   btn.about: O aplikaci
   btn.close: Zavřít
+
+  about.version: "Verze"
+  about.author: "Autor"
+  about.license: "Licence"
+  about.hint: "Stiskněte libovolnou klávesu pro návrat"
+
+  action.quit: "Konec"
 
   tooltip.vmsman.boot: Spustit vybrané VM
   tooltip.vmsman.kill: Zastavit/zabít VM
@@ -61,3 +71,9 @@ strings:
   tooltip.vmsman.filter_all: Zobrazit všechny VM
   tooltip.vmsman.filter_running: Zobrazit pouze běžící VM
   tooltip.vmsman.filter_stopped: Zobrazit pouze zastavené VM
+  tooltip.vmsman.settings: Otevřít nastavení
+
+  error.vm_dir_empty: Adresář VM není nastaven
+  error.vm_dir_not_found: "Adresář VM neexistuje: %s"
+  error.vm_dir_access: "Nelze přistoupit k adresáři VM: %s"
+  error.vm_dir_not_dir: "Cesta VM není adresář: %s"

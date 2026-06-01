@@ -15,6 +15,10 @@ strings:
   btn.about: "O aplikaci"
   btn.close: "Zavřít"
 
+  about.hint: "Stiskněte libovolnou klávesu pro návrat"
+
+  action.quit: "Konec"
+
   info.hostname: "Název hostitele"
   info.os: "OS"
   info.kernel: "Jádro"
@@ -28,6 +32,7 @@ strings:
   info.desktop: "Prostředí"
   info.disk: "Disk /"
   info.disk.fmt: "%s použito / %s celkem"
+  info.entries: "položek"
 
   status.loading: "Načítám…"
   status.loading_info: "Načítám systémové informace…"

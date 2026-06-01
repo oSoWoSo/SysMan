@@ -1,3 +1,5 @@
+//go:build !tui_only
+
 // Package common provides shared helpers for SysMan plugins.
 package common
 
@@ -108,7 +110,7 @@ type ansiColoredSegment struct {
 	col  color.Color
 }
 
-func (s *ansiColoredSegment) Inline() bool { return false }
+func (s *ansiColoredSegment) Inline() bool { return true }
 
 func (s *ansiColoredSegment) Textual() string { return s.text }
 
@@ -147,13 +149,14 @@ func AnsiToRichSegments(text string) []widget.RichTextSegment {
 
 	for lineIdx, line := range lines {
 		lineSegs := parseAnsiLine(line)
-		segs = append(segs, lineSegs...)
-
-		if lineIdx < len(lines)-1 {
-			segs = append(segs, &widget.TextSegment{
-				Text:  "\n",
-				Style: widget.RichTextStyle{Inline: true},
-			})
+		if len(lineSegs) > 0 {
+			segs = append(segs, lineSegs...)
+			if lineIdx < len(lines)-1 {
+				segs = append(segs, &widget.TextSegment{
+					Text:  "\n",
+					Style: widget.RichTextStyle{Inline: true},
+				})
+			}
 		}
 	}
 
@@ -163,12 +166,7 @@ func AnsiToRichSegments(text string) []widget.RichTextSegment {
 func parseAnsiLine(line string) []widget.RichTextSegment {
 	if !AnsiRe.MatchString(line) {
 		if line == "" {
-			return []widget.RichTextSegment{
-				&widget.TextSegment{
-					Text:  " ",
-					Style: widget.RichTextStyle{TextStyle: fyne.TextStyle{Monospace: true}},
-				},
-			}
+			return nil
 		}
 		return []widget.RichTextSegment{
 			&widget.TextSegment{
@@ -200,12 +198,7 @@ func parseAnsiLine(line string) []widget.RichTextSegment {
 	}
 
 	if len(segs) == 0 {
-		return []widget.RichTextSegment{
-			&widget.TextSegment{
-				Text:  " ",
-				Style: widget.RichTextStyle{TextStyle: fyne.TextStyle{Monospace: true}},
-			},
-		}
+		return nil
 	}
 
 	return segs

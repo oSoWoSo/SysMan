@@ -14,6 +14,8 @@ strings:
   btn.about: "O aplikaci"
   btn.close: "Zavřít"
 
+  about.hint: "Stiskněte libovolnou klávesu pro návrat"
+
   search.placeholder: "Hledat šablony…"
 
   detail.name: "Název"
@@ -32,7 +34,10 @@ strings:
   btn.sum: "Kontrolní součet"
   btn.bump: "Zvýšit verzi"
   btn.reload: "Obnovit"
+  btn.quit: "Konec"
+  btn.edit: "Upravit"
   btn.find: "Hledat"
+  btn.copy: "Kopírovat"
   find.placeholder: "Hledat ve výstupu…"
   find.no_matches: "nic nenalezeno"
 
@@ -56,6 +61,10 @@ strings:
   status.ok: "✓ %s OK"
   status.failed: "✗ %s selhalo: %s"
   status.reloaded: "Obnoveno"
+  status.copied: "✓ zkopírováno do schránky"
+
+  action.copied: "Zkopírováno do schránky"
+  action.copy_err: "Kopírování selhalo"
 
   tui.search.placeholder: "hledat šablony..."
   tui.status.bootstrap: "Aktualizuji bootstrap..."
@@ -88,5 +97,11 @@ strings:
   tooltip.srcman.find_next: "Přejít na další výsledek"
   tooltip.srcman.find_close: "Zavřít panel hledání"
   tooltip.srcman.about: "O této aplikaci"
+  tooltip.srcman.settings: "Otevřít nastavení"
   tooltip.srcman.back: "Přejít na předchozí výstup příkazu"
   tooltip.srcman.forward: "Přejít na další výstup příkazu"
+  tooltip.common.copy: "Kopírovat výstup do schránky"
+  tooltip.srcman.copy: "Kopírovat výstup do schránky"
+
+  tui.status.build_cancelled: "Sestavení přerušeno"
+  tui.build_flags: "Sestavit příznaky"

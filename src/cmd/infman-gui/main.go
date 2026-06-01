@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
 
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"codeberg.org/oSoWoSo/SysMan/src/infman"
@@ -48,7 +47,7 @@ func main() {
 		infman.RunTUI()
 	default:
 		p := infman.New()
-		a := app.New()
+		a := common.NewApp(p.Name())
 		win := a.NewWindow(p.Name())
 		common.SetWindowIcon(win)
 		win.SetContent(p.Content(win))

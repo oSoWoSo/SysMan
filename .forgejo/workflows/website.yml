@@ -5,7 +5,7 @@ on:
   pull_request:
   workflow_dispatch:
 jobs:
-  test:
+  deploy:
     runs-on: codeberg-tiny
     #runs-on: codeberg-small
     #runs-on: codeberg-medium
@@ -24,7 +24,7 @@ jobs:
 
           git remote set-url origin https://x-token:${{ secrets.GITHUB_TOKEN }}@codeberg.org/${{ github.repository }}.git
 
-          cp -r output /tmp/pages_output
+          cp -r web/output /tmp/pages_output
 
           git fetch origin pages || true
           git checkout pages 2>/dev/null || git checkout --orphan pages

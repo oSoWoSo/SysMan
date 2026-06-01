@@ -9,7 +9,6 @@ import (
 
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
@@ -57,6 +56,7 @@ func (th darkIndustrialTheme) Color(name fyne.ThemeColorName, variant fyne.Theme
 type guiApp struct {
 	win        fyne.Window
 	backend    Backend
+	vmDir      string
 	vms        []VM
 	selected   int
 	searchText string
@@ -86,6 +86,12 @@ func (s *guiApp) filtered() []VM {
 
 func (s *guiApp) reload() {
 	fyne.Do(func() {
+		// Report an error if the VM directory is missing or inaccessible,
+		// but leave any existing status message (hover text, action results) untouched.
+		if errMsg := CheckVMDir(s.backend.VMDir()); errMsg != "" {
+			s.statusBar.SetText(errMsg)
+		}
+
 		s.vms = s.backend.List()
 		s.vmList.Refresh()
 		s.updateCount()
@@ -148,7 +154,9 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	header := canvas.NewText("VMman - Viewer Manager", color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
 	header.TextStyle = fyne.TextStyle{Bold: true}
 
-	s.statusBar = common.NewStatusBar()
+	if s.statusBar == nil {
+		s.statusBar = common.NewStatusBar()
+	}
 	s.statusBar.TextStyle = fyne.TextStyle{Italic: true, Monospace: true}
 
 	search := widget.NewEntry()
@@ -194,9 +202,13 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	detailTitle.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 
 	s.detailName = widget.NewLabel(t("detail.empty"))
+	s.detailName.Selectable = true
 	s.detailState = widget.NewLabel(t("detail.empty"))
+	s.detailState.Selectable = true
 	s.detailPID = widget.NewLabel(t("detail.empty"))
+	s.detailPID.Selectable = true
 	s.detailPort = widget.NewLabel(t("detail.empty"))
+	s.detailPort.Selectable = true
 
 	detailForm := container.NewVBox(
 		widget.NewLabel(t("detail.name")+":"), s.detailName,
@@ -268,6 +280,19 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	})
 	s.btnAbout.Importance = widget.LowImportance
 
+	btnSettings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
+		common.ShowSettingsDialog(s.win, t("app.window"), []common.SettingsField{
+			{Label: "VM dir", Value: s.vmDir, Placeholder: DefaultVMDir},
+		}, func(values map[string]string) {
+			cfg := common.LoadSysManConfig()
+			cfg.Vmsman.VMDir = values["VM dir"]
+			if err := common.SaveSysManConfig(cfg); err != nil {
+				common.ShowSettingsError(s.win, err)
+			}
+		})
+	})
+	btnSettings.Importance = widget.LowImportance
+
 	buttonRow := container.NewHBox(s.btnBoot, s.btnKill, s.btnConnect, layout.NewSpacer())
 
 	rightPanel := container.NewVBox(
@@ -286,7 +311,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	split := container.NewHSplit(container.NewPadded(leftPanel), container.NewPadded(rightPanel))
 	split.SetOffset(0.42)
 
-	statusBarRow := container.NewHBox(s.btnAbout, layout.NewSpacer(), s.statusBar)
+	statusBarRow := container.NewHBox(btnSettings, s.btnAbout, layout.NewSpacer(), s.statusBar)
 
 	return container.NewBorder(
 		nil,
@@ -328,7 +353,7 @@ func (s *guiApp) setStatus(msg string) {
 // RunGUI runs the GUI.
 func RunGUI(vmDir string) {
 	InitI18n()
-	a := app.New()
+	a := common.NewApp(t("app.window"))
 	a.Settings().SetTheme(darkIndustrialTheme{theme.DefaultTheme()})
 	win := a.NewWindow(t("app.window"))
 	common.SetWindowIcon(win)
@@ -336,9 +361,11 @@ func RunGUI(vmDir string) {
 	g := &guiApp{
 		win:     win,
 		backend: b,
+		vmDir:   vmDir,
 	}
 	g.vms = b.List()
 	win.SetContent(g.buildContentWithHeader())
+	g.reload()
 	win.Resize(fyne.NewSize(860, 560))
 	win.SetMaster()
 	win.Canvas().SetOnTypedKey(func(e *fyne.KeyEvent) {

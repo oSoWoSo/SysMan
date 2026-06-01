@@ -39,10 +39,7 @@ func main() {
 		mode = "tui"
 	}
 
-	vmDir := os.Getenv("VMDIR")
-	if vmDir == "" {
-		vmDir = vmman.DefaultVMDir
-	}
+	vmDir := vmman.ResolveVMDir(os.Getenv("VMDIR"))
 
 	switch mode {
 	case "tui":

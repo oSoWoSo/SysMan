@@ -1,11 +1,13 @@
+//go:build !tui_only
+
 // Package ugsman provides a Users & Groups management plugin.
 // for the system manager. It wraps standard shadow-utils commands
 // (useradd, userdel, usermod, chpasswd, groupadd, groupdel) via sudo.
 package ugsman
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"codeberg.org/oSoWoSo/SysMan/src/common"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Plugin implements api.PluginIF.

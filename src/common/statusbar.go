@@ -1,3 +1,5 @@
+//go:build !tui_only
+
 package common
 
 import (

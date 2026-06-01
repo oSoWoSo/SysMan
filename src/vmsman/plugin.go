@@ -4,12 +4,10 @@ package vmman
 
 import (
 	"os"
-	"path/filepath"
-	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Plugin is the VMman plugin.
@@ -36,6 +34,10 @@ func (p *Plugin) SetStatusBar(statusBar *common.StatusBar) {
 // Content returns the GUI content.
 func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	g := &guiApp{win: win, backend: NewQEMUBackend(p.resolveVMDir())}
+	if p.statusBar != nil {
+		g.statusBar = p.statusBar
+	}
+	g.vms = g.backend.List()
 	return g.buildContent()
 }
 
@@ -44,23 +46,20 @@ func (p *Plugin) Model() tea.Model {
 	return NewTuiModel(NewQEMUBackend(p.resolveVMDir()))
 }
 
-func expandHome(p string) string {
-	if strings.HasPrefix(p, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(home, p[2:])
-		}
-	}
-	return p
-}
-
 func (p *Plugin) resolveVMDir() string {
-	if p.vmDir != "" && p.vmDir != DefaultVMDir {
-		return expandHome(p.vmDir)
+	// First check VMDIR environment variable (highest priority)
+	if vmDir := os.Getenv("VMDIR"); vmDir != "" {
+		return ResolveVMDir(vmDir)
 	}
+	// Then check if a specific vmDir was passed that differs from default
+	if p.vmDir != "" && p.vmDir != DefaultVMDir {
+		return ResolveVMDir(p.vmDir)
+	}
+	// Then check config file
 	cfg := common.LoadSysManConfig()
 	if cfg.Vmsman.VMDir != "" {
-		return expandHome(cfg.Vmsman.VMDir)
+		return ResolveVMDir(cfg.Vmsman.VMDir)
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, DefaultVMDir)
+	// Finally fall back to default ~/vm
+	return ResolveVMDir("")
 }

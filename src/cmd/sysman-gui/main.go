@@ -27,17 +27,16 @@ import (
 
 	"image/color"
 
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"codeberg.org/oSoWoSo/SysMan/src/api"
 	"codeberg.org/oSoWoSo/SysMan/src/infman"
@@ -46,6 +45,7 @@ import (
 	"codeberg.org/oSoWoSo/SysMan/src/srcman"
 	"codeberg.org/oSoWoSo/SysMan/src/ugsman"
 	"codeberg.org/oSoWoSo/SysMan/src/vmsman"
+	zone "github.com/lrstanley/bubblezone/v2"
 )
 
 func main() {
@@ -97,7 +97,7 @@ func main() {
 	// Built-in plugins — always present, no rebuild needed for these.
 	// Create a shared status bar for all plugins.
 	statusBar := common.NewStatusBar()
-	plugins := []api.PluginIF{
+	plugins := []api.PluginGUI{
 		infman.New(),
 		pkgman.New(),
 		srcman.New(""),
@@ -142,7 +142,7 @@ func pluginDir() string {
 // loadDynamic opens every *.so in dir and calls its exported New() function.
 // Files that fail to load or have the wrong symbol signature are skipped with a warning.
 // Returns nil (not an error) when the directory does not exist.
-func loadDynamic(dir string) []api.PluginIF {
+func loadDynamic(dir string) []api.PluginGUI {
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return nil
@@ -152,7 +152,7 @@ func loadDynamic(dir string) []api.PluginIF {
 		return nil
 	}
 
-	var loaded []api.PluginIF
+	var loaded []api.PluginGUI
 	for _, e := range entries {
 		if filepath.Ext(e.Name()) != ".so" {
 			continue
@@ -168,7 +168,7 @@ func loadDynamic(dir string) []api.PluginIF {
 			fmt.Fprintf(os.Stderr, "sysmanager: %s: missing New symbol\n", e.Name())
 			continue
 		}
-		newFn, ok := sym.(func() api.PluginIF)
+		newFn, ok := sym.(func() api.PluginGUI)
 		if !ok {
 			fmt.Fprintf(os.Stderr, "sysmanager: %s: New has wrong signature\n", e.Name())
 			continue
@@ -181,8 +181,8 @@ func loadDynamic(dir string) []api.PluginIF {
 
 // ── GUI ───────────────────────────────────────────────────────────────
 
-func runGUI(plugins []api.PluginIF) {
-	a := app.New()
+func runGUI(plugins []api.PluginGUI) {
+	a := common.NewApp("System Manager")
 	win := a.NewWindow("System Manager")
 	common.SetWindowIcon(win)
 
@@ -371,17 +371,19 @@ func newFormEntry(value, placeholder string) *widget.Entry {
 // ── TUI ───────────────────────────────────────────────────────────────
 
 type sysManagerModel struct {
-	plugins []api.PluginIF
+	id      string
+	plugins []api.PluginGUI
 	models  []tea.Model
 	active  int
 }
 
-func newSysManagerModel(plugins []api.PluginIF) sysManagerModel {
+func newSysManagerModel(plugins []api.PluginGUI) sysManagerModel {
+	zone.NewGlobal()
 	models := make([]tea.Model, len(plugins))
 	for i, p := range plugins {
 		models[i] = p.Model()
 	}
-	return sysManagerModel{plugins: plugins, models: models}
+	return sysManagerModel{id: zone.NewPrefix(), plugins: plugins, models: models}
 }
 
 func (m sysManagerModel) Init() tea.Cmd {
@@ -395,7 +397,7 @@ func (m sysManagerModel) Init() tea.Cmd {
 }
 
 func (m sysManagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if key, ok := msg.(tea.KeyMsg); ok {
+	if key, ok := msg.(tea.KeyPressMsg); ok {
 		if key.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
@@ -408,12 +410,24 @@ func (m sysManagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Handle mouse clicks on tabs.
+	if mouse, ok := msg.(tea.MouseClickMsg); ok && mouse.Button == tea.MouseLeft {
+		for i, p := range m.plugins {
+			if zone.Get(m.id + p.Name()).InBounds(mouse) {
+				if i != m.active {
+					m.active = i
+					return m, nil
+				}
+			}
+		}
+	}
+
 	newModels := make([]tea.Model, len(m.models))
 	copy(newModels, m.models)
 
 	// Window resize and async result messages go to all plugins so background
 	// commands (e.g. package list loading) complete regardless of which tab is active.
-	if _, isKey := msg.(tea.KeyMsg); !isKey {
+	if _, isKey := msg.(tea.KeyPressMsg); !isKey {
 		var cmds []tea.Cmd
 		for i, mdl := range newModels {
 			updated, cmd := mdl.Update(msg)
@@ -440,23 +454,28 @@ var (
 	tuiTabBar      = lipgloss.NewStyle().BorderBottom(true).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#585858"))
 )
 
-func (m sysManagerModel) View() string {
-	bar := ""
+// View implements tea.Model; renders the tab bar and the active plugin in the alt screen.
+func (m sysManagerModel) View() tea.View {
+	var tabs []string
 	for i, p := range m.plugins {
 		label := fmt.Sprintf("%d %s", i+1, p.Name())
 		if i == m.active {
-			bar += tuiTabActive.Render(label)
+			tabs = append(tabs, zone.Mark(m.id+p.Name(), tuiTabActive.Render(label)))
 		} else {
-			bar += tuiTabInactive.Render(label)
+			tabs = append(tabs, zone.Mark(m.id+p.Name(), tuiTabInactive.Render(label)))
 		}
 	}
-	bar += "  " + tuiTabHelp.Render("1-9: switch tab  ctrl+c: quit")
-	return tuiTabBar.Render(bar) + "\n" + m.models[m.active].View()
+	bar := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
+	bar += "  " + tuiTabHelp.Render("1-9: switch tab  click: switch tab  ctrl+c: quit")
+	v := tea.NewView(zone.Scan(tuiTabBar.Render(bar) + "\n" + m.models[m.active].View().Content))
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	return v
 }
 
-func runTUI(plugins []api.PluginIF) {
+func runTUI(plugins []api.PluginGUI) {
 	m := newSysManagerModel(plugins)
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
 		os.Exit(1)

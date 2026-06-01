@@ -18,6 +18,12 @@ import (
 // Usage is the --help text for pkgman.
 const Usage = "pkgman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SYSMAN_LANG  language override (e.g. cs)"
 
+// QueueEntry represents a single package operation in the batch queue.
+type QueueEntry struct {
+	Name   string
+	Action string // "install" or "remove"
+}
+
 // isTTY reports whether stdout is connected to a terminal.
 func isTTY() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
@@ -55,13 +61,17 @@ func Filter[T any](
 
 // PackageDetail holds extended metadata for a single package.
 type PackageDetail struct {
-	Name         string
-	Version      string
-	ShortDesc    string
-	Homepage     string
-	License      string
-	Maintainer   string
-	Architecture string
+	Name          string
+	Version       string
+	ShortDesc     string
+	Homepage      string
+	License       string
+	Maintainer    string
+	Architecture  string
+	Repository    string
+	InstalledSize string
+	FilenameSize  string
+	RunDeps       []string
 }
 
 // ── Backend interface ─────────────────────────────────────────────────
@@ -75,6 +85,8 @@ type PackageDetail struct {
 type PkgBackend interface {
 	// Name returns a short human-readable identifier, e.g. "xbps", "apt".
 	Name() string
+	// Reload invalidates any cached state so the next List() returns fresh data.
+	Reload()
 	// List returns all available packages with their installed state.
 	List() []Package
 	// Detail fetches extended metadata for one package by name.
@@ -103,6 +115,9 @@ func NewXbpsBackend() *XbpsBackend { return &XbpsBackend{} }
 
 // Name returns "xbps".
 func (b *XbpsBackend) Name() string { return "xbps" }
+
+// Reload is a no-op for xbps (packages are always fresh from xbps-query).
+func (b *XbpsBackend) Reload() {}
 
 // List returns all available packages.
 func (b *XbpsBackend) List() []Package { return LoadPackages() }
@@ -196,23 +211,36 @@ func pkgnameFromFull(full string) string {
 	return full
 }
 
-// QueryDetail fetches extended metadata for a single package name via xbps-query --show.
+// QueryDetail fetches extended metadata for a single package via xbps-query -R -v.
 func QueryDetail(name string) PackageDetail {
-	out, err := exec.Command("xbps-query", "-R", "--show", name).Output() //nolint:gosec
+	out, err := exec.Command("xbps-query", "-R", "-v", name).Output() //nolint:gosec
 	d := PackageDetail{Name: name}
 	if err != nil {
 		return d
 	}
+	inRunDeps := false
 	for _, line := range strings.Split(string(out), "\n") {
+		if strings.HasPrefix(line, "\t") {
+			if inRunDeps {
+				d.RunDeps = append(d.RunDeps, strings.TrimSpace(line))
+			}
+			continue
+		}
+		inRunDeps = false
 		k, v, ok := strings.Cut(line, ": ")
 		if !ok {
-			continue
+			// Handle "key:" (no value, e.g. run_depends:)
+			if strings.HasSuffix(line, ":") {
+				k = strings.TrimSuffix(line, ":")
+				v = ""
+			} else {
+				continue
+			}
 		}
 		switch strings.TrimSpace(k) {
 		case "pkgname":
 			d.Name = strings.TrimSpace(v)
 		case "pkgver":
-			// "pkgver: vim-9.2.0_1" — strip pkgname prefix
 			full := strings.TrimSpace(v)
 			if idx := strings.LastIndex(full, "-"); idx > 0 {
 				d.Version = full[idx+1:]
@@ -229,6 +257,14 @@ func QueryDetail(name string) PackageDetail {
 			d.Maintainer = strings.TrimSpace(v)
 		case "architecture":
 			d.Architecture = strings.TrimSpace(v)
+		case "repository":
+			d.Repository = strings.TrimSpace(v)
+		case "installed_size":
+			d.InstalledSize = strings.TrimSpace(v)
+		case "filename-size":
+			d.FilenameSize = strings.TrimSpace(v)
+		case "run_depends":
+			inRunDeps = true
 		}
 	}
 	return d

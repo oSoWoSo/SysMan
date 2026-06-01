@@ -17,10 +17,7 @@ func main() {
 		}
 	}
 
-	vmDir := os.Getenv("VMDIR")
-	if vmDir == "" {
-		vmDir = vmman.DefaultVMDir
-	}
+	vmDir := vmman.ResolveVMDir(os.Getenv("VMDIR"))
 
 	vmman.RunTUI(vmDir)
 }

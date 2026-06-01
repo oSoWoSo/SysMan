@@ -11,7 +11,6 @@ import (
 
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
@@ -121,6 +120,9 @@ func (d *detailStateWidget) clear() {
 type guiApp struct {
 	win     fyne.Window
 	backend Backend
+
+	serviceDir     string
+	serviceDestDir string
 
 	services    []Service
 	statusCache map[string]ServiceStatus // populated by reload(), read by showDetail
@@ -409,15 +411,21 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	// ── Detail panel ─────────────────────────────────────────────────
 	s.detailName = widget.NewLabel(t("detail.empty"))
 	s.detailName.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	s.detailName.Selectable = true
 	s.detailState = newDetailStateWidget()
 	s.detailRunning = widget.NewLabel(t("detail.empty"))
+	s.detailRunning.Selectable = true
 	s.detailPID = widget.NewLabel(t("detail.empty"))
 	s.detailPID.TextStyle = fyne.TextStyle{Monospace: true}
+	s.detailPID.Selectable = true
 	s.detailUptime = widget.NewLabel(t("detail.empty"))
+	s.detailUptime.Selectable = true
 	s.detailSrc = widget.NewLabel(t("detail.empty"))
 	s.detailSrc.Wrapping = fyne.TextWrapBreak
+	s.detailSrc.Selectable = true
 	s.detailDst = widget.NewLabel(t("detail.empty"))
 	s.detailDst.Wrapping = fyne.TextWrapBreak
+	s.detailDst.Selectable = true
 
 	detailForm := widget.NewForm(
 		widget.NewFormItem(t("detail.name"), s.detailName),
@@ -629,10 +637,26 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	controlRow := container.NewHBox(s.btnStart, s.btnStop, s.btnRestart, s.btnHup, s.btnPause, s.btnContinue, s.btnKill, layout.NewSpacer(), btnReload)
 	buttons := container.NewVBox(toggleRow, controlRow)
 
+	// Settings button
+	btnSettings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
+		common.ShowSettingsDialog(s.win, t("app.window"), []common.SettingsField{
+			{Label: "Service Dir", Value: s.serviceDir, Placeholder: DefaultServiceDir},
+			{Label: "Service Dest Dir", Value: s.serviceDestDir, Placeholder: DefaultServiceDestDir},
+		}, func(values map[string]string) {
+			cfg := common.LoadSysManConfig()
+			cfg.Serman.ServiceDir = values["Service Dir"]
+			cfg.Serman.ServiceDestDir = values["Service Dest Dir"]
+			if err := common.SaveSysManConfig(cfg); err != nil {
+				common.ShowSettingsError(s.win, err)
+			}
+		})
+	})
+	btnSettings.Importance = widget.LowImportance
+
 	// About button — info icon at the bottom-left corner
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.serman.about"), s.statusBar, func() { s.showAbout() })
 	btnAbout.Importance = widget.LowImportance
-	statusBar := container.NewHBox(btnAbout, layout.NewSpacer(), s.statusBar)
+	statusBar := container.NewHBox(btnSettings, btnAbout, layout.NewSpacer(), s.statusBar)
 
 	// ── Dir info ─────────────────────────────────────────────────────
 	svcDir, destDir := s.backend.Dirs()
@@ -686,14 +710,16 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 // RunGUI runs svman as a standalone Fyne GUI application.
 func RunGUI(serviceDir, serviceDestDir string) {
 	InitI18n()
-	a := app.New()
+	a := common.NewApp(t("app.window"))
 	a.Settings().SetTheme(darkIndustrialTheme{theme.DefaultTheme()})
 	win := a.NewWindow(t("app.window"))
 	b := NewRunitBackend(serviceDir, serviceDestDir)
 	g := &guiApp{
-		win:      win,
-		backend:  b,
-		selected: -1,
+		win:            win,
+		backend:        b,
+		serviceDir:     serviceDir,
+		serviceDestDir: serviceDestDir,
+		selected:       -1,
 	}
 	g.services = b.List()
 	win.SetContent(g.buildContent(true))

@@ -15,26 +15,54 @@ strings:
   btn.about: "About"
   btn.close: "Close"
 
+  about.hint: "Press any key to go back"
+
   search.placeholder: "Search packages…"
 
   filter.all: "All"
   filter.installed: "Installed"
   filter.available: "Available"
+  filter.appimage: "AppImage"
+
+  action.install: "+"
+  action.remove: "-"
+  action.update: "Update all"
+  action.quit: "Quit"
+  action.dequeue: "[-]"
+  action.enqueue_install: "[+]"
+  action.enqueue_remove: "[-]"
+
+  action.copied: "Copied to clipboard"
+  action.copy_err: "Copy failed"
 
   detail.name: "Name"
   detail.status: "Status"
   detail.version: "Version"
   detail.desc: "Description"
   detail.homepage: "Homepage"
+  detail.repository: "Repository"
+  detail.size: "Size"
 
-  btn.install: "Install"
-  btn.remove: "Remove"
+  btn.install: "+"
+  btn.remove: "-"
   btn.update_all: "Update all"
+  btn.toggle_queue: "+/-"
+  btn.queue_apply: "Apply"
+  btn.queue_clear: "Clear"
+  btn.copy: "Copy"
 
   pkg.installed: "installed"
   pkg.not_installed: "not installed"
   pkg.count: "%d packages"
   pkg.loading: "Loading…"
+  pkg.queue_count: "%d in queue"
+  pkg.queue_running: "Running queue (%d packages)…"
+  pkg.queue_ok: "✓ Queue applied"
+  status.copied: "✓ copied to clipboard"
+  tooltip.common.copy: "Copy output to clipboard"
+
+  queue.install: "install"
+  queue.remove: "remove"
 
   tui.search.placeholder: "search packages..."
   tui.none: "(no packages found)"
@@ -48,6 +76,9 @@ strings:
   tui.status.updating: "Updating all packages…"
   tui.help.simple: "i=install  d=remove  u=update all  space=mark  tab=filter  /=search  q=quit"
   tui.help.full: "i=install  d=remove  u=update all  space=mark  tab=filter  /=search  h=homepage  r=reload  q=quit"
+  tui.repo: "Repo"
+  tui.size: "Size"
+  tui.deps: "Deps"
 
   tooltip.pkgman.install: "Install selected package"
   tooltip.pkgman.remove: "Remove selected package"
@@ -57,3 +88,10 @@ strings:
   tooltip.pkgman.filter_all: "Show all packages"
   tooltip.pkgman.filter_installed: "Show installed packages only"
   tooltip.pkgman.filter_available: "Show available packages only"
+  tooltip.pkgman.toggle_queue: "Toggle package in queue [+/-]"
+  tooltip.pkgman.queue_apply: "Apply queued operations"
+  tooltip.pkgman.queue_clear: "Clear the queue"
+  tooltip.pkgman.copy: "Copy output to clipboard"
+
+  appimage.am_missing: "am/appman not found in PATH"
+  tooltip.pkgman.backend: "Switch package backend"

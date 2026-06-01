@@ -23,7 +23,7 @@ import (
 // fires onSecondaryTap so the caller can show a context menu.
 type outputPanel struct {
 	canvas    fyne.Canvas
-	outer     fyne.CanvasObject // border: entryContainer + find bar
+	outer     fyne.CanvasObject // border: btnRow + entryContainer + find bar
 	statusBar *common.StatusBar
 
 	entry *selEntry
@@ -35,6 +35,9 @@ type outputPanel struct {
 
 	// Container for switching between Entry and RichText
 	content *fyne.Container
+
+	// copy button (visible in ANSI mode)
+	btnCopy *common.HoverableButton
 
 	// find bar
 	findEntry   *widget.Entry
@@ -56,6 +59,13 @@ func newOutputPanel(canvas fyne.Canvas, statusBar *common.StatusBar, onSecondary
 	p.rich.Wrapping = fyne.TextWrapOff
 	p.richScroll = container.NewScroll(p.rich)
 	p.richScroll.SetMinSize(fyne.NewSize(0, 100))
+
+	// Copy button for ANSI mode (Entry has native Ctrl+C)
+	p.btnCopy = common.NewHoverableButton(t("btn.copy"), theme.ContentCopyIcon(), t("tooltip.common.copy"), statusBar, func() {
+		fyne.CurrentApp().Clipboard().SetContent(p.plain.String())
+		p.setStatus(t("status.copied"))
+	})
+	p.btnCopy.Hide()
 
 	// Content stack - we'll show/hide based on ANSI detection
 	p.content = container.NewStack(p.entry, p.richScroll)
@@ -82,8 +92,16 @@ func newOutputPanel(canvas fyne.Canvas, statusBar *common.StatusBar, onSecondary
 	p.findBar = container.NewHBox(findEntryWrap, findRight)
 	p.findBar.Hide()
 
-	p.outer = container.NewBorder(nil, p.findBar, nil, nil, p.content)
+	btnRow := container.NewHBox(p.btnCopy, layout.NewSpacer())
+	p.outer = container.NewBorder(btnRow, p.findBar, nil, nil, p.content)
 	return p
+}
+
+// setStatus updates the status bar text.
+func (p *outputPanel) setStatus(msg string) {
+	if p.statusBar != nil {
+		p.statusBar.SetText(msg)
+	}
 }
 
 // SetMinSize sets the minimum size of the output entry.
@@ -134,11 +152,13 @@ func (p *outputPanel) renderContent() {
 		// Switch to RichText for ANSI content
 		p.entry.Hide()
 		p.richScroll.Show()
+		p.btnCopy.Show()
 		p.rich.Segments = common.AnsiToRichSegments(content)
 		p.rich.Refresh()
 	} else {
 		// Use plain Entry for non-ANSI content
 		p.richScroll.Hide()
+		p.btnCopy.Hide()
 		p.entry.Show()
 		p.entry.SetText(content)
 	}

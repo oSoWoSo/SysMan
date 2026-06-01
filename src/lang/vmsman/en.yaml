@@ -41,6 +41,8 @@ strings:
   status.err: Error
 
   confirm.title: Confirm
+  confirm.kill: "Kill VM %s?"
+  confirm.hint: "y = confirm, any key = cancel"
 
   help.normal: "↑↓=nav  Enter=toggle  c=connect  b=boot  k=kill  /=search  tab=filter  q=quit"
   help.search: "Enter/esc=close  ↑↓=nav"
@@ -48,8 +50,16 @@ strings:
   btn.boot: Boot
   btn.kill: Kill
   btn.connect: Connect
+  btn.reload: Reload
   btn.about: About
   btn.close: Close
+
+  about.version: "Version"
+  about.author: "Author"
+  about.license: "License"
+  about.hint: "Press any key to go back"
+
+  action.quit: "Quit"
 
   tooltip.vmsman.boot: Boot selected VM
   tooltip.vmsman.kill: Stop/Kill the VM
@@ -61,3 +71,9 @@ strings:
   tooltip.vmsman.filter_all: Show all VMs
   tooltip.vmsman.filter_running: Show running VMs only
   tooltip.vmsman.filter_stopped: Show stopped VMs only
+  tooltip.vmsman.settings: "Open settings"
+
+  error.vm_dir_empty: VM directory is not set
+  error.vm_dir_not_found: "VM directory does not exist: %s"
+  error.vm_dir_access: "Cannot access VM directory: %s"
+  error.vm_dir_not_dir: "VM path is not a directory: %s"

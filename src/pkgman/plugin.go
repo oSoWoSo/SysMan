@@ -1,3 +1,5 @@
+//go:build !tui_only
+
 // Package pkgman provides a package manager plugin.
 //
 // The default backend targets Void Linux (xbps). To support another package
@@ -19,8 +21,8 @@
 package pkgman
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"codeberg.org/oSoWoSo/SysMan/src/common"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Plugin is the embeddable package-manager component.

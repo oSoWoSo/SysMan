@@ -1,4 +1,4 @@
-VERSION  ?= 0.018 Alpha
+VERSION  ?= 0.019 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local
@@ -17,7 +17,7 @@ TUI_BINS = sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vms
 
 .PHONY: all clean fmt lint test \
 	build build-tui \
-	install install-tui uninstall uninstall-tui release \
+	install install-tui install-all uninstall uninstall-tui uninstall-all release \
 	help default
 
 # Default target - show help when no target specified
@@ -46,20 +46,18 @@ help:
 	@echo "  make test               - go test -race -cover"
 	@echo "  make install            - install binaries to \$$PREFIX/bin"
 	@echo "  make install-tui        - install TUI binaries"
+	@echo "  make install-all        - install all binaries (GUI + TUI)"
 	@echo "  make uninstall          - remove installed binaries"
 	@echo "  make uninstall-tui      - remove installed TUI binaries"
+	@echo "  make uninstall-all      - remove all installed binaries (GUI + TUI)"
 	@echo "  make release            - build all + create tarballs with checksums"
 	@echo ""
 	@echo "=== Variables ==="
-	@echo "  VERSION=0.014 Alpha     - override version"
+	@echo "  VERSION=$(VERSION)      - override version (default)"
 	@echo "  PREFIX=/usr/local       - installation prefix (default: /usr/local)"
 	@echo "  DESTDIR=/               - staging directory for make install"
 	@echo ""
 	@echo "Run 'make <target>' to execute a specific target."
-
-# Default target - show help when no argument provided
-.PHONY: default
-default: help
 
 
 ## all: clean → lint → test → build
@@ -92,7 +90,7 @@ build: $(addprefix build-,$(GUI_BINS))
 	@cp -r src/lang/. $(BUILD_DIR)/lang 2>/dev/null || true
 
 ## build-tui: build all TUI-only binaries (CGO-free)
-build-tui: build-sysman-tui build-serman-tui build-ugsman-tui build-infman-tui build-srcman-tui build-pkgman-tui build-vmsman-tui
+build-tui: $(addprefix build-,$(TUI_BINS))
 	@echo "All TUI binaries built in $(BUILD_DIR)/."
 
 ## Generic GUI build rule
@@ -139,6 +137,9 @@ install-tui: build-tui
 	cp -r src/lang/. $(DESTDIR)$(PREFIX)/share/SysMan/lang/
 	@echo "Done."
 
+## install-all: build and install all binaries (GUI + TUI)
+install-all: install install-tui
+
 ## uninstall: remove installed GUI binaries and data files
 uninstall:
 	@echo "Uninstalling GUI binaries from $(DESTDIR)$(PREFIX)/bin/ ..."
@@ -156,6 +157,9 @@ uninstall-tui:
 	    rm -f $(DESTDIR)$(PREFIX)/bin/$$bin && echo "  removed $$bin" || true; \
 	done
 	@echo "Done."
+
+## uninstall-all: remove all installed binaries (GUI + TUI)
+uninstall-all: uninstall uninstall-tui
 
 ## release: build all, create per-binary tarballs with checksums
 release: build build-tui
