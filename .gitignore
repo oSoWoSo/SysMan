@@ -1,2 +1,23 @@
-/build
-/.bssg_cache
+*.swo
+*.swp
+*~
+\#*#
+
+# exclude everything in root except files and directories from void-packages
+/*
+!/.editorconfig
+!/.gitattributes
+!/.forgejo
+!/.gitignore
+!/README.md
+!/README-cz.md
+!/src
+!/web
+!/.golangci.yml
+!/AGENTS.md
+!/CHANGELOG.md
+!/go.mod
+!/go.sum
+!/LICENSE
+!/main.go
+!/Makefile
