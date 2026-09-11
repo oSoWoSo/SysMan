@@ -66,9 +66,9 @@ type tabEntry struct {
 }
 
 type tabModel struct {
-	id      string
-	tabs    []tabEntry
-	active  int
+	id     string
+	tabs   []tabEntry
+	active int
 }
 
 func newTabModel(tabs []tabEntry) tabModel {
@@ -151,7 +151,7 @@ func (m tabModel) View() tea.View {
 	}
 	bar := lipgloss.JoinHorizontal(lipgloss.Top, tabLabels...)
 	bar += "  " + tuiTabHelp.Render("1-9: switch  click: switch  ctrl+c: quit")
-	v := tea.NewView(zone.Scan(tuiTabBar.Render(bar)+"\n"+m.tabs[m.active].model.View().Content))
+	v := tea.NewView(zone.Scan(tuiTabBar.Render(bar) + "\n" + m.tabs[m.active].model.View().Content))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v

@@ -60,23 +60,23 @@ func (f tuiFilter) label() string {
 
 // tuiModel holds the state of the TUI application.
 type tuiModel struct {
-	id          string          // bubblezone ID prefix for clickable elements
-	backend     Backend         // service manager backend (runit, openrc, …)
-	services    []Service       // all loaded services
-	cursor      int             // selected item index in filtered list
-	filter      tuiFilter       // current filter (all/enabled/disabled)
-	search      textinput.Model // search input field
-	searchMode  bool            // true when user is typing search query
-	status      string          // status/error message
-	statusErr   bool            // true if status is an error
-	svStatus    ServiceStatus   // live runtime status of selected service
-	svStatName  string          // service name svStatus was fetched for
-	svStatusAll map[string]ServiceStatus // batch status cache for all services
-	showAbout   bool            // true when about screen is shown
-	width         int             // terminal width
-	height        int             // terminal height
-	confirmAction string          // pending confirmation action: "", "disable", "stop", "kill"
-	confirmArg    string          // argument for the pending action (service name)
+	id            string                   // bubblezone ID prefix for clickable elements
+	backend       Backend                  // service manager backend (runit, openrc, …)
+	services      []Service                // all loaded services
+	cursor        int                      // selected item index in filtered list
+	filter        tuiFilter                // current filter (all/enabled/disabled)
+	search        textinput.Model          // search input field
+	searchMode    bool                     // true when user is typing search query
+	status        string                   // status/error message
+	statusErr     bool                     // true if status is an error
+	svStatus      ServiceStatus            // live runtime status of selected service
+	svStatName    string                   // service name svStatus was fetched for
+	svStatusAll   map[string]ServiceStatus // batch status cache for all services
+	showAbout     bool                     // true when about screen is shown
+	width         int                      // terminal width
+	height        int                      // terminal height
+	confirmAction string                   // pending confirmation action: "", "disable", "stop", "kill"
+	confirmArg    string                   // argument for the pending action (service name)
 }
 
 // Messages for async operations.
@@ -416,37 +416,6 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check list items.
 		list := m.filtered()
 		start := m.scrollStart()
-		for i := start; i < len(list); i++ {
-			if zone.Get(m.id + list[i].Name).InBounds(msg) {
-				m.cursor = i
-				m.svStatName = m.currentName()
-				return m, m.fetchStatusCmd()
-			}
-		}
-
-	case tea.MouseClickMsg:
-		if msg.Button != tea.MouseLeft {
-			break
-		}
-		// Check filter tabs.
-		for _, f := range []tuiFilter{FilterAll, FilterEnabled, FilterDisabled} {
-			if zone.Get(m.id + "filter_" + f.label()).InBounds(msg) {
-				m.filter = f
-				m.cursor = 0
-				m.svStatName = m.currentName()
-				return m, m.fetchStatusCmd()
-			}
-		}
-		// Check list items.
-		list := m.filtered()
-		start := 0
-		listHeight := m.height - 13
-		if listHeight < 3 {
-			listHeight = 3
-		}
-		if m.cursor >= listHeight {
-			start = m.cursor - listHeight + 1
-		}
 		for i := start; i < len(list); i++ {
 			if zone.Get(m.id + list[i].Name).InBounds(msg) {
 				m.cursor = i

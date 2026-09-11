@@ -46,14 +46,6 @@ func RunGUI() {
 	win.ShowAndRun()
 }
 
-// ── Queue ──────────────────────────────────────────────────────────────
-
-// QueueEntry represents a single package operation in the batch queue.
-type QueueEntry struct {
-	Name   string
-	Action string // "install" or "remove"
-}
-
 // ── GUI state ──────────────────────────────────────────────────────────
 
 type pkgGuiApp struct {

@@ -68,26 +68,26 @@ func (f pkgFilter) next() pkgFilter {
 
 // pkgModel is the Bubbletea model for the xbpspkg TUI.
 type pkgModel struct {
-	id           string
-	backend      PkgBackend
-	packages     []Package
-	cursor       int
-	search       textinput.Model
-	searchMode   bool
-	filter       pkgFilter
-	appImageOn   bool
-	marked       map[string]bool
-	queue        []QueueEntry
-	detail       PackageDetail
-	output       string
-	status       string
-	statusErr    bool
-	loading      bool
-	running      bool
-	showAbout    bool
+	id          string
+	backend     PkgBackend
+	packages    []Package
+	cursor      int
+	search      textinput.Model
+	searchMode  bool
+	filter      pkgFilter
+	appImageOn  bool
+	marked      map[string]bool
+	queue       []QueueEntry
+	detail      PackageDetail
+	output      string
+	status      string
+	statusErr   bool
+	loading     bool
+	running     bool
+	showAbout   bool
 	outputLines int
-	width        int
-	height       int
+	width       int
+	height      int
 }
 
 // NewTuiModel creates an initialized package manager TUI model using the default xbps backend.

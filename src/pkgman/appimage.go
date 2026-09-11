@@ -27,7 +27,7 @@ type appImageEntry struct {
 // AppImageBackend implements PkgBackend for AppImage packages managed via AM/AppMan.
 type AppImageBackend struct {
 	mu      sync.Mutex
-	catalog []Package         // HTTP catalog: name + description (all available apps)
+	catalog []Package                // HTTP catalog: name + description (all available apps)
 	apps    map[string]appImageEntry // from am -f --byname (installed apps only)
 }
 

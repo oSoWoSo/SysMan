@@ -123,7 +123,7 @@ func (m sysInfoModel) render() string {
 
 	if m.fetchOutput != "" {
 		sb.WriteString("\n")
-		sb.WriteString(xSubtleStyle.Render("  ── " + m.fetchSource + " ──") + "\n")
+		sb.WriteString(xSubtleStyle.Render("  ── "+m.fetchSource+" ──") + "\n")
 		stripped := AnsiRe.ReplaceAllString(m.fetchOutput, "")
 		for _, line := range strings.Split(stripped, "\n") {
 			if line != "" {

@@ -15,7 +15,7 @@ jobs:
 # codeberg-small   amd64  2   4G  5 min
 # codeberg-medium  amd64  4   6G  10 min
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Copy output to pages
         run: |

@@ -38,18 +38,18 @@ var (
 type vmmanFilter = FilterMode
 
 type tuiModel struct {
-	id         string
-	backend    Backend
-	vms        []VM
-	cursor     int
-	filter     vmmanFilter
-	search     textinput.Model
-	searchMode bool
-	status     string
-	statusErr  bool
-	showAbout  bool
-	width      int
-	height     int
+	id            string
+	backend       Backend
+	vms           []VM
+	cursor        int
+	filter        vmmanFilter
+	search        textinput.Model
+	searchMode    bool
+	status        string
+	statusErr     bool
+	showAbout     bool
+	width         int
+	height        int
 	confirmAction string // "", "kill"
 	confirmArg    string // VM name
 }
@@ -306,42 +306,6 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check list items.
 		list := m.filtered()
 		start := m.scrollStart()
-		for i := start; i < len(list); i++ {
-			if zone.Get(m.id + list[i].Name).InBounds(msg) {
-				m.cursor = i
-				return m, nil
-			}
-		}
-
-	case tea.MouseClickMsg:
-		if msg.Button != tea.MouseLeft {
-			break
-		}
-		// Check filter tabs.
-		for _, f := range []vmmanFilter{FilterAll, FilterRunning, FilterStopped} {
-			if zone.Get(m.id + "filter_" + f.label()).InBounds(msg) {
-				m.filter = f
-				m.cursor = 0
-				return m, nil
-			}
-		}
-		// Check list items.
-		list := m.filtered()
-		overhead := 13
-		if m.width > 0 && m.width < 60 {
-			overhead = 14
-		}
-		listHeight := 8
-		if m.height > 0 {
-			listHeight = m.height - overhead
-			if listHeight < 3 {
-				listHeight = 3
-			}
-		}
-		start := 0
-		if m.cursor >= listHeight {
-			start = m.cursor - listHeight + 1
-		}
 		for i := start; i < len(list); i++ {
 			if zone.Get(m.id + list[i].Name).InBounds(msg) {
 				m.cursor = i

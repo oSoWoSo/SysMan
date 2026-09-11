@@ -15,16 +15,18 @@ jobs:
     runs-on: codeberg-medium
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.21'
 
       - name: Install CGO dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libwayland-dev
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y \
+           gcc libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
 
       - name: Get version from tag
         id: version
@@ -163,11 +165,11 @@ jobs:
             musl_label: ""
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v7
         with:
           go-version: '1.21'
 

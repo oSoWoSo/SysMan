@@ -43,7 +43,7 @@ func ShowSettingsDialog(win fyne.Window, moduleName string, fields []SettingsFie
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.TextSize = 18
 
- btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
+	btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
 		values := make(map[string]string)
 		for _, f := range fields {
 			values[f.Label] = strings.TrimSpace(entries[f.Label].Text)

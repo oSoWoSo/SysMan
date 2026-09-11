@@ -43,17 +43,17 @@ const (
 )
 
 type tuiModel struct {
-	id         string
-	tab        tuiTab
-	users      []User
-	groups     []Group
-	showSystem bool
-	showAbout  bool
-	cursor     int
-	status     string
-	statusOK   bool
-	width      int
-	height     int
+	id            string
+	tab           tuiTab
+	users         []User
+	groups        []Group
+	showSystem    bool
+	showAbout     bool
+	cursor        int
+	status        string
+	statusOK      bool
+	width         int
+	height        int
 	confirmAction string // "", "del_user", "del_group"
 	confirmArg    string // user login or group name
 	dialogType    tuiDialog
@@ -114,13 +114,13 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.openDialog(dialogAddUser)
 				return m, nil
 			}
-		if zone.Get(m.id + "a_del_user").InBounds(msg) {
-			if m.cursor >= 0 && m.cursor < len(m.users) {
-				m.confirmAction = "del_user"
-				m.confirmArg = m.users[m.cursor].Login
+			if zone.Get(m.id + "a_del_user").InBounds(msg) {
+				if m.cursor >= 0 && m.cursor < len(m.users) {
+					m.confirmAction = "del_user"
+					m.confirmArg = m.users[m.cursor].Login
+				}
+				return m, nil
 			}
-			return m, nil
-		}
 			if zone.Get(m.id + "a_props_user").InBounds(msg) {
 				m.openDialog(dialogUserProps)
 				return m, nil
@@ -136,13 +136,13 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.openDialog(dialogAddGroup)
 				return m, nil
 			}
-		if zone.Get(m.id + "a_del_group").InBounds(msg) {
-			if m.cursor >= 0 && m.cursor < len(m.groups) {
-				m.confirmAction = "del_group"
-				m.confirmArg = m.groups[m.cursor].Name
+			if zone.Get(m.id + "a_del_group").InBounds(msg) {
+				if m.cursor >= 0 && m.cursor < len(m.groups) {
+					m.confirmAction = "del_group"
+					m.confirmArg = m.groups[m.cursor].Name
+				}
+				return m, nil
 			}
-			return m, nil
-		}
 			if zone.Get(m.id + "a_members").InBounds(msg) {
 				m.status = t("tui.action.members")
 				m.statusOK = true

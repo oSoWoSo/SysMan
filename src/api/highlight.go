@@ -380,6 +380,14 @@ func (s *coloredSegment) Update(o fyne.CanvasObject) {
 // RichSegments converts a plain-text output string into RichText segments
 // with syntax highlighting applied line by line.
 func (h *Highlighter) RichSegments(text string) []widget.RichTextSegment {
+	if text == "" {
+		return []widget.RichTextSegment{
+			&widget.TextSegment{
+				Text:  "",
+				Style: widget.RichTextStyle{TextStyle: fyne.TextStyle{Monospace: true}},
+			},
+		}
+	}
 	var segs []widget.RichTextSegment
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {
