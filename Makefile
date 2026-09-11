@@ -1,4 +1,4 @@
-VERSION  ?= 0.019 Alpha
+VERSION  ?= 0.019.1 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local

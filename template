@@ -1,6 +1,6 @@
 # Template file for 'sysman'
 pkgname=sysman
-version=0.018
+version=0.019.1
 revision=1
 # GUI requires CGO + X11/OpenGL — restrict to archs with working cross-compilers
 # TUI is CGO_ENABLED=0 (fully static) — available on all archs via subpackages
