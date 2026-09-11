@@ -11,6 +11,8 @@ strings:
   filter.all: "All"
   filter.enabled: "Enabled"
   filter.disabled: "Disabled"
+  filter.scope_system: "System"
+  filter.scope_user: "User"
 
   search.placeholder: "search service..."
   search.hint: "/ type to search"
@@ -27,11 +29,18 @@ strings:
   detail.symlink: "symlink"
   detail.empty: "---"
   detail.header: "Detail"
+  detail.scope: "scope"
 
   state.enabled: "enabled"
   state.disabled: "disabled"
   state.running: "running"
   state.stopped: "stopped"
+
+  scope.system: "System"
+  scope.user: "User"
+
+  group.system: "System services"
+  group.user: "User services"
 
   config.title: "CONFIGURATION"
   config.reload_hint: "Press Reload to fetch current service status"
@@ -115,4 +124,5 @@ strings:
   tooltip.serman.filter_all: "Show all services"
   tooltip.serman.filter_enabled: "Show only enabled services"
   tooltip.serman.filter_disabled: "Show only disabled services"
+  tooltip.serman.filter_scope: "Switch between system and user services"
   tooltip.serman.settings: "Open settings"

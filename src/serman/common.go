@@ -25,7 +25,7 @@ const (
 	// AppURL is the URL of serman.
 	AppURL = common.AppURL
 	// Usage is the --help text for svman.
-	Usage = "svman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SERVICEDIR      service dir (default: /etc/sv)\n  SERVICEDESTDIR  enabled services dir (default: /var/service)\n  SYSMAN_LANG  language override (e.g. cs)"
+	Usage = "svman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --tui   TUI\n  -h, --help  show this help\n\nEnvironment:\n  SERVICEDIR          service dir (default: /etc/sv)\n  SERVICEDESTDIR      enabled services dir (default: /var/service)\n  USER_SERVICEDIR     user service dir (default: ~/.config/service)\n  USER_SERVICEDESTDIR user enabled services dir (default: ~/service)\n  SYSMAN_LANG         language override (e.g. cs)"
 )
 
 // ── Defaults ─────────────────────────────────────────────────────────
@@ -38,10 +38,32 @@ const DefaultServiceDestDir = "/var/service"
 
 // ── Types ────────────────────────────────────────────────────────────
 
+// Scope identifies whether a service belongs to the system or to a user.
+type Scope string
+
+const (
+	// ScopeSystem is the system-wide runit scope (/etc/sv, /var/service).
+	ScopeSystem Scope = "system"
+	// ScopeUser is a per-user runit scope (~/.config/service, ~/service).
+	ScopeUser Scope = "user"
+)
+
 // Service represents a single runit service with its name and enabled state.
 type Service struct {
 	Name    string // service name (directory name)
 	Enabled bool   // true if symlink exists in destination directory
+	Scope   Scope  // system or user scope
+}
+
+// Key returns a unique identifier for the service across scopes.
+func (s Service) Key() string { return string(s.Scope) + "/" + s.Name }
+
+// ScopeDir holds the directories and elevation policy for a single scope.
+type ScopeDir struct {
+	Scope      Scope
+	ServiceDir string // e.g. /etc/sv or ~/.config/service
+	DestDir    string // e.g. /var/service or ~/service
+	Elevated   bool   // true if operations need privilege escalation
 }
 
 // FilterMode represents the filter state for service/package lists.
@@ -56,21 +78,89 @@ const (
 	FilterDisabled
 )
 
-// Filter filters items by state and search query.
-// Use FilterAll to show all items, FilterEnabled to show only enabled/installed,
-// FilterDisabled to show only disabled/available.
-// The isEnabled function should return true for enabled/installed items.
-// The matchesSearch function should return true if the item matches the search query.
-func Filter[T any](
-	items []T,
-	mode FilterMode,
-	search string,
-	isEnabled func(T) bool,
-	matchesSearch func(T, string) bool,
-) []T {
-	return common.Filter(items, int(mode), search,
-		func(item T) bool { return isEnabled(item) },
-		matchesSearch,
+// ScopeFilter selects which scopes are visible. The System and User toggles
+// are independent and combine with the state filter (Filter). With no active
+// scope the full list is shown.
+type ScopeFilter struct {
+	System bool
+	User   bool
+}
+
+// Active reports whether any scope filter is selected.
+func (f ScopeFilter) Active() bool { return f.System || f.User }
+
+// matches reports whether the given service scope passes the filter.
+// An empty filter (no scope selected) matches every scope.
+func (f ScopeFilter) matches(s Scope) bool {
+	if !f.Active() {
+		return true
+	}
+	switch s {
+	case ScopeSystem:
+		return f.System
+	case ScopeUser:
+		return f.User
+	default:
+		return true
+	}
+}
+
+// Toggle flips the filter state for the given scope.
+func (f ScopeFilter) Toggle(s Scope) ScopeFilter {
+	switch s {
+	case ScopeSystem:
+		f.System = !f.System
+	case ScopeUser:
+		f.User = !f.User
+	}
+	return f
+}
+
+// DefaultScopeFilter resolves the scope shown on first display from the
+// serman config (default_scope: "system" | "user", defaulting to system).
+// Without a user scope present the filter stays empty (matches everything).
+func DefaultScopeFilter(scopes []ScopeDir) ScopeFilter {
+	hasUser := false
+	for _, sd := range scopes {
+		if sd.Scope == ScopeUser {
+			hasUser = true
+			break
+		}
+	}
+	if !hasUser {
+		return ScopeFilter{}
+	}
+	cfg := common.LoadSysManConfig()
+	if cfg.Serman.DefaultScope == string(ScopeUser) {
+		return ScopeFilter{User: true}
+	}
+	return ScopeFilter{System: true}
+}
+
+// cfgDefaultScope returns the configured default scope for the settings dialog,
+// falling back to the system scope.
+func cfgDefaultScope(scopes []ScopeDir) string {
+	cfg := common.LoadSysManConfig()
+	if cfg.Serman.DefaultScope == string(ScopeUser) {
+		return string(ScopeUser)
+	}
+	return string(ScopeSystem)
+}
+
+// filterScoped drops services outside the active scope, then applies the
+// state filter and search. The scope axis is applied independently of the
+// state filter so every mode (All/Enabled/Disabled) stays within the
+// selected scope and never mixes scopes.
+func filterScoped(services []Service, mode FilterMode, search string, sf ScopeFilter) []Service {
+	scoped := make([]Service, 0, len(services))
+	for _, svc := range services {
+		if sf.matches(svc.Scope) {
+			scoped = append(scoped, svc)
+		}
+	}
+	return common.Filter(scoped, int(mode), search,
+		func(svc Service) bool { return svc.Enabled },
+		func(svc Service, q string) bool { return strings.Contains(strings.ToLower(svc.Name), q) },
 	)
 }
 
@@ -83,9 +173,9 @@ func isSymlink(path string) bool {
 	return err == nil && info.Mode()&os.ModeSymlink != 0
 }
 
-// runElevated runs a command with privilege escalation and returns an error
-// that includes the exit code when available.
-func runElevated(args ...string) error {
+// runCmdRaw runs a command (already including any elevator prefix) and
+// returns an error that includes the exit code when available.
+func runCmdRaw(args ...string) error {
 	cmd := exec.Command(args[0], args[1:]...) //nolint:gosec
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -97,53 +187,117 @@ func runElevated(args ...string) error {
 	return nil
 }
 
+// runElevated runs a command with privilege escalation and returns an error
+// that includes the exit code when available.
+func runElevated(args ...string) error {
+	return runCmdRaw(args...)
+}
+
+// runCapture runs a command, prefixing it with the elevator when elevate is
+// true, and returns the captured output.
+func runCapture(elevate bool, args ...string) string {
+	if elevate {
+		args = api.Elevate(args...)
+	}
+	out, _ := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
+	return string(out)
+}
+
 // ── Loading ──────────────────────────────────────────────────────────
 
 // LoadServices scans the service directory and returns a sorted list of services.
 // Each service's enabled state is determined by checking for a symlink
 // in the destination directory.
-// Returns nil if the service directory cannot be read.
+// Entries that only exist in the destination (live) directory — the per-user
+// runsvdir/turnstile layout, where run directories or symlinks live directly
+// there — are listed as enabled services too.
+// Returns nil if neither directory can be read.
 func LoadServices(serviceDir, destDir string) []Service {
-	entries, err := os.ReadDir(serviceDir)
-	if err != nil {
-		return nil
-	}
 	var svcs []Service
-	for _, e := range entries {
-		// skip non-directory entries
-		info, err := os.Stat(filepath.Join(serviceDir, e.Name()))
-		if err != nil || !info.IsDir() {
-			continue
+	seen := make(map[string]bool)
+	if entries, err := os.ReadDir(serviceDir); err == nil {
+		for _, e := range entries {
+			info, err := os.Stat(filepath.Join(serviceDir, e.Name()))
+			if err != nil || !info.IsDir() {
+				continue
+			}
+			svcs = append(svcs, Service{
+				Name:    e.Name(),
+				Enabled: isSymlink(filepath.Join(destDir, e.Name())),
+			})
+			seen[e.Name()] = true
 		}
-		svcs = append(svcs, Service{
-			Name:    e.Name(),
-			Enabled: isSymlink(filepath.Join(destDir, e.Name())),
-		})
+	}
+	if entries, err := os.ReadDir(destDir); err == nil {
+		for _, e := range entries {
+			if seen[e.Name()] {
+				continue
+			}
+			info, err := os.Lstat(filepath.Join(destDir, e.Name()))
+			if err != nil || (!info.IsDir() && info.Mode()&os.ModeSymlink == 0) {
+				continue
+			}
+			svcs = append(svcs, Service{Name: e.Name(), Enabled: true})
+		}
+	}
+	if len(svcs) == 0 {
+		return nil
 	}
 	// sort services alphabetically by name
 	sort.Slice(svcs, func(i, j int) bool { return svcs[i].Name < svcs[j].Name })
 	return svcs
 }
 
+// LoadServicesScoped loads services for a single scope and tags each service
+// with that scope. Returns nil if the service directory cannot be read.
+func LoadServicesScoped(sd ScopeDir) []Service {
+	svcs := LoadServices(sd.ServiceDir, sd.DestDir)
+	for i := range svcs {
+		svcs[i].Scope = sd.Scope
+	}
+	return svcs
+}
+
 // ── Service Control ──────────────────────────────────────────────────
 
+// enableService creates a symlink from the service source to the destination,
+// enabling the service. Uses privilege escalation when elevate is true.
+func enableService(serviceDir, destDir, name string, elevate bool) error {
+	src := filepath.Join(serviceDir, name)
+	if src == filepath.Dir(src) || serviceDir == "" {
+		return fmt.Errorf("service dir not set: cannot enable %q", name)
+	}
+	dst := filepath.Join(destDir, name)
+	args := []string{"ln", "-s", src, dst}
+	if elevate {
+		args = api.Elevate(args...)
+	}
+	return runCmdRaw(args...)
+}
+
 // EnableService creates a symlink from the service source to the destination,
-// enabling the service. Uses sudo to handle permission requirements.
+// enabling the service. Uses privilege escalation to handle permission requirements.
 // Returns an error if the symlink creation fails.
 func EnableService(serviceDir, destDir, name string) error {
-	src := filepath.Join(serviceDir, name)
+	return enableService(serviceDir, destDir, name, true)
+}
+
+// disableService removes the symlink from the destination directory,
+// disabling the service. Uses privilege escalation when elevate is true.
+func disableService(destDir, name string, elevate bool) error {
 	dst := filepath.Join(destDir, name)
-	args := api.Elevate("ln", "-s", src, dst)
-	return runElevated(args...)
+	args := []string{"rm", dst}
+	if elevate {
+		args = api.Elevate(args...)
+	}
+	return runCmdRaw(args...)
 }
 
 // DisableService removes the symlink from the destination directory,
 // disabling the service. Uses privilege escalation to handle permission requirements.
 // Returns an error if the symlink removal fails.
 func DisableService(destDir, name string) error {
-	dst := filepath.Join(destDir, name)
-	args := api.Elevate("rm", dst)
-	return runElevated(args...)
+	return disableService(destDir, name, true)
 }
 
 // ── Runtime status ───────────────────────────────────────────────────
@@ -176,13 +330,43 @@ func parseStatusLine(line string) ServiceStatus {
 	return s
 }
 
+// getServiceStatus runs `sv status <path>` for a single service.
+// Privilege escalation is used when elevate is true (system scope).
+func getServiceStatus(destDir, name string, elevate bool) ServiceStatus {
+	path := filepath.Join(destDir, name)
+	out := runCapture(elevate, "sv", "status", path)
+	return parseStatusLine(strings.TrimSpace(out))
+}
+
 // GetServiceStatus runs `sv status <path>` for a single service.
 // Privilege escalation is used because supervise sockets require root access.
 func GetServiceStatus(destDir, name string) ServiceStatus {
-	path := filepath.Join(destDir, name)
-	args := api.Elevate("sv", "status", path)
-	out, _ := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
-	return parseStatusLine(strings.TrimSpace(string(out)))
+	return getServiceStatus(destDir, name, true)
+}
+
+// getAllServiceStatuses fetches the status of the given services in a single
+// `sv status` invocation for one scope. This causes only one password prompt
+// per scope regardless of how many services are enabled.
+// Returns a map of service Key → ServiceStatus.
+func getAllServiceStatuses(sd ScopeDir, svcs []Service) map[string]ServiceStatus {
+	result := make(map[string]ServiceStatus, len(svcs))
+	if len(svcs) == 0 {
+		return result
+	}
+	paths := make([]string, len(svcs))
+	for i, svc := range svcs {
+		paths[i] = filepath.Join(sd.DestDir, svc.Name)
+	}
+	args := append([]string{"sv", "status"}, paths...)
+	out := runCapture(sd.Elevated, args...)
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	// sv outputs one line per path in the same order as arguments.
+	for i, line := range lines {
+		if i < len(svcs) && line != "" {
+			result[svcs[i].Key()] = parseStatusLine(line)
+		}
+	}
+	return result
 }
 
 // GetAllServiceStatuses fetches the status of all given service names in a
@@ -190,22 +374,15 @@ func GetServiceStatus(destDir, name string) ServiceStatus {
 // prompt regardless of how many services are enabled.
 // Returns a map of service name → ServiceStatus.
 func GetAllServiceStatuses(destDir string, names []string) map[string]ServiceStatus {
-	result := make(map[string]ServiceStatus, len(names))
-	if len(names) == 0 {
-		return result
-	}
-	paths := make([]string, len(names))
+	svcs := make([]Service, len(names))
 	for i, n := range names {
-		paths[i] = filepath.Join(destDir, n)
+		svcs[i] = Service{Name: n, Scope: ScopeSystem}
 	}
-	args := api.Elevate(append([]string{"sv", "status"}, paths...)...)
-	out, _ := exec.Command(args[0], args[1:]...).CombinedOutput() //nolint:gosec
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	// sv outputs one line per path in the same order as arguments.
-	for i, line := range lines {
-		if i < len(names) && line != "" {
-			result[names[i]] = parseStatusLine(line)
-		}
+	sd := ScopeDir{Scope: ScopeSystem, DestDir: destDir, Elevated: true}
+	byKey := getAllServiceStatuses(sd, svcs)
+	result := make(map[string]ServiceStatus, len(byKey))
+	for _, n := range names {
+		result[n] = byKey["system/"+n]
 	}
 	return result
 }
@@ -220,100 +397,190 @@ func GetAllServiceStatuses(destDir string, names []string) map[string]ServiceSta
 
 // Backend is the interface every service manager backend must implement.
 type Backend interface {
+	// ScopeDirs returns the configured scope directories. Used for display.
+	ScopeDirs() []ScopeDir
 	// Dirs returns the service definition directory and the enabled-services
-	// directory. Used for display purposes (path labels, status header).
-	Dirs() (serviceDir, destDir string)
-	// List returns all available services with their enabled state.
+	// directory for the given service's scope. Used for display purposes.
+	Dirs(svc Service) (serviceDir, destDir string)
+	// List returns all available services with their enabled state and scope.
 	List() []Service
 	// Enable activates a service (e.g. create symlink for runit).
-	Enable(name string) error
+	Enable(svc Service) error
 	// Disable deactivates a service.
-	Disable(name string) error
+	Disable(svc Service) error
 	// Status returns the live runtime status of an enabled service.
-	Status(name string) ServiceStatus
-	// StatusAll fetches the status of all given services in one elevated call.
-	// Keyed by service name.
-	StatusAll(names []string) map[string]ServiceStatus
+	Status(svc Service) ServiceStatus
+	// StatusAll fetches the status of all given services in one call per scope.
+	// Keyed by Service.Key().
+	StatusAll(svcs []Service) map[string]ServiceStatus
 	// Start starts an enabled service.
-	Start(name string) error
+	Start(svc Service) error
 	// Stop stops a running service.
-	Stop(name string) error
+	Stop(svc Service) error
 	// Restart restarts a service.
-	Restart(name string) error
+	Restart(svc Service) error
 	// Reload sends SIGHUP (or equivalent) to a service.
-	Reload(name string) error
+	Reload(svc Service) error
 	// Pause suspends a service (SIGSTOP / sv pause).
-	Pause(name string) error
+	Pause(svc Service) error
 	// Continue resumes a paused service (SIGCONT / sv cont).
-	Continue(name string) error
+	Continue(svc Service) error
 	// Kill sends SIGKILL to a service (sv kill).
-	Kill(name string) error
+	Kill(svc Service) error
 }
 
 // ── Runit backend ─────────────────────────────────────────────────────
 
 // RunitBackend implements Backend for the runit init system using the `sv` tool.
 type RunitBackend struct {
-	ServiceDir string // e.g. /etc/sv
-	DestDir    string // e.g. /var/service
+	Scopes []ScopeDir
 }
 
-// NewRunitBackend creates a RunitBackend with the given directories.
+// NewRunitBackend creates a RunitBackend with the given system directories.
 func NewRunitBackend(serviceDir, destDir string) *RunitBackend {
-	return &RunitBackend{ServiceDir: serviceDir, DestDir: destDir}
+	return &RunitBackend{Scopes: []ScopeDir{{
+		Scope:      ScopeSystem,
+		ServiceDir: serviceDir,
+		DestDir:    destDir,
+		Elevated:   true,
+	}}}
 }
 
-// Dirs returns the service directory and destination directory.
-func (b *RunitBackend) Dirs() (string, string) { return b.ServiceDir, b.DestDir }
+// NewScopedRunitBackend creates a RunitBackend covering both the system and
+// user scopes. A scope whose directories are both empty is omitted.
+func NewScopedRunitBackend(system, user ScopeDir) *RunitBackend {
+	scopes := []ScopeDir{system}
+	if user.ServiceDir != "" || user.DestDir != "" {
+		scopes = append(scopes, user)
+	}
+	return &RunitBackend{Scopes: scopes}
+}
 
-// List returns all services.
-func (b *RunitBackend) List() []Service { return LoadServices(b.ServiceDir, b.DestDir) }
+// scopeFor resolves the ScopeDir owning the given service. Services without a
+// scope (zero-value Scope) fall back to the first (system) scope.
+func (b *RunitBackend) scopeFor(svc Service) ScopeDir {
+	for _, sd := range b.Scopes {
+		if sd.Scope == svc.Scope {
+			return sd
+		}
+	}
+	if len(b.Scopes) > 0 {
+		return b.Scopes[0]
+	}
+	return ScopeDir{Scope: ScopeSystem, ServiceDir: DefaultServiceDir, DestDir: DefaultServiceDestDir, Elevated: true}
+}
+
+// ScopeDirs returns the configured scope directories.
+func (b *RunitBackend) ScopeDirs() []ScopeDir { return b.Scopes }
+
+// Dirs returns the service and destination directories for the service scope.
+func (b *RunitBackend) Dirs(svc Service) (string, string) {
+	sd := b.scopeFor(svc)
+	return sd.ServiceDir, sd.DestDir
+}
+
+// List returns all services across scopes, system first then user.
+func (b *RunitBackend) List() []Service {
+	var all []Service
+	for _, sd := range b.Scopes {
+		all = append(all, LoadServicesScoped(sd)...)
+	}
+	return all
+}
 
 // Enable enables a service.
-func (b *RunitBackend) Enable(name string) error {
-	return EnableService(b.ServiceDir, b.DestDir, name)
+func (b *RunitBackend) Enable(svc Service) error {
+	sd := b.scopeFor(svc)
+	return enableService(sd.ServiceDir, sd.DestDir, svc.Name, sd.Elevated)
 }
 
 // Disable disables a service.
-func (b *RunitBackend) Disable(name string) error { return DisableService(b.DestDir, name) }
-
-// Status returns the status of a service.
-func (b *RunitBackend) Status(name string) ServiceStatus {
-	return GetServiceStatus(b.DestDir, name)
+func (b *RunitBackend) Disable(svc Service) error {
+	sd := b.scopeFor(svc)
+	return disableService(sd.DestDir, svc.Name, sd.Elevated)
 }
 
-// StatusAll returns the status of all services.
-func (b *RunitBackend) StatusAll(names []string) map[string]ServiceStatus {
-	return GetAllServiceStatuses(b.DestDir, names)
+// Status returns the status of a service.
+func (b *RunitBackend) Status(svc Service) ServiceStatus {
+	sd := b.scopeFor(svc)
+	return getServiceStatus(sd.DestDir, svc.Name, sd.Elevated)
+}
+
+// StatusAll returns the status of all services across scopes, keyed by Service.Key().
+func (b *RunitBackend) StatusAll(svcs []Service) map[string]ServiceStatus {
+	result := make(map[string]ServiceStatus, len(svcs))
+	for _, sd := range b.Scopes {
+		var group []Service
+		for _, svc := range svcs {
+			if b.scopeFor(svc).Scope == sd.Scope {
+				group = append(group, svc)
+			}
+		}
+		for k, v := range getAllServiceStatuses(sd, group) {
+			result[k] = v
+		}
+	}
+	return result
 }
 
 // Start starts a service.
-func (b *RunitBackend) Start(name string) error { return svCmd(b.DestDir, name, "start") }
+func (b *RunitBackend) Start(svc Service) error {
+	sd := b.scopeFor(svc)
+	return svCmdScope(sd, svc.Name, "start")
+}
 
 // Stop stops a service.
-func (b *RunitBackend) Stop(name string) error { return svCmd(b.DestDir, name, "stop") }
+func (b *RunitBackend) Stop(svc Service) error {
+	sd := b.scopeFor(svc)
+	return svCmdScope(sd, svc.Name, "stop")
+}
 
 // Restart restarts a service.
-func (b *RunitBackend) Restart(name string) error { return svCmd(b.DestDir, name, "restart") }
+func (b *RunitBackend) Restart(svc Service) error {
+	sd := b.scopeFor(svc)
+	return svCmdScope(sd, svc.Name, "restart")
+}
 
 // Reload reloads a service.
-func (b *RunitBackend) Reload(name string) error { return svCmd(b.DestDir, name, "reload") }
+func (b *RunitBackend) Reload(svc Service) error {
+	sd := b.scopeFor(svc)
+	return svCmdScope(sd, svc.Name, "reload")
+}
 
 // Pause pauses a service.
-func (b *RunitBackend) Pause(name string) error { return svCmd(b.DestDir, name, "pause") }
+func (b *RunitBackend) Pause(svc Service) error {
+	sd := b.scopeFor(svc)
+	return svCmdScope(sd, svc.Name, "pause")
+}
 
 // Continue continues a service.
-func (b *RunitBackend) Continue(name string) error { return svCmd(b.DestDir, name, "cont") }
+func (b *RunitBackend) Continue(svc Service) error {
+	sd := b.scopeFor(svc)
+	return svCmdScope(sd, svc.Name, "cont")
+}
 
 // Kill kills a service.
-func (b *RunitBackend) Kill(name string) error { return svCmd(b.DestDir, name, "kill") }
+func (b *RunitBackend) Kill(svc Service) error {
+	sd := b.scopeFor(svc)
+	return svCmdScope(sd, svc.Name, "kill")
+}
 
 // ── sv control commands ──────────────────────────────────────────────
 
+// svCmdScope runs `sv <action> <path>` for a service in the given scope,
+// escalating privileges only when the scope requires it.
+func svCmdScope(sd ScopeDir, name, action string) error {
+	path := filepath.Join(sd.DestDir, name)
+	args := []string{"sv", action, path}
+	if sd.Elevated {
+		args = api.Elevate(args...)
+	}
+	return runCmdRaw(args...)
+}
+
+// svCmd runs `sv <action> <path>` with privilege escalation.
 func svCmd(destDir, name, action string) error {
-	path := filepath.Join(destDir, name)
-	args := api.Elevate("sv", action, path)
-	return runElevated(args...)
+	return svCmdScope(ScopeDir{Scope: ScopeSystem, DestDir: destDir, Elevated: true}, name, action)
 }
 
 // StartService starts an enabled service via `sv start`.
@@ -336,3 +603,93 @@ func ContinueService(destDir, name string) error { return svCmd(destDir, name, "
 
 // KillService sends SIGKILL to a service via `sv kill`.
 func KillService(destDir, name string) error { return svCmd(destDir, name, "kill") }
+
+// ── Scope resolution ─────────────────────────────────────────────────
+
+// DefaultUserServiceDir returns the default user service definition directory.
+func DefaultUserServiceDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config", "service")
+}
+
+// DefaultUserServiceDestDir returns the default user enabled services directory.
+func DefaultUserServiceDestDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, "service")
+}
+
+func expandHome(p string) string {
+	if p == "" {
+		return p
+	}
+	if p == "~" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return p
+		}
+		return home
+	}
+	if strings.HasPrefix(p, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return p
+		}
+		return filepath.Join(home, p[2:])
+	}
+	return p
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// ResolveScopes determines the system and user scope directories using the
+// priority env > config > default. User scope is included only when the
+// user service directory exists.
+func ResolveScopes() (system, user ScopeDir) {
+	cfg := common.LoadSysManConfig()
+
+	system = ScopeDir{
+		Scope:      ScopeSystem,
+		ServiceDir: expandHome(firstNonEmpty(os.Getenv("SERVICEDIR"), cfg.Serman.ServiceDir, DefaultServiceDir)),
+		DestDir:    expandHome(firstNonEmpty(os.Getenv("SERVICEDESTDIR"), cfg.Serman.ServiceDestDir, DefaultServiceDestDir)),
+		Elevated:   true,
+	}
+
+	user = ScopeDir{
+		Scope:      ScopeUser,
+		ServiceDir: expandHome(firstNonEmpty(os.Getenv("USER_SERVICEDIR"), cfg.Serman.UserServiceDir, DefaultUserServiceDir())),
+		DestDir:    expandHome(firstNonEmpty(os.Getenv("USER_SERVICEDESTDIR"), cfg.Serman.UserServiceDestDir, DefaultUserServiceDestDir())),
+		Elevated:   false,
+	}
+
+	if !userScopeActive(user.ServiceDir, user.DestDir) {
+		user.ServiceDir = ""
+		user.DestDir = ""
+	}
+	return system, user
+}
+
+// userScopeActive reports whether a user scope is worth activating: either its
+// service (definitions) directory or its live services directory exists. The
+// live-dir-only case covers the per-user runsvdir/turnstile layout, where run
+// directories or symlinks live directly in the enabled-services directory.
+func userScopeActive(serviceDir, destDir string) bool {
+	return dirExists(serviceDir) || dirExists(destDir)
+}
+
+func dirExists(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && info.IsDir()
+}

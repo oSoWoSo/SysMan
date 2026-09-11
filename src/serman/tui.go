@@ -65,18 +65,19 @@ type tuiModel struct {
 	services      []Service                // all loaded services
 	cursor        int                      // selected item index in filtered list
 	filter        tuiFilter                // current filter (all/enabled/disabled)
+	scopeFilter   ScopeFilter              // current scope filter (all/system/user)
 	search        textinput.Model          // search input field
 	searchMode    bool                     // true when user is typing search query
 	status        string                   // status/error message
 	statusErr     bool                     // true if status is an error
 	svStatus      ServiceStatus            // live runtime status of selected service
-	svStatName    string                   // service name svStatus was fetched for
-	svStatusAll   map[string]ServiceStatus // batch status cache for all services
+	svStatKey     string                   // service key svStatus was fetched for
+	svStatusAll   map[string]ServiceStatus // batch status cache for all services (keyed by Service.Key())
 	showAbout     bool                     // true when about screen is shown
 	width         int                      // terminal width
 	height        int                      // terminal height
 	confirmAction string                   // pending confirmation action: "", "disable", "stop", "kill"
-	confirmArg    string                   // argument for the pending action (service name)
+	confirmSvc    Service                  // service for the pending action
 }
 
 // Messages for async operations.
@@ -106,6 +107,7 @@ var (
 	tkeyEsc      = key.NewBinding(key.WithKeys("esc"))
 	tkeyEnter    = key.NewBinding(key.WithKeys("enter"))
 	tkeyFilter   = key.NewBinding(key.WithKeys("tab"))
+	tkeyScope    = key.NewBinding(key.WithKeys("z"))
 	tkeyStart    = key.NewBinding(key.WithKeys("s"))
 	tkeyStop     = key.NewBinding(key.WithKeys("x"))
 	tkeyRestart  = key.NewBinding(key.WithKeys("t"))
@@ -130,19 +132,17 @@ func NewTuiModel(b Backend) tea.Model {
 	ti.SetStyles(st)
 	ti.Prompt = "/ "
 	return tuiModel{
-		id:       zone.NewPrefix(),
-		backend:  b,
-		services: b.List(),
-		search:   ti,
+		id:          zone.NewPrefix(),
+		backend:     b,
+		services:    b.List(),
+		search:      ti,
+		scopeFilter: DefaultScopeFilter(b.ScopeDirs()),
 	}
 }
 
 // filtered returns the service list filtered by current filter and search query.
 func (m tuiModel) filtered() []Service {
-	return Filter(m.services, m.filter, m.search.Value(),
-		func(svc Service) bool { return svc.Enabled },
-		func(svc Service, q string) bool { return strings.Contains(strings.ToLower(svc.Name), q) },
-	)
+	return filterScoped(m.services, m.filter, m.search.Value(), m.scopeFilter)
 }
 
 // clampCursor ensures the cursor position is valid for the current filtered list.
@@ -156,26 +156,76 @@ func (m tuiModel) clampCursor() tuiModel {
 	return m
 }
 
-// currentName returns the name of the currently selected service, or "".
-func (m tuiModel) currentName() string {
-	list := m.filtered()
-	if m.cursor < 0 || m.cursor >= len(list) {
-		return ""
-	}
-	return list[m.cursor].Name
-}
-
-// selectedEnabled returns the currently selected service if it is enabled, else nil.
-func (m tuiModel) selectedEnabled() *Service {
+// current returns the currently selected service, or nil.
+func (m tuiModel) current() *Service {
 	list := m.filtered()
 	if m.cursor < 0 || m.cursor >= len(list) {
 		return nil
 	}
 	svc := list[m.cursor]
-	if !svc.Enabled {
+	return &svc
+}
+
+// syncStatKey refreshes svStatKey from the current selection, tolerating an empty list.
+func (m tuiModel) syncStatKey() tuiModel {
+	if svc := m.current(); svc != nil {
+		m.svStatKey = svc.Key()
+	} else {
+		m.svStatKey = ""
+	}
+	return m
+}
+
+// switchScope swaps the scope view between the system and user scopes.
+// No status is fetched here — statuses require privileges and are only
+// refreshed on an explicit reload or after a service change.
+func (m tuiModel) switchScope() tuiModel {
+	if m.scopeFilter.User {
+		m.scopeFilter = ScopeFilter{System: true}
+	} else {
+		m.scopeFilter = ScopeFilter{User: true}
+	}
+	m.cursor = 0
+	m.svStatusAll = nil
+	m.svStatus = ServiceStatus{}
+	m.svStatKey = ""
+	return m.syncStatKey()
+}
+
+// selectedEnabled returns the currently selected service if it is enabled, else nil.
+func (m tuiModel) selectedEnabled() *Service {
+	svc := m.current()
+	if svc == nil || !svc.Enabled {
 		return nil
 	}
-	return &svc
+	return svc
+}
+
+// zoneID returns the bubblezone ID for a service list row.
+func (m tuiModel) zoneID(svc Service) string { return m.id + svc.Key() }
+
+// activeZones returns the bubblezone ID prefix for list rows in the TUI.
+func (m tuiModel) activeZones() string { return m.id }
+
+// multiScope reports whether the given list spans more than one scope.
+func (m tuiModel) multiScope(list []Service) bool {
+	if len(list) < 2 {
+		return false
+	}
+	scopes := make(map[Scope]bool)
+	for _, svc := range list {
+		scopes[svc.Scope] = true
+	}
+	return len(scopes) > 1
+}
+
+// leftDir returns a compact service-directory summary for the list header.
+func (m tuiModel) leftDir() string {
+	var dirs []string
+	for _, sd := range m.backend.ScopeDirs() {
+		dirs = append(dirs, sd.ServiceDir)
+	}
+	return strings.Join(dirs, " | ")
 }
 
 // Init implements tea.Model; returns no initial command.
@@ -189,14 +239,14 @@ func (m tuiModel) handleSearchMode(msg tea.KeyPressMsg) (tuiModel, tea.Cmd) {
 		m.search.Blur()
 		m.searchMode = false
 		m.cursor = 0
-		m.svStatName = m.currentName()
-		return m, m.fetchStatusCmd()
+		m = m.syncStatKey()
+		return m, nil
 	case key.Matches(msg, tkeyEnter):
 		m.search.Blur()
 		m.searchMode = false
 		m.cursor = 0
-		m.svStatName = m.currentName()
-		return m, m.fetchStatusCmd()
+		m = m.syncStatKey()
+		return m, nil
 	case key.Matches(msg, tkeyUp):
 		if m.cursor > 0 {
 			m.cursor--
@@ -236,21 +286,21 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle confirmation dialog
 		if m.confirmAction != "" {
 			if msg.String() == "y" {
-				svcName := m.confirmArg
+				svc := m.confirmSvc
 				action := m.confirmAction
 				m.confirmAction = ""
-				m.confirmArg = ""
+				m.confirmSvc = Service{}
 				switch action {
 				case "disable":
-					return m, tuiBackendCmd(m.backend.Disable, svcName, "disabled")
+					return m, tuiBackendCmd(m.backend.Disable, svc, "disabled")
 				case "stop":
-					return m, tuiBackendCmd(m.backend.Stop, svcName, "stopped")
+					return m, tuiBackendCmd(m.backend.Stop, svc, "stopped")
 				case "kill":
-					return m, tuiBackendCmd(m.backend.Kill, svcName, "killed")
+					return m, tuiBackendCmd(m.backend.Kill, svc, "killed")
 				}
 			}
 			m.confirmAction = ""
-			m.confirmArg = ""
+			m.confirmSvc = Service{}
 			return m, nil
 		}
 
@@ -264,20 +314,23 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, tkeyFilter):
 			m.filter = (m.filter + 1) % 3
 			m.cursor = 0
-			m.svStatName = m.currentName()
-			return m, m.fetchStatusCmd()
+			m = m.syncStatKey()
+			return m, nil
+		case key.Matches(msg, tkeyScope):
+			m = m.switchScope()
+			return m, nil
 		case key.Matches(msg, tkeyUp):
 			if m.cursor > 0 {
 				m.cursor--
-				m.svStatName = m.currentName()
-				return m, m.fetchStatusCmd()
+				m = m.syncStatKey()
+				return m, nil
 			}
 		case key.Matches(msg, tkeyDown):
 			list := m.filtered()
 			if m.cursor < len(list)-1 {
 				m.cursor++
-				m.svStatName = m.currentName()
-				return m, m.fetchStatusCmd()
+				m = m.syncStatKey()
+				return m, nil
 			}
 		case key.Matches(msg, tkeyToggle):
 			list := m.filtered()
@@ -287,42 +340,42 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			svc := list[m.cursor]
 			if svc.Enabled {
 				m.confirmAction = "disable"
-				m.confirmArg = svc.Name
+				m.confirmSvc = svc
 				return m, nil
 			}
-			return m, tuiBackendCmd(m.backend.Enable, svc.Name, "enabled")
+			return m, tuiBackendCmd(m.backend.Enable, svc, "enabled")
 		case key.Matches(msg, tkeyReload):
 			return m, func() tea.Msg { return tuiReloadMsg{} }
 		case key.Matches(msg, tkeyStart):
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Start, svc.Name, "started")
+				return m, tuiBackendCmd(m.backend.Start, *svc, "started")
 			}
 		case key.Matches(msg, tkeyStop):
 			if svc := m.selectedEnabled(); svc != nil {
 				m.confirmAction = "stop"
-				m.confirmArg = svc.Name
+				m.confirmSvc = *svc
 				return m, nil
 			}
 		case key.Matches(msg, tkeyRestart):
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Restart, svc.Name, "restarted")
+				return m, tuiBackendCmd(m.backend.Restart, *svc, "restarted")
 			}
 		case key.Matches(msg, tkeyHup):
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Reload, svc.Name, "hupped")
+				return m, tuiBackendCmd(m.backend.Reload, *svc, "hupped")
 			}
 		case key.Matches(msg, tkeyPause):
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Pause, svc.Name, "paused")
+				return m, tuiBackendCmd(m.backend.Pause, *svc, "paused")
 			}
 		case key.Matches(msg, tkeyContinue):
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Continue, svc.Name, "continued")
+				return m, tuiBackendCmd(m.backend.Continue, *svc, "continued")
 			}
 		case key.Matches(msg, tkeyKill):
 			if svc := m.selectedEnabled(); svc != nil {
 				m.confirmAction = "kill"
-				m.confirmArg = svc.Name
+				m.confirmSvc = *svc
 				return m, nil
 			}
 		case key.Matches(msg, tkeyAbout):
@@ -339,9 +392,14 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if zone.Get(m.id + "f_" + f.label()).InBounds(msg) {
 				m.filter = f
 				m.cursor = 0
-				m.svStatName = m.currentName()
-				return m, m.fetchStatusCmd()
+				m = m.syncStatKey()
+				return m, nil
 			}
+		}
+		// Check top bar scope toggle button (system ↔ user).
+		if zone.Get(m.id + "s_scope").InBounds(msg) {
+			m = m.switchScope()
+			return m, nil
 		}
 		// Check detail panel buttons (action buttons).
 		if zone.Get(m.id + "a_quit").InBounds(msg) {
@@ -359,7 +417,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(list) > 0 && m.cursor < len(list) {
 				svc := list[m.cursor]
 				if !svc.Enabled {
-					return m, tuiBackendCmd(m.backend.Enable, svc.Name, "enabled")
+					return m, tuiBackendCmd(m.backend.Enable, svc, "enabled")
 				}
 			}
 		}
@@ -369,58 +427,60 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				svc := list[m.cursor]
 				if svc.Enabled {
 					m.confirmAction = "disable"
-					m.confirmArg = svc.Name
+					m.confirmSvc = svc
 					return m, nil
 				}
 			}
 		}
 		if zone.Get(m.id + "a_start").InBounds(msg) {
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Start, svc.Name, "started")
+				return m, tuiBackendCmd(m.backend.Start, *svc, "started")
 			}
 		}
 		if zone.Get(m.id + "a_stop").InBounds(msg) {
 			if svc := m.selectedEnabled(); svc != nil {
 				m.confirmAction = "stop"
-				m.confirmArg = svc.Name
+				m.confirmSvc = *svc
 				return m, nil
 			}
 		}
 		if zone.Get(m.id + "a_restart").InBounds(msg) {
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Restart, svc.Name, "restarted")
+				return m, tuiBackendCmd(m.backend.Restart, *svc, "restarted")
 			}
 		}
 		if zone.Get(m.id + "a_hup").InBounds(msg) {
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Reload, svc.Name, "hupped")
+				return m, tuiBackendCmd(m.backend.Reload, *svc, "hupped")
 			}
 		}
 		if zone.Get(m.id + "a_pause").InBounds(msg) {
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Pause, svc.Name, "paused")
+				return m, tuiBackendCmd(m.backend.Pause, *svc, "paused")
 			}
 		}
 		if zone.Get(m.id + "a_continue").InBounds(msg) {
 			if svc := m.selectedEnabled(); svc != nil {
-				return m, tuiBackendCmd(m.backend.Continue, svc.Name, "continued")
+				return m, tuiBackendCmd(m.backend.Continue, *svc, "continued")
 			}
 		}
 		if zone.Get(m.id + "a_kill").InBounds(msg) {
 			if svc := m.selectedEnabled(); svc != nil {
 				m.confirmAction = "kill"
-				m.confirmArg = svc.Name
+				m.confirmSvc = *svc
 				return m, nil
 			}
 		}
 		// Check list items.
 		list := m.filtered()
+		active := m.activeZones()
 		start := m.scrollStart()
 		for i := start; i < len(list); i++ {
-			if zone.Get(m.id + list[i].Name).InBounds(msg) {
+			key := list[i].Key()
+			if zone.Get(active + key).InBounds(msg) {
 				m.cursor = i
-				m.svStatName = m.currentName()
-				return m, m.fetchStatusCmd()
+				m = m.syncStatKey()
+				return m, nil
 			}
 		}
 
@@ -437,10 +497,10 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tuiSvAllStatusMsg:
 		m.svStatusAll = msg.statuses
 		// Also update selected service status
-		if name := m.currentName(); name != "" {
-			if st, ok := msg.statuses[name]; ok {
+		if svc := m.current(); svc != nil {
+			if st, ok := msg.statuses[svc.Key()]; ok {
 				m.svStatus = st
-				m.svStatName = name
+				m.svStatKey = svc.Key()
 			}
 		}
 
@@ -456,31 +516,33 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// fetchStatusCmd returns a command that fetches sv status for all enabled services in one call.
+// fetchStatusCmd returns a command that fetches sv status for all enabled
+// services matching the active scope filter in one call per scope. A
+// user-only scope filter never triggers elevated status queries.
 func (m tuiModel) fetchStatusCmd() tea.Cmd {
 	b := m.backend
-	var names []string
+	var enabled []Service
 	for _, svc := range m.services {
-		if svc.Enabled {
-			names = append(names, svc.Name)
+		if svc.Enabled && m.scopeFilter.matches(svc.Scope) {
+			enabled = append(enabled, svc)
 		}
 	}
-	if len(names) == 0 {
+	if len(enabled) == 0 {
 		return nil
 	}
 	return func() tea.Msg {
-		return tuiSvAllStatusMsg{statuses: b.StatusAll(names)}
+		return tuiSvAllStatusMsg{statuses: b.StatusAll(enabled)}
 	}
 }
 
 // tuiBackendCmd returns an async command that calls a backend method and emits the result.
 // action must be a key suffix in the "status.*" translations (e.g. "enabled", "started").
-func tuiBackendCmd(fn func(string) error, name, action string) tea.Cmd {
+func tuiBackendCmd(fn func(Service) error, svc Service, action string) tea.Cmd {
 	return func() tea.Msg {
-		if err := fn(name); err != nil {
+		if err := fn(svc); err != nil {
 			return tuiErrMsg{err}
 		}
-		return tuiSvOpDoneMsg{name: name, action: action}
+		return tuiSvOpDoneMsg{name: svc.Name, action: action}
 	}
 }
 
@@ -511,11 +573,17 @@ func (m tuiModel) scrollStart() int {
 
 // topBar renders the filter button bar at the top of the TUI.
 func (m tuiModel) topBar() string {
-	return common.TBtnBar(
+	btns := []string{
 		common.TBtn(m.id, "f_all", t("filter.all"), "tab", m.filter == FilterAll),
 		common.TBtn(m.id, "f_enabled", t("filter.enabled"), "tab", m.filter == FilterEnabled),
 		common.TBtn(m.id, "f_disabled", t("filter.disabled"), "tab", m.filter == FilterDisabled),
-	)
+	}
+	if len(m.backend.ScopeDirs()) > 1 {
+		btns = append(btns,
+			common.TBtn(m.id, "s_scope", t("filter.scope_user"), "z", m.scopeFilter.User),
+		)
+	}
+	return common.TBtnBar(btns...)
 }
 
 // bottomBar renders the status bar at the bottom of the TUI (matching GUI layout).
@@ -524,11 +592,11 @@ func (m tuiModel) bottomBar() string {
 		var prompt string
 		switch m.confirmAction {
 		case "disable":
-			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.disable"), m.confirmArg) + " [y/N]")
+			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.disable"), m.confirmSvc.Name) + " [y/N]")
 		case "stop":
-			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.stop"), m.confirmArg) + " [y/N]")
+			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.stop"), m.confirmSvc.Name) + " [y/N]")
 		case "kill":
-			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.kill"), m.confirmArg) + " [y/N]")
+			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.kill"), m.confirmSvc.Name) + " [y/N]")
 		}
 		return prompt + "\n  " + thelpStyle.Render(t("confirm.hint"))
 	}
@@ -660,14 +728,20 @@ func (m tuiModel) render() string {
 		start = m.cursor - listHeight + 1
 	}
 
-	// Service list with scroll indicators.
+	// Service list with scroll indicators and scope headers.
 	var lsb strings.Builder
 	if start > 0 {
 		lsb.WriteString(thelpStyle.Render(fmt.Sprintf("  ↑ %d", start)) + "\n")
 	}
+	multi := m.multiScope(list)
+	last := Scope("")
 	shown := 0
 	for i := start; i < len(list) && shown < listHeight; i++ {
 		svc := list[i]
+		if multi && svc.Scope != last {
+			lsb.WriteString(tsectionStyle.Render("  "+t("group."+string(svc.Scope))) + "\n")
+			last = svc.Scope
+		}
 		var badge string
 		if svc.Enabled {
 			badge = tenabledBadge.Render("[*]")
@@ -676,9 +750,9 @@ func (m tuiModel) render() string {
 		}
 		line := fmt.Sprintf("%s %s", badge, svc.Name)
 		if i == m.cursor {
-			lsb.WriteString(zone.Mark(m.id+svc.Name, tselectedStyle.Width(colWidth-4).Render(line)) + "\n")
+			lsb.WriteString(zone.Mark(m.zoneID(svc), tselectedStyle.Width(colWidth-4).Render(line)) + "\n")
 		} else {
-			lsb.WriteString(zone.Mark(m.id+svc.Name, tnormalStyle.Render(line)) + "\n")
+			lsb.WriteString(zone.Mark(m.zoneID(svc), tnormalStyle.Render(line)) + "\n")
 		}
 		shown++
 	}
@@ -690,7 +764,7 @@ func (m tuiModel) render() string {
 		listContent = tnormalStyle.Render(t("services.none"))
 	}
 
-	svcDir, _ := m.backend.Dirs()
+	svcDir := m.leftDir()
 	leftHeader := tsectionStyle.Render(t("services.header")+svcDir) + "\n" +
 		stats + "\n" +
 		searchRow + "\n\n"
@@ -731,8 +805,8 @@ func (m tuiModel) buildDetail(list []Service) string {
 	if svc.Enabled {
 		var st ServiceStatus
 		if m.svStatusAll != nil {
-			st = m.svStatusAll[svc.Name]
-		} else if m.svStatName == svc.Name {
+			st = m.svStatusAll[svc.Key()]
+		} else if m.svStatKey == svc.Key() {
 			st = m.svStatus
 		}
 		if st.Running {
@@ -755,8 +829,9 @@ func (m tuiModel) buildDetail(list []Service) string {
 	if runningStr != "" {
 		detail += tnormalStyle.Render(t("detail.running")+": ") + runningStr + "\n"
 	}
-	svcDir2, destDir2 := m.backend.Dirs()
-	detail += tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(svcDir2, svc.Name)) + "\n" +
+	svcDir2, destDir2 := m.backend.Dirs(svc)
+	detail += tnormalStyle.Render(t("detail.scope")+":   "+t("scope."+string(svc.Scope))) + "\n" +
+		tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(svcDir2, svc.Name)) + "\n" +
 		tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(destDir2, svc.Name)) + "\n"
 
 	// Separator
@@ -769,9 +844,16 @@ func (m tuiModel) buildDetail(list []Service) string {
 	detail += "\n" + tdividerStyle.Render(strings.Repeat("─", 30)) + "\n"
 
 	// Config section (matching GUI)
-	detail += "\n" + tsectionStyle.Render(t("config.title")) + "\n" +
-		tnormalStyle.Render("SERVICEDIR="+svcDir2) + "\n" +
-		tnormalStyle.Render("SERVICEDESTDIR="+destDir2) + "\n"
+	detail += "\n" + tsectionStyle.Render(t("config.title")) + "\n"
+	for _, sd := range m.backend.ScopeDirs() {
+		if sd.Scope == ScopeUser {
+			detail += tnormalStyle.Render("USER_SERVICEDIR="+sd.ServiceDir) + "\n" +
+				tnormalStyle.Render("USER_SERVICEDESTDIR="+sd.DestDir) + "\n"
+		} else {
+			detail += tnormalStyle.Render("SERVICEDIR="+sd.ServiceDir) + "\n" +
+				tnormalStyle.Render("SERVICEDESTDIR="+sd.DestDir) + "\n"
+		}
+	}
 
 	return detail
 }
@@ -792,8 +874,8 @@ func (m tuiModel) compactDetail(list []Service) string {
 	if svc.Enabled {
 		var st ServiceStatus
 		if m.svStatusAll != nil {
-			st = m.svStatusAll[svc.Name]
-		} else if m.svStatName == svc.Name {
+			st = m.svStatusAll[svc.Key()]
+		} else if m.svStatKey == svc.Key() {
 			st = m.svStatus
 		}
 		if st.Running {
@@ -822,10 +904,10 @@ func (m tuiModel) renderAbout() string {
 // ── Standalone runner ────────────────────────────────────────────────
 
 // RunTUI runs svman as a standalone fullscreen TUI application.
-func RunTUI(serviceDir, serviceDestDir string) {
+func RunTUI(system, user ScopeDir) {
 	InitI18n()
 	common.EnsureZone()
-	p := tea.NewProgram(NewTuiModel(NewRunitBackend(serviceDir, serviceDestDir)))
+	p := tea.NewProgram(NewTuiModel(NewScopedRunitBackend(system, user)))
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
 		os.Exit(1)

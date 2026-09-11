@@ -53,6 +53,12 @@ func NewRunit(serviceDir, serviceDestDir string) *Plugin {
 	return &Plugin{backend: NewRunitBackend(serviceDir, serviceDestDir)}
 }
 
+// NewScoped creates a Plugin backed by runit covering both the system and
+// user scopes. Call ResolveScopes() to obtain the ScopeDir values.
+func NewScoped(system, user ScopeDir) *Plugin {
+	return &Plugin{backend: NewScopedRunitBackend(system, user)}
+}
+
 // NewWithBackend creates a Plugin using a custom Backend implementation.
 // Use this to add support for openrc, s6, systemd, or any other service manager.
 func NewWithBackend(b Backend) *Plugin { return &Plugin{backend: b} }

@@ -1,7 +1,7 @@
 package common
 
 // Version is set at build time via -ldflags.
-var Version = "0.019 Alpha"
+var Version = "0.020 Alpha"
 
 // App metadata used in the About dialog.
 const (

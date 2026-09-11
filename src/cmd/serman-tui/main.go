@@ -14,16 +14,8 @@ import (
 
 func main() {
 	serman.InitI18n()
-	serman.InitI18n()
 
-	serviceDir := os.Getenv("SERVICEDIR")
-	if serviceDir == "" {
-		serviceDir = serman.DefaultServiceDir
-	}
-	serviceDestDir := os.Getenv("SERVICEDESTDIR")
-	if serviceDestDir == "" {
-		serviceDestDir = serman.DefaultServiceDestDir
-	}
+	system, user := serman.ResolveScopes()
 
 	for _, arg := range os.Args[1:] {
 		if arg == "--help" || arg == "-h" {
@@ -32,5 +24,5 @@ func main() {
 		}
 	}
 
-	serman.RunTUI(serviceDir, serviceDestDir)
+	serman.RunTUI(system, user)
 }

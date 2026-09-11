@@ -42,20 +42,13 @@ func main() {
 		mode = "tui"
 	}
 
-	serviceDir := os.Getenv("SERVICEDIR")
-	if serviceDir == "" {
-		serviceDir = serman.DefaultServiceDir
-	}
-	serviceDestDir := os.Getenv("SERVICEDESTDIR")
-	if serviceDestDir == "" {
-		serviceDestDir = serman.DefaultServiceDestDir
-	}
+	system, user := serman.ResolveScopes()
 
 	switch mode {
 	case "tui":
-		serman.RunTUI(serviceDir, serviceDestDir)
+		serman.RunTUI(system, user)
 	default:
-		p := serman.New(serviceDir, serviceDestDir)
+		p := serman.NewScoped(system, user)
 		a := common.NewApp(p.Name())
 		win := a.NewWindow(p.Name())
 		common.SetWindowIcon(win)

@@ -56,14 +56,7 @@ func main() {
 	ugsman.InitI18n()
 	vmman.InitI18n()
 
-	serviceDir := os.Getenv("SERVICEDIR")
-	if serviceDir == "" {
-		serviceDir = serman.DefaultServiceDir
-	}
-	serviceDestDir := os.Getenv("SERVICEDESTDIR")
-	if serviceDestDir == "" {
-		serviceDestDir = serman.DefaultServiceDestDir
-	}
+	system, user := serman.ResolveScopes()
 
 	mode := "auto"
 	for _, arg := range os.Args[1:] {
@@ -101,7 +94,7 @@ func main() {
 		infman.New(),
 		pkgman.New(),
 		srcman.New(""),
-		serman.New(serviceDir, serviceDestDir),
+		serman.NewScoped(system, user),
 		ugsman.New(),
 		vmman.New(vmman.DefaultVMDir),
 	}
@@ -268,6 +261,8 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 
 	sermanServiceDir := newFormEntry(cfg.Serman.ServiceDir, serman.DefaultServiceDir)
 	sermanServiceDestDir := newFormEntry(cfg.Serman.ServiceDestDir, serman.DefaultServiceDestDir)
+	sermanUserServiceDir := newFormEntry(cfg.Serman.UserServiceDir, serman.DefaultUserServiceDir())
+	sermanUserServiceDestDir := newFormEntry(cfg.Serman.UserServiceDestDir, serman.DefaultUserServiceDestDir())
 
 	srcmanDistDir := newFormEntry(cfg.Srcman.DistDir, "")
 	srcmanSearchEngine := newFormEntry(cfg.Srcman.SearchEngine, "https://repology.org/projects/?search=")
@@ -280,6 +275,8 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
 		cfg.Serman.ServiceDir = strings.TrimSpace(sermanServiceDir.Text)
 		cfg.Serman.ServiceDestDir = strings.TrimSpace(sermanServiceDestDir.Text)
+		cfg.Serman.UserServiceDir = strings.TrimSpace(sermanUserServiceDir.Text)
+		cfg.Serman.UserServiceDestDir = strings.TrimSpace(sermanUserServiceDestDir.Text)
 		cfg.Srcman.DistDir = strings.TrimSpace(srcmanDistDir.Text)
 		cfg.Srcman.SearchEngine = strings.TrimSpace(srcmanSearchEngine.Text)
 		cfg.Srcman.ForkURL = strings.TrimSpace(srcmanForkURL.Text)
@@ -326,6 +323,8 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	formSerman := widget.NewForm(
 		widget.NewFormItem("Service Dir", sermanServiceDir),
 		widget.NewFormItem("Service Dest Dir", sermanServiceDestDir),
+		widget.NewFormItem("User Service Dir", sermanUserServiceDir),
+		widget.NewFormItem("User Service Dest Dir", sermanUserServiceDestDir),
 	)
 
 	formSrcman := widget.NewForm(

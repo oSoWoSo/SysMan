@@ -20,8 +20,11 @@ type SysManConfig struct {
 
 // SermanConfig is the services configuration.
 type SermanConfig struct {
-	ServiceDir     string `yaml:"service_dir,omitempty"`
-	ServiceDestDir string `yaml:"service_dest_dir,omitempty"`
+	ServiceDir         string `yaml:"service_dir,omitempty"`
+	ServiceDestDir     string `yaml:"service_dest_dir,omitempty"`
+	UserServiceDir     string `yaml:"user_service_dir,omitempty"`
+	UserServiceDestDir string `yaml:"user_service_dest_dir,omitempty"`
+	DefaultScope       string `yaml:"default_scope,omitempty"`
 }
 
 // PkgmanConfig is the packages configuration.
@@ -80,6 +83,12 @@ func LoadSysManConfig() SysManConfig {
 		if serviceDestDir, ok := raw["service_dest_dir"].(string); ok {
 			c.Serman.ServiceDestDir = serviceDestDir
 		}
+		if userServiceDir, ok := raw["user_service_dir"].(string); ok {
+			c.Serman.UserServiceDir = userServiceDir
+		}
+		if userServiceDestDir, ok := raw["user_service_dest_dir"].(string); ok {
+			c.Serman.UserServiceDestDir = userServiceDestDir
+		}
 		if srcmanDistDir, ok := raw["srcman_dist_dir"].(string); ok {
 			c.Srcman.DistDir = srcmanDistDir
 		}
@@ -114,6 +123,12 @@ func SaveSysManConfig(cfg SysManConfig) error {
 	}
 	if cfg.Serman.ServiceDestDir == "" {
 		cfg.Serman.ServiceDestDir = existing.Serman.ServiceDestDir
+	}
+	if cfg.Serman.UserServiceDir == "" {
+		cfg.Serman.UserServiceDir = existing.Serman.UserServiceDir
+	}
+	if cfg.Serman.UserServiceDestDir == "" {
+		cfg.Serman.UserServiceDestDir = existing.Serman.UserServiceDestDir
 	}
 	if cfg.Srcman.DistDir == "" {
 		cfg.Srcman.DistDir = existing.Srcman.DistDir

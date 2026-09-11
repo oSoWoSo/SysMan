@@ -25,14 +25,7 @@ func main() {
 	ugsman.InitI18n()
 	vmman.InitI18n()
 
-	serviceDir := os.Getenv("SERVICEDIR")
-	if serviceDir == "" {
-		serviceDir = serman.DefaultServiceDir
-	}
-	serviceDestDir := os.Getenv("SERVICEDESTDIR")
-	if serviceDestDir == "" {
-		serviceDestDir = serman.DefaultServiceDestDir
-	}
+	system, user := serman.ResolveScopes()
 
 	for _, arg := range os.Args[1:] {
 		if arg == "--help" || arg == "-h" {
@@ -42,7 +35,7 @@ func main() {
 	}
 
 	tabs := []tabEntry{
-		{name: "Services", model: serman.NewTuiModel(serman.NewRunitBackend(serviceDir, serviceDestDir))},
+		{name: "Services", model: serman.NewTuiModel(serman.NewScopedRunitBackend(system, user))},
 		{name: "Packages", model: pkgman.NewTuiModel()},
 		{name: "Templates", model: srcman.NewTuiModel("")},
 		{name: "System Info", model: infman.NewTuiModel()},

@@ -11,6 +11,8 @@ strings:
   filter.all: "Vše"
   filter.enabled: "Povolené"
   filter.disabled: "Nepovolené"
+  filter.scope_system: "Systém"
+  filter.scope_user: "Uživatel"
 
   search.placeholder: "hledat službu..."
   search.hint: "/ psát = hledat"
@@ -27,11 +29,18 @@ strings:
   detail.symlink: "symlink"
   detail.empty: "---"
   detail.header: "Detail"
+  detail.scope: "rozsah"
 
   state.enabled: "povolena"
   state.disabled: "zakázána"
   state.running: "běží"
   state.stopped: "zastavena"
+
+  scope.system: "Systém"
+  scope.user: "Uživatel"
+
+  group.system: "Systémové služby"
+  group.user: "Uživatelské služby"
 
   config.title: "KONFIGURACE"
   config.reload_hint: "Stiskněte Obnovit pro načtení aktuálního stavu služeb"
@@ -115,4 +124,5 @@ strings:
   tooltip.serman.filter_all: "Zobrazit všechny služby"
   tooltip.serman.filter_enabled: "Zobrazit pouze povolené služby"
   tooltip.serman.filter_disabled: "Zobrazit pouze zakázané služby"
+  tooltip.serman.filter_scope: "Přepínat mezi systémovými a uživatelskými službami"
   tooltip.serman.settings: "Otevřít nastavení"

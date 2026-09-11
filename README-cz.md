@@ -13,7 +13,7 @@ Je zároveň pluginovým frameworkem — každá záložka je samostatně použi
 | **SysInfo** | `infman` | fastfetch |
 | **Packages** | `pkgman` | xbps (`xbps-query`, `xbps-install`) |
 | **Templates** | `srcman` | xbps-src void-packages |
-| **Services** | `serman` | runit (`sv`, `pkexec`/`doas`/`sudo`) |
+| **Services** | `serman` | runit (`sv`, `pkexec`/`doas`/`sudo`) — systémové + uživatelské služby (ovládané bez zvyšování oprávnění) |
 | **Users & Groups** | `ugsman` | `/etc/passwd`, `/etc/group` |
 
 ---
@@ -99,6 +99,8 @@ pkgman-tui          # Packages (pouze TUI)
 |---|---|---|
 | `SERVICEDIR` | Adresář definic služeb runit | `/etc/sv` |
 | `SERVICEDESTDIR` | Adresář povolených služeb | `/var/service` |
+| `USER_SERVICEDIR` | Uživatelské definice služeb runit | `~/.config/service` |
+| `USER_SERVICEDESTDIR` | Adresář povolených uživatelských služeb | `~/service` |
 | `SYSMAN_LANG` | Jazyk rozhraní (`cs`, `en`) | auto z `LANG` |
 | `XBPS_DISTDIR` | Cesta ke klonu void-packages | `~/void` |
 | `PLUGIN_DIR` | Adresář pro dynamické `.so` pluginy | `./plugins` |

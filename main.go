@@ -14,15 +14,8 @@ import (
 func main() {
 	serman.InitI18n()
 
-	// Read service directories from environment or use defaults.
-	serviceDir := os.Getenv("SERVICEDIR")
-	if serviceDir == "" {
-		serviceDir = serman.DefaultServiceDir
-	}
-	serviceDestDir := os.Getenv("SERVICEDESTDIR")
-	if serviceDestDir == "" {
-		serviceDestDir = serman.DefaultServiceDestDir
-	}
+	// Resolve system and user service scopes from env, config, or defaults.
+	system, user := serman.ResolveScopes()
 
 	// Parse command-line arguments and select UI mode.
 	mode := "auto"
@@ -58,8 +51,8 @@ func main() {
 	// Launch the selected UI mode.
 	switch mode {
 	case "tui":
-		serman.RunTUI(serviceDir, serviceDestDir)
+		serman.RunTUI(system, user)
 	default:
-		serman.RunGUI(serviceDir, serviceDestDir)
+		serman.RunGUI(system, user)
 	}
 }

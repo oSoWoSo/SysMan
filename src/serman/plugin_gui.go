@@ -15,7 +15,6 @@ func (p *Plugin) Content(win fyne.Window) fyne.CanvasObject {
 	g := &guiApp{
 		win:       win,
 		backend:   p.backend,
-		selected:  -1,
 		statusBar: p.statusBar,
 	}
 	if g.statusBar == nil {

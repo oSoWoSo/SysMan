@@ -7,35 +7,57 @@ All notable changes to SysMan are documented here.
 ## [Unreleased]
 
 ### Added
-- **`common.NewApp()` helper** — creates Fyne apps with the shared `common.AppID` (`org.oSoWoSo.SysMan`) and declares the fyneDo migration; all GUI entry points now use it instead of `app.New()`
+- **`common.NewApp()` helper** — unified Fyne app creation with shared AppID
 
 ### Changed
-- **Go modules updated** — fyne v2.7.3 → v2.8.0, fsnotify v1.9.0 → v1.10.1, golang.org/x/term v0.29.0 → v0.45.0, Go directive 1.21 → 1.25.0
-- **Charm stack upgraded to v2** — bubbletea v1.3.10 → charm.land/bubbletea/v2 v2.0.9, bubbles v1.0.0 → charm.land/bubbles/v2 v2.2.0, lipgloss v1.1.0 → charm.land/lipgloss/v2 v2.0.6
+- **Go modules updated** — fyne 2.8.0, fsnotify 1.10.1, x/term 0.45.0, Go 1.25
+- **Charm stack upgraded to v2** — bubbletea, bubbles, lipgloss
 - **Version bumped to 0.019 Alpha**
 
 ### Fixed
-- **Fyne "Preferences API requires a unique ID" error** — all GUI binaries now create apps via `common.NewApp()` with a unique application ID
-- **fyne.Do threading migration declared** — Fyne no longer warns about unmigrated threading model; verified all goroutine UI updates are wrapped in `fyne.Do`
-- **TUI migration for Bubble Tea v2** — `tea.KeyMsg` → `tea.KeyPressMsg` (key matching now via `Code`/`String()`), `View() string` → `View() tea.View` with alt screen enabled per model, `tea.WithAltScreen()` removed (v2 handles it via `View.AltScreen`), textinput `Width`/`PromptStyle` fields → `SetWidth()`/`SetStyles()`, adaptive colors moved to `compat.AdaptiveColor`
+- **Fyne preferences error** — apps now use a unique application ID
+- **Fyne threading** — `fyne.Do` migration declared
+- **TUI migration for Bubble Tea v2** — updated key handling and view API
+
+---
+
+## [0.020 Alpha]
+
+### Added
+- **User services support (serman)** — system and user runit services with a single scope toggle
+- **Per-user service layouts** — `~/.config/service` definitions and `~/service` live dir
+- **Configurable default scope** — `default_scope: system|user` in config or module settings
+- **i18n** — new group/detail/scope keys in EN and CS
+
+### Changed
+- **Backend interface** — actions take `Service` (with scope) instead of a bare name
+- **Status maps** — keyed by `Service.Key()` (scope-prefixed)
+- **Elevation** — only for system-service changes and explicit status refresh
+- **Scope filters** — All/Enabled/Disabled always respect the active scope
+- **Version bumped to 0.020 Alpha**
+
+### Fixed
+- **serman-tui entry point** — removed duplicate `InitI18n()` call
+- **TUI nil-pointer** — selection guarded when the filtered list is empty
+- **GUI detail panel** — auto-selects the first service instead of staying empty
 
 ---
 
 ## [0.014 Alpha]
 
 ### Added
-- **Makefile help** — `make` and `make help` now show all available targets
-- **Per-module release tarballs** — each binary now builds with its own lang/ directory for standalone distribution
-- **XBPS template** — added proper subpackages for v0.014 (sysman, sysman-tui, serman, pkgman, srcman, infman, ugsman, vmsman)
-- **Unit tests for src/common** — comprehensive test coverage for common package
+- **Makefile help** — `make` and `make help` list all targets
+- **Per-module release tarballs** — each binary ships with its own lang/ directory
+- **XBPS template** — proper subpackages for all binaries
+- **Unit tests for src/common**
 
 ### Changed
-- **Default target** — `make` without arguments now shows help instead of running full build
-- **golangci-lint** — pinned to v2.1.1 in CI to match config
+- **Default target** — bare `make` shows help instead of building
+- **golangci-lint** — pinned to v2.1.1 in CI
 
 ### Fixed
-- **Makefile improvements** — removed broken build-plugins target, fixed duplicate .PHONY entry
-- **release.yml** — updated module names (serman, pkgman, srcman, infman, ugsman, vmsman)
+- **Makefile** — removed broken build-plugins target, fixed duplicate .PHONY
+- **release.yml** — updated module names
 
 ---
 
@@ -43,114 +65,84 @@ All notable changes to SysMan are documented here.
 
 ### Added
 - **ForkURL** — personal void-packages clone support in srcman settings
-- **LangDir** — configurable language directory in settings panel
-- **Version mismatch fix** — updated documentation to reflect v0.009+ changes
-- **Module naming** — updated README.md, README-cs.md, AGENTS.md to use new module names (serman, pkgman, srcman, infman, ugsman, vmsman)
+- **LangDir** — configurable language directory in settings
+- **Version mismatch fix** — docs updated for v0.009+
+- **Module naming** — docs updated to the new module names
 
 ### Fixed
 - **Settings panel** — rebuilds on click, preserves LangDir on save
 - **Duplicate config** — removed duplicate serman config from settings
 - **SearchEngine** — fixed default value in srcman settings
-- **Language files** — updated serman lang files to use "serman" instead of "svman"
+- **Language files** — serman uses "serman" instead of "svman"
 
 ---
 
 ## [0.009 Alpha]
 
 ### Added
-- **Users & Groups plugin** (`usergroups`) — new tab in sysman and standalone `ugman` / `ugman-tui` binaries
-  - Lists users (UID, full name, primary group, home) with toggle for system users
-  - Lists groups (GID, members)
-  - Keyboard navigation with scrolling to fit terminal height
-- **Batch service status** — Reload fetches all enabled service statuses in a single elevated call; switching between services no longer prompts for a password repeatedly
-- **Reload hint** — info area in the Services tab now shows a reminder to reload for current status
-- **Esc to quit** in all standalone GUI windows (`svman`, `ugman`, `infoman`, `srcman`, `pkgman`)
-- **Button icons** in the Services GUI and xbps-src GUI
-- **Root warning** on the Reload button in Services — shows a warning icon when not running as root
-- **`StatusAll`** method added to the `Backend` interface for batched service status queries
-- **Dedicated cmd entry points** for each tool/mode combination:
-  - `cmd/ugman-gui/`, `cmd/ugman-tui/`
-  - `cmd/pkgman-gui/`
-  - `cmd/infoman-gui/`, `cmd/infoman-tui/`
-  - `cmd/srcman-gui/`, `cmd/srcman-tui/`
-- **vmsman plugin** — QEMU VM manager with GUI and TUI interfaces, SPICE connection support
-  - Boot, kill, and connect to VMs with status tracking (PID, SPICE port)
-  - Filter by running/stopped state, search by name
-  - Sectioned config system with per-module settings
-- **ANSI color support** in xbps and xbps-src GUI output
-  - PTY-based output capture for xbps-src to enable ANSI colors from build scripts
-  - ANSI escape sequence parser converts SGR codes to Fyne RichText segments
-  - Supports 16-color, 256-color palette, and 24-bit true color
-- **HoverableButton** component — buttons that display status text on hover
-- **Tooltip translations** for all managers (infoman, pkgman, srcman, serman, ugsman)
-- **srcman build mode selection** — `-Q` (with tests) and `-C` (confpkg) checkboxes for xbps-src builds
-- **i18n tests** for all modules (infman, pkgman, serman, srcman, ugsman, vmsman)
-- **Module-specific tooltip keys** — all modules use `tooltip.<module>.*` prefix to prevent conflicts
-- **InitI18n() in main()** — all cmd entry points call `InitI18n()` for their modules before UI creation
+- **Users & Groups plugin** — new `ugsman` tab and standalone binaries
+- **Batch service status** — single elevated call for all enabled services
+- **Reload hint** — reminder to reload for current status
+- **Esc to quit** — in all standalone GUI windows
+- **Button icons** — in Services and xbps-src GUI
+- **Root warning** — on the Reload button when not running as root
+- **`StatusAll`** — batched status queries in the Backend interface
+- **Dedicated cmd entry points** — per tool/mode combination
+- **vmsman plugin** — QEMU VM manager (GUI + TUI, SPICE support)
+- **ANSI color support** — PTY-based output in xbps and xbps-src GUI
+- **HoverableButton** — button with hover status text
+- **Tooltip translations** — for all managers
+- **srcman build modes** — `-Q` (tests) and `-C` (confpkg)
+- **i18n tests** — for all modules
+- **Module-specific tooltip keys** — `tooltip.<module>.*` prefix
+- **InitI18n() in main()** — called before UI creation in all entry points
 
 ### Changed
-- **Static website** — new website with 50+ retro/nostalgic themes (Amiga 500, C64, DOS, MacOS, etc.)
-- **Standalone GUI binaries support TUI mode** — `infoman`, `pkgman`, `srcman`, `ugman` accept `--tui`/`--gui`/`--auto` flags; auto-detects DISPLAY/WAYLAND_DISPLAY
-- **Binary naming**: GUI binaries no longer carry a `-gui` suffix; TUI-only binaries use `-tui` suffix
-  - `sysmanager` → `sysman` / `sysman-tui`
-  - `svman` stays `svman` (GUI+TUI); `svman-tui` (TUI only)
-  - New: `ugman`, `ugman-tui`, `infoman`, `infoman-tui`, `srcman`, `srcman-tui`, `pkgman`, `pkgman-tui`
-- **Makefile** fully restructured with per-binary targets (`build-svman`, `build-svman-tui`, etc.) and `install`/`uninstall`/`release` targets
-- **`sv status`** is now run with `api.Elevate` (pkexec/doas/sudo) for accurate service state display
-- Module path is `codeberg.org/oSoWoSo/SysMan`
-- **Directory structure** — reorganized into `src/` (Go code) and `web/` (static site)
-  - All plugins moved to `src/<name>/` (serman, pkgman, srcman, infman, ugsman, vmsman)
-  - All entry points moved to `src/cmd/<name>-gui/` and `src/cmd/<name>-tui/`
-  - Language files moved to `src/lang/<name>/`
-- **Module naming** — unified naming convention across all modules:
-  - `plugin` → `serman`, `xbps-pkg` → `pkgman`, `xbps-src` → `srcman`
-  - `sysinfo` → `infman`, `usergroups` → `ugsman`, `vmman` → `vmsman`
-  - `svman` → `serman` (in lang files and internal references)
-- **Generic Filter** — refactored filter logic into reusable generic `Filter[T]` function in each plugin
-- **Go dependencies** updated to latest versions
-- **golangci-lint** configuration updated with additional rules
+- **Static website** — new site with 50+ retro themes
+- **GUI binaries accept `--tui`/`--gui`/`--auto`** — auto-detect display
+- **Binary naming** — GUI binaries drop `-gui`, TUI-only add `-tui`
+- **Makefile** — restructured with per-binary targets
+- **`sv status`** — run with elevation for accurate state display
+- **Module path** — `codeberg.org/oSoWoSo/SysMan`
+- **Directory structure** — reorganized into `src/` and `web/`
+- **Module naming** — unified convention (serman, pkgman, srcman, infman, ugsman, vmsman)
+- **Generic Filter** — reusable `Filter[T]` in each plugin
+- **Go dependencies** — updated
+- **golangci-lint** — updated configuration
 
 ### Fixed
-- `ugman-tui`: list was not scrolled/clipped to terminal height — added sliding window scroll
-- `ugman-tui`: no quit key was bound — added `q`, `Esc`, `Ctrl+C`
-- `usergroups/plugin.go`: removed compile-time interface check that broke `tui_only` builds
-- **Fyne threading** — wrapped UI updates in `fyne.Do()` to prevent race conditions in pkgman, srcman
-- **Code review fixes** — simplified highlight.go, cleaned up sysinfo, improved serman TUI
-- **langDirs paths** — corrected language directory resolution paths across all modules
+- **ugman-tui scrolling** — list clipped to terminal height
+- **ugman-tui quit key** — added `q`, `Esc`, `Ctrl+C`
+- **usergroups plugin** — compile check broke `tui_only` builds
+- **Fyne threading** — `fyne.Do()` wrappers in pkgman, srcman
+- **Code review fixes** — simplified highlight, cleanups in sysinfo and serman TUI
+- **langDirs paths** — corrected language directory resolution
 - **vmsman plugin** — fixed config loading and i18n initialization
-- **Tooltip translations** — tooltips now show translated text instead of key names
-  - Added module-specific prefixes (`tooltip.serman.*`, `tooltip.pkgman.*`, etc.) to prevent key conflicts
-  - Added `InitI18n()` calls in main() for all modules before UI creation
-- **Makefile lang directory** — fixed `cp -r src/lang/. $(BUILD_DIR)/lang` to preserve module subdirectories
+- **Tooltip translations** — show translated text instead of key names
+- **Makefile lang directory** — preserved module subdirectories
 
 ### Security
-- **PIE build** for `sysman` and `ugman` binaries — required for Void Linux packages
+- **PIE build** — for `sysman` and `ugman` binaries
 
 ---
 
 ## [0.008 Alpha]
 
 ### Added
-- **Common package** (`src/common/`) — unified shared helpers for all plugins:
-  - `common.Filter[T]` — generic filter function replacing 3 duplicate implementations
-  - `common.ShowAbout()` — standardized About dialog replacing 5 duplicate implementations
-  - `common.HoverableButton` — button with hover status text replacing 4 duplicate implementations
-  - `common.SetWindowIcon()` / `common.AppIcon()` / `common.LogoImage()` — application icon helpers
-  - `common.Version`, `common.AppAuthor`, `common.AppLicense`, `common.AppURL` — centralized app metadata
-  - `common.AnsiRe`, `common.ParseSeq`, `common.AnsiToRichSegments` — ANSI rendering helpers
-- **vmsman tooltips** — Czech and English translations for boot, kill, connect, about, reload, filter, search
-- **Window icons** — sysman-gui now sets application icon on startup
+- **Common package** — shared helpers for all plugins
+- **vmsman tooltips** — Czech and English translations
+- **Window icons** — set on startup
 
 ### Changed
 - **Package consolidation** — `src/config/` and `src/tui/` merged into `src/common/`
-- **Version management** — ldflags now targets `common.Version` instead of `serman.Version`
-- **All GUI modules** (vmsman, serman, ugsman, infman, pkgman, srcman) use `common.HoverableButton` and `common.ShowAbout`
-- **sysman settings** — fixed config field names (`Serman`, `Vmsman` instead of `Svman`, `Vmman`)
-- **infman** — logo loading now delegates to `common.LogoImage()`
+- **Version management** — ldflags target `common.Version`
+- **HoverableButton / ShowAbout** — used in all GUI modules
+- **sysman settings** — config field names fixed
+- **infman** — logo loading via `common.LogoImage()`
 
 ### Fixed
-- **Import cycle** — ANSI constants moved from `infman` to `common` to break `serman → common → infman → serman` cycle
-- **sysman settings** — `dialog.ShowError` now receives an `error` instead of a string
+- **Import cycle** — ANSI constants moved to `common`
+- **sysman settings** — `dialog.ShowError` receives an error
 
 ---
 

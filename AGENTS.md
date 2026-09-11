@@ -181,7 +181,7 @@ SysMan/
 │   │   ├── i18n.go              # Translation loading
 │   │   ├── icon.go              # AppIcon, SetWindowIcon, LogoImage
 │   │   └── version.go           # Version, AppAuthor, AppLicense, AppURL
-│   ├── serman/                  # Services plugin (runit via sv)
+│   ├── serman/                  # Services plugin (runit via sv, system + user scopes)
 │   ├── pkgman/                  # Packages plugin (xbps)
 │   ├── srcman/                  # Templates plugin (xbps-src)
 │   ├── infman/                  # System info plugin (fastfetch/neofetch)
@@ -267,6 +267,8 @@ golang.org/x/term                  Terminal detection
 |---|---|---|
 | `SERVICEDIR` | runit service definitions | `/etc/sv` |
 | `SERVICEDESTDIR` | enabled services directory | `/var/service` |
+| `USER_SERVICEDIR` | user runit service definitions | `~/.config/service` |
+| `USER_SERVICEDESTDIR` | user enabled services directory | `~/service` |
 | `SYSMAN_LANG` | language override (`cs`, `en`) | auto from `LANG` |
 | `XBPS_DISTDIR` | path to void-packages clone | `~/void` |
 | `PLUGIN_DIR` | directory for dynamic `.so` plugins | `./plugins` |

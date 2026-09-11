@@ -14,7 +14,7 @@ It is also a plugin framework — each tab is an independently embeddable compon
 | **SysInfo** | `infman` | fastfetch |
 | **Packages** | `pkgman` | xbps (`xbps-query`, `xbps-install`) |
 | **Templates** | `srcman` | xbps-src void-packages |
-| **Services** | `serman` | runit (`sv`, `pkexec`/`doas`/`sudo`) |
+| **Services** | `serman` | runit (`sv`, `pkexec`/`doas`/`sudo`) — system + user services (managed without elevation) |
 | **Users & Groups** | `ugsman` | `/etc/passwd`, `/etc/group` |
 
 ---
@@ -100,6 +100,8 @@ pkgman-tui          # Packages TUI only
 |---|---|---|
 | `SERVICEDIR` | runit service definitions | `/etc/sv` |
 | `SERVICEDESTDIR` | enabled services directory | `/var/service` |
+| `USER_SERVICEDIR` | user runit service definitions | `~/.config/service` |
+| `USER_SERVICEDESTDIR` | user enabled services directory | `~/service` |
 | `SYSMAN_LANG` | language override (`cs`, `en`) | auto from `LANG` |
 | `XBPS_DISTDIR` | path to void-packages clone | `~/void` |
 | `PLUGIN_DIR` | directory for dynamic `.so` plugins | `./plugins` |
@@ -125,6 +127,7 @@ pkgman-tui          # Packages TUI only
 | `K` | Kill (SIGKILL) |
 | `/` | Search |
 | `Tab` | Cycle filter (All / Enabled / Disabled) |
+| `z` | Switch between system / user services (when multi-scope) |
 | `r` | Reload list |
 | `q` / `Esc` | Quit |
 
@@ -336,7 +339,11 @@ go build -buildmode=plugin -o plugins/myplugin.so ./myplugin/
 
 ## Security
 
-Service operations (`sv`, symlink enable/disable) require elevated privileges and are run via `pkexec`, `doas`, or `sudo` (whichever is available).
+System-scope service operations (`sv`, symlink enable/disable) require elevated privileges and are run via `pkexec`, `doas`, or `sudo` (whichever is available). **User-scope services** are managed without elevation — no `sudo` prompt is shown while the user-only scope view is active.
+
+Elevated privileges are only requested for system-service changes and for an explicit status refresh (Reload button / `r`). Browsing, filtering, searching, and switching between the system/user scope views never prompt for elevation — the service list always displays, while statuses (which need privileges) are fetched only on demand.
+
+The scope shown on first display defaults to system services; set `default_scope: user` in `~/.config/sysman/sysman.conf` (or choose *Default Scope* in the module settings dialog) to start on user services instead. The All/Enabled/Disabled filters always respect the active scope — they only ever list services from the currently selected system or user scope, never both at once.
 
 Optional passwordless rules (add via `visudo` or `/etc/doas.conf`):
 
@@ -353,6 +360,25 @@ permit nopass :wheel cmd ln
 permit nopass :wheel cmd rm
 permit nopass :wheel cmd sv
 ```
+
+### Per-user services (runit)
+
+SysMan follows the Void Linux per-user service layouts. The user scope is activated when **either** directory exists, and it is always managed **without** elevation:
+
+- **Definitions + live dir** (runit-manager/turnstile style): service run dirs live in `~/.config/service` and are symlinked into the live directory `~/service`. Enabled services are the symlinks; control and status use `sv <action> ~/service/<name>`.
+- **Live dir only** (classic `runsvdir-<username>` layout): run directories or symlinks live directly in `~/service`. SysMan lists them directly as enabled services.
+
+Override the defaults with `USER_SERVICEDIR`/`USER_SERVICEDESTDIR` (or `user_service_dir`/`user_service_dest_dir` in `~/.config/sysman/sysman.conf`) — e.g. turnstile users keep definitions in `~/.config/service` by default.
+
+Smoke-test without installing anything:
+
+```sh
+mkdir -p ~/service/smoketest
+printf '#!/bin/sh\nexec sleep 1000\n' > ~/service/smoketest/run
+chmod +x ~/service/smoketest/run
+```
+
+`smoketest` then appears in the user scope with no elevation prompt. Without a supervising `runsvdir-<user>` the status reports "not running", which is fine for verifying the list, scope toggle, and control calls.
 
 ---
 
