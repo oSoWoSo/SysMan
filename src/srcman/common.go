@@ -148,13 +148,10 @@ func ReadMeta(distDir, name string) TemplateMeta {
 // DiskInfo returns human-readable free/total disk space for the filesystem
 // that contains distDir. Returns an empty string on error.
 func DiskInfo(distDir string) string {
-	dir := ResolveDistDir(distDir)
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(dir, &stat); err != nil {
+	avail, total, err := diskFreeTotal(ResolveDistDir(distDir))
+	if err != nil {
 		return ""
 	}
-	avail := stat.Bavail * uint64(stat.Bsize) //nolint:unconvert
-	total := stat.Blocks * uint64(stat.Bsize) //nolint:unconvert
 	return fmt.Sprintf("%s free / %s total", humanBytes(avail), humanBytes(total))
 }
 

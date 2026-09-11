@@ -27,11 +27,16 @@ jobs:
       - name: dependencies
         run: |
           sudo apt-get update -qq && sudo apt-get install -y \
-            gcc libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
+            gcc pkg-config libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
 
       - name: version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
 
       - name: go mod
         run: go mod download
@@ -86,8 +91,15 @@ jobs:
 
       - name: release
         env:
-          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+          TEA: ${{ secrets.TEA }}
         run: |
+          if [ -z "${TEA}" ]; then
+            echo "ERROR: TEA secret is not set."
+            echo "Add it (organization or repository secret) at: https://codeberg.org/oSoWoSo/SysMan/settings/actions"
+            echo "Name: TEA"
+            exit 1
+          fi
+
           VERSION=${{ steps.version.outputs.VERSION }}
           REPO="oSoWoSo/SysMan"
           API="https://codeberg.org/api/v1"
@@ -100,19 +112,30 @@ jobs:
           fi
 
           # Create release with changelog
-          curl -s -X POST "${API}/repos/${REPO}/releases" \
-            -H "Authorization: token ${CODEBERG_TOKEN}" \
+          RELEASE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API}/repos/${REPO}/releases" \
+            -H "Authorization: token ${TEA}" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"${CHANGELOG}\",\"draft\":false}" \
-            || true
+            -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"$(echo "${CHANGELOG}" | sed 's/"/\\"/g' | tr '\n' ' ')\",\"draft\":false}")
+
+          HTTP_CODE=$(echo "$RELEASE_RESPONSE" | tail -1)
+          RELEASE_BODY=$(echo "$RELEASE_RESPONSE" | head -n -1)
+
+          if [ "$HTTP_CODE" != "201" ]; then
+            echo "ERROR: Failed to create release (HTTP ${HTTP_CODE}):"
+            echo "${RELEASE_BODY}"
+            exit 1
+          fi
+
+          RELEASE_ID=$(echo "${RELEASE_BODY}" | grep '"id"' | head -1 | grep -o '[0-9]*')
+          echo "Created release ${VERSION} (ID: ${RELEASE_ID})"
 
           # Upload all tarballs and checksums
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
-            ASSET_URL="${API}/repos/${REPO}/releases/tags/${VERSION}/assets"
+            ASSET_URL="${API}/repos/${REPO}/releases/${RELEASE_ID}/assets"
             curl -s -X POST "${ASSET_URL}" \
-              -H "Authorization: token ${CODEBERG_TOKEN}" \
-              -F "attachment=@${f}"
+              -H "Authorization: token ${TEA}" \
+              -F "attachment=@${f}" && echo "Uploaded $(basename $f)"
           done
 
   release-cross:
@@ -177,7 +200,12 @@ jobs:
 
       - name: version
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
 
       - name: go mod
         run: go mod download
@@ -223,20 +251,30 @@ jobs:
 
       - name: upload
         env:
-          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+          TEA: ${{ secrets.TEA }}
         run: |
+          if [ -z "${TEA}" ]; then
+            echo "ERROR: TEA secret is not set."
+            exit 1
+          fi
+
           VERSION=${{ steps.version.outputs.VERSION }}
           REPO="oSoWoSo/SysMan"
           API="https://codeberg.org/api/v1"
 
           # Get release ID by tag (release was created by release-linux-amd64 job)
           RELEASE_ID=$(curl -s "${API}/repos/${REPO}/releases/tags/${VERSION}" \
-            -H "Authorization: token ${CODEBERG_TOKEN}" | grep '"id"' | head -1 | grep -o '[0-9]*')
+            -H "Authorization: token ${TEA}" | grep '"id"' | head -1 | grep -o '[0-9]*')
+
+          if [ -z "${RELEASE_ID}" ]; then
+            echo "ERROR: Could not find release ID for tag ${VERSION}"
+            exit 1
+          fi
 
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
             ASSET_URL="${API}/repos/${REPO}/releases/${RELEASE_ID}/assets"
             curl -s -X POST "${ASSET_URL}" \
-              -H "Authorization: token ${CODEBERG_TOKEN}" \
-              -F "attachment=@${f}"
+              -H "Authorization: token ${TEA}" \
+              -F "attachment=@${f}" && echo "Uploaded $(basename $f)"
           done

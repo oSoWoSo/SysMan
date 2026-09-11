@@ -61,7 +61,7 @@ make build-serman-tui
 
 ```bash
 # Void Linux
-sudo xbps-install go gcc pkg-config libXxf86vm-devel libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel MesaLib-devel
+sudo xbps-install go gcc pkg-config libXxf86vm-devel libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel MesaLib-devel wayland-devel libxkbcommon-devel
 ```
 
 ### Runtime dependencies

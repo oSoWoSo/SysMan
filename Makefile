@@ -1,4 +1,4 @@
-VERSION  ?= 0.019.1 Alpha
+VERSION  ?= 0.019.2 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local
@@ -15,7 +15,10 @@ BUILD_DIR = build
 GUI_BINS = sysman serman ugsman infman srcman pkgman vmsman
 TUI_BINS = sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vmsman-tui
 
-.PHONY: all clean fmt lint test \
+# pkg-config modules required for GUI (CGO) builds on Linux
+PKG_CONFIG_MODULES = x11 xrandr xinerama xcursor xi xxf86vm gl wayland-client wayland-cursor wayland-egl xkbcommon
+
+.PHONY: all clean fmt lint test check-deps \
 	build build-tui \
 	install install-tui install-all uninstall uninstall-tui uninstall-all release \
 	help default
@@ -44,6 +47,7 @@ help:
 	@echo "  make fmt                - gofmt -s"
 	@echo "  make lint               - golangci-lint"
 	@echo "  make test               - go test -race -cover"
+	@echo "  make check-deps         - verify pkg-config modules for GUI builds"
 	@echo "  make install            - install binaries to \$$PREFIX/bin"
 	@echo "  make install-tui        - install TUI binaries"
 	@echo "  make install-all        - install all binaries (GUI + TUI)"
@@ -53,7 +57,7 @@ help:
 	@echo "  make release            - build all + create tarballs with checksums"
 	@echo ""
 	@echo "=== Variables ==="
-	@echo "  VERSION=$(VERSION)      - override version (default)"
+	@echo "  VERSION=$(VERSION)   - override version (default)"
 	@echo "  PREFIX=/usr/local       - installation prefix (default: /usr/local)"
 	@echo "  DESTDIR=/               - staging directory for make install"
 	@echo ""
@@ -84,6 +88,21 @@ test:
 	@echo "Testing..."
 	go test -v -race -cover ./...
 
+## check-deps: verify pkg-config modules required for GUI builds
+check-deps:
+ifeq ($(GOOS),linux)
+	@command -v pkg-config >/dev/null 2>&1 || { echo "ERROR: pkg-config not found. Install: sudo xbps-install pkg-config"; exit 1; }
+	@if ! pkg-config --exists --print-errors $(PKG_CONFIG_MODULES); then \
+		echo ""; \
+		echo "Missing GUI build dependencies. On Void Linux:"; \
+		echo "  sudo xbps-install libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel libXxf86vm-devel MesaLib-devel wayland-devel libxkbcommon-devel"; \
+		exit 1; \
+	fi
+	@echo "check-deps: OK"
+else
+	@echo "check-deps: skipped (GOOS=$(GOOS))"
+endif
+
 ## build: build all GUI binaries
 build: $(addprefix build-,$(GUI_BINS))
 	@echo "All GUI binaries built in $(BUILD_DIR)/."
@@ -94,7 +113,7 @@ build-tui: $(addprefix build-,$(TUI_BINS))
 	@echo "All TUI binaries built in $(BUILD_DIR)/."
 
 ## Generic GUI build rule
-build-%:
+build-%: check-deps
 	@echo "Building $* GUI..."
 	@mkdir -p $(BUILD_DIR)
 	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/$* ./src/cmd/$*-gui/
