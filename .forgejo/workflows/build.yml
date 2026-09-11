@@ -23,7 +23,7 @@ jobs:
           cache: true
 
       - name: Install CGO dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libwayland-dev
 
       - name: Download dependencies
         run: go mod download
