@@ -111,23 +111,31 @@ jobs:
             CHANGELOG="Initial release"
           fi
 
-          # Create release with changelog
-          RELEASE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API}/repos/${REPO}/releases" \
-            -H "Authorization: token ${TEA}" \
-            -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"$(echo "${CHANGELOG}" | sed 's/"/\\"/g' | tr '\n' ' ')\",\"draft\":false}")
+          # Reuse the release if it already exists (idempotent re-runs).
+          RELEASE_ID=$(curl -s "${API}/repos/${REPO}/releases/tags/${VERSION}" \
+            -H "Authorization: token ${TEA}" | grep '"id"' | head -1 | grep -o '[0-9]*')
 
-          HTTP_CODE=$(echo "$RELEASE_RESPONSE" | tail -1)
-          RELEASE_BODY=$(echo "$RELEASE_RESPONSE" | head -n -1)
+          if [ -n "${RELEASE_ID}" ]; then
+            echo "Release for tag ${VERSION} already exists (ID: ${RELEASE_ID}); reusing it."
+          else
+            # Create release with changelog
+            RELEASE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API}/repos/${REPO}/releases" \
+              -H "Authorization: token ${TEA}" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"$(echo "${CHANGELOG}" | sed 's/"/\\"/g' | tr '\n' ' ')\",\"draft\":false}")
 
-          if [ "$HTTP_CODE" != "201" ]; then
-            echo "ERROR: Failed to create release (HTTP ${HTTP_CODE}):"
-            echo "${RELEASE_BODY}"
-            exit 1
+            HTTP_CODE=$(echo "$RELEASE_RESPONSE" | tail -1)
+            RELEASE_BODY=$(echo "$RELEASE_RESPONSE" | head -n -1)
+
+            if [ "$HTTP_CODE" != "201" ]; then
+              echo "ERROR: Failed to create release (HTTP ${HTTP_CODE}):"
+              echo "${RELEASE_BODY}"
+              exit 1
+            fi
+
+            RELEASE_ID=$(echo "${RELEASE_BODY}" | grep '"id"' | head -1 | grep -o '[0-9]*')
+            echo "Created release ${VERSION} (ID: ${RELEASE_ID})"
           fi
-
-          RELEASE_ID=$(echo "${RELEASE_BODY}" | grep '"id"' | head -1 | grep -o '[0-9]*')
-          echo "Created release ${VERSION} (ID: ${RELEASE_ID})"
 
           # Upload all tarballs and checksums
           for f in build/*.tar.gz build/*.sha256; do
