@@ -369,7 +369,7 @@ func (s *coloredSegment) Unselect()                 {}
 func (s *coloredSegment) Visual() fyne.CanvasObject {
 	col := s.col
 	if col == nil {
-		col = theme.ForegroundColor()
+		col = theme.Color(theme.ColorNameForeground)
 	}
 	t := canvas.NewText(s.text, col)
 	t.TextStyle.Bold = s.bold
@@ -382,7 +382,7 @@ func (s *coloredSegment) Update(o fyne.CanvasObject) {
 	t.Text = s.text
 	col := s.col
 	if col == nil {
-		col = theme.ForegroundColor()
+		col = theme.Color(theme.ColorNameForeground)
 	}
 	t.Color = col
 	t.TextStyle.Bold = s.bold

@@ -570,20 +570,17 @@ func syncSystemRepos(repos []string, file string) error {
 	if file == "" {
 		file = defaultReposFile
 	}
-	tmp, err := os.CreateTemp("", "sysman-repos-*")
+	tmpDir, err := os.MkdirTemp("", "sysman-repos-*")
 	if err != nil {
 		return err
 	}
-	tmpName := tmp.Name()
-	if _, err := tmp.WriteString(reposConfContent(repos)); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	if err := writeReposConf(tmpDir, file, repos); err != nil {
 		return err
 	}
-	_ = tmp.Close()
-	defer os.Remove(tmpName) //nolint:errcheck
 
 	dst := filepath.Join("/etc/xbps.d", file)
-	_, err = runElevated(nil, []string{"install", "-Dm644", tmpName, dst})
+	_, err = runElevated(nil, []string{"install", "-Dm644", filepath.Join(tmpDir, file), dst})
 	return err
 }

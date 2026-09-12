@@ -335,7 +335,7 @@ func (b *QEMUBackend) BootStream(vm *VM, onLog func(string)) error {
 		_ = cmd.Wait()
 		_ = master.Close()
 		// The wrapper exited: drop any stale tracking files left behind.
-		b.cleanupVMFiles(vm.Name)
+		_ = b.cleanupVMFiles(vm.Name)
 	}()
 	return nil
 }
@@ -357,7 +357,7 @@ func streamPtyOutput(master *os.File, logPath string, onLog func(string)) {
 	if err != nil {
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	sc := bufio.NewScanner(master)
 	sc.Buffer(make([]byte, 1024*1024), 1024*1024)

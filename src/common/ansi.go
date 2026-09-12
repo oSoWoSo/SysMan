@@ -151,7 +151,7 @@ func (s *ansiBlockSegment) Visual() fyne.CanvasObject {
 	return container.NewHBox(objs...)
 }
 
-func (s *ansiBlockSegment) Update(o fyne.CanvasObject) {}
+func (s *ansiBlockSegment) Update(_ fyne.CanvasObject) {}
 
 // HasAnsiCodes checks if text contains ANSI SGR escape sequences.
 func HasAnsiCodes(text string) bool {
@@ -177,7 +177,7 @@ func AnsiToRichSegments(text string) []widget.RichTextSegment {
 			// newline (empty last line) is skipped to avoid a phantom row.
 			if lineIdx < len(lines)-1 {
 				segs = append(segs, &ansiBlockSegment{
-					runs: []ansiRun{{text: "", col: theme.ForegroundColor()}},
+					runs: []ansiRun{{text: "", col: theme.Color(theme.ColorNameForeground)}},
 				})
 			}
 			continue
@@ -196,7 +196,7 @@ func parseAnsiLine(line string) *ansiBlockSegment {
 			return &ansiBlockSegment{}
 		}
 		return &ansiBlockSegment{
-			runs: []ansiRun{{text: line, col: theme.ForegroundColor()}},
+			runs: []ansiRun{{text: line, col: theme.Color(theme.ColorNameForeground)}},
 		}
 	}
 

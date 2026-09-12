@@ -84,10 +84,6 @@ type tuiModel struct {
 type tuiReloadMsg struct{}
 type tuiErrMsg struct{ err error }
 type tuiStatusMsg struct{ msg string }
-type tuiSvStatusMsg struct {
-	name   string
-	status ServiceStatus
-}
 type tuiSvOpDoneMsg struct {
 	name   string
 	action string // key into status.* translations

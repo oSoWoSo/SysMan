@@ -47,6 +47,7 @@ func NewAppImageBackendWithDir(dir string) *AppImageBackend {
 	return &AppImageBackend{dir: dir}
 }
 
+// Name returns the backend identifier "appimage".
 func (b *AppImageBackend) Name() string { return "appimage" }
 
 func (b *AppImageBackend) hasAM() bool {
@@ -145,7 +146,7 @@ func (b *AppImageBackend) loadCatalog() []Package {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var pkgs []Package
 	scanner := bufio.NewScanner(resp.Body)
@@ -322,17 +323,15 @@ func (b *AppImageBackend) List() []Package {
 		pkgs = append(pkgs, p)
 	}
 	// Include apps found in the directory that are not in the catalog.
-	if files != nil {
-		for name, path := range files {
-			if known[name] {
-				continue
-			}
-			pkgs = append(pkgs, Package{
-				Name:      strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
-				Installed: true,
-				ShortDesc: "AppImage",
-			})
+	for name, path := range files {
+		if known[name] {
+			continue
 		}
+		pkgs = append(pkgs, Package{
+			Name:      strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+			Installed: true,
+			ShortDesc: "AppImage",
+		})
 	}
 	return pkgs
 }
@@ -383,6 +382,7 @@ func (b *AppImageBackend) Detail(name string) PackageDetail {
 	return d
 }
 
+// Install installs the named apps via the am tool.
 func (b *AppImageBackend) Install(names []string, w io.Writer) (string, error) {
 	if !b.hasAM() {
 		return "", fmt.Errorf("%s", t("appimage.am_missing"))
@@ -402,11 +402,12 @@ func (b *AppImageBackend) Install(names []string, w io.Writer) (string, error) {
 		if err := c.Run(); err != nil {
 			return output.String(), fmt.Errorf("install %s: %w", name, err)
 		}
-		output.WriteString(fmt.Sprintf("Installed %s\n", name))
+		fmt.Fprintf(&output, "Installed %s\n", name)
 	}
 	return output.String(), nil
 }
 
+// Remove removes the named apps via the am tool.
 func (b *AppImageBackend) Remove(names []string, w io.Writer) (string, error) {
 	if !b.hasAM() {
 		return "", fmt.Errorf("%s", t("appimage.am_missing"))
@@ -426,11 +427,12 @@ func (b *AppImageBackend) Remove(names []string, w io.Writer) (string, error) {
 		if err := c.Run(); err != nil {
 			return output.String(), fmt.Errorf("remove %s: %w", name, err)
 		}
-		output.WriteString(fmt.Sprintf("Removed %s\n", name))
+		fmt.Fprintf(&output, "Removed %s\n", name)
 	}
 	return output.String(), nil
 }
 
+// Update updates all installed apps via the am tool.
 func (b *AppImageBackend) Update(w io.Writer) (string, error) {
 	if !b.hasAM() {
 		return "", fmt.Errorf("%s", t("appimage.am_missing"))
@@ -448,6 +450,7 @@ func (b *AppImageBackend) Update(w io.Writer) (string, error) {
 	return "", c.Run()
 }
 
+// OpenURL opens the given URL in the default browser.
 func (b *AppImageBackend) OpenURL(url string) {
 	OpenBrowser(url)
 }

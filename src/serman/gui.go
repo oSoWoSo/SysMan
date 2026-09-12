@@ -769,7 +769,7 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	btnSettings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
 		sys := systemScope(s.backend.ScopeDirs())
 		usr := userScope(s.backend.ScopeDirs())
-		defScope := cfgDefaultScope(s.backend.ScopeDirs())
+		defScope := cfgDefaultScope()
 		common.ShowSettingsDialog(s.win, t("app.window"), []common.SettingsField{
 			{Label: "Service Dir", Value: sys.ServiceDir, Placeholder: DefaultServiceDir},
 			{Label: "Service Dest Dir", Value: sys.DestDir, Placeholder: DefaultServiceDestDir},

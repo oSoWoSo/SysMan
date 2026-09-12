@@ -139,7 +139,7 @@ func DefaultScopeFilter(scopes []ScopeDir) ScopeFilter {
 
 // cfgDefaultScope returns the configured default scope for the settings dialog,
 // falling back to the system scope.
-func cfgDefaultScope(scopes []ScopeDir) string {
+func cfgDefaultScope() string {
 	cfg := common.LoadSysManConfig()
 	if cfg.Serman.DefaultScope == string(ScopeUser) {
 		return string(ScopeUser)
@@ -185,12 +185,6 @@ func runCmdRaw(args ...string) error {
 		return fmt.Errorf("%s: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
-}
-
-// runElevated runs a command with privilege escalation and returns an error
-// that includes the exit code when available.
-func runElevated(args ...string) error {
-	return runCmdRaw(args...)
 }
 
 // runCapture runs a command, prefixing it with the elevator when elevate is
