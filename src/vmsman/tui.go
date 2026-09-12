@@ -56,11 +56,11 @@ type tuiModel struct {
 	confirmArg    string // VM name
 
 	// create-VM prompts
-	createMode   bool
-	createStep   int // 0 = name, 1 = guest os, 2 = ssh user
-	createName   string
+	createMode    bool
+	createStep    int // 0 = name, 1 = guest os, 2 = ssh user
+	createName    string
 	createGuestOS string
-	createInput  textinput.Model
+	createInput   textinput.Model
 
 	// log screen
 	logMode bool

@@ -62,28 +62,28 @@ type guiApp struct {
 	searchText string
 	filter     FilterMode
 
-	vmList       *widget.List
-	detailName   *widget.Label
-	detailState  *widget.Label
-	detailPID    *widget.Label
-	detailPort   *widget.Label
-	detailSSH    *widget.Label
-	btnBoot      *common.HoverableButton
-	btnKill      *common.HoverableButton
-	btnConnect   *common.HoverableButton
-	btnNew       *common.HoverableButton
-	btnEdit      *common.HoverableButton
-	btnLog       *common.HoverableButton
-	btnSSHUser   *common.HoverableButton
-	btnAbout     *common.HoverableButton
-	statusBar    *common.StatusBar
-	countLabel   *widget.Label
-	logScroll    *container.Scroll
-	logText      *widget.RichText
-	logBuf       strings.Builder
-	prevLogVM    string
-	root         fyne.CanvasObject
-	bottomBar    fyne.CanvasObject
+	vmList      *widget.List
+	detailName  *widget.Label
+	detailState *widget.Label
+	detailPID   *widget.Label
+	detailPort  *widget.Label
+	detailSSH   *widget.Label
+	btnBoot     *common.HoverableButton
+	btnKill     *common.HoverableButton
+	btnConnect  *common.HoverableButton
+	btnNew      *common.HoverableButton
+	btnEdit     *common.HoverableButton
+	btnLog      *common.HoverableButton
+	btnSSHUser  *common.HoverableButton
+	btnAbout    *common.HoverableButton
+	statusBar   *common.StatusBar
+	countLabel  *widget.Label
+	logScroll   *container.Scroll
+	logText     *widget.RichText
+	logBuf      strings.Builder
+	prevLogVM   string
+	root        fyne.CanvasObject
+	bottomBar   fyne.CanvasObject
 }
 
 func (s *guiApp) filtered() []VM {

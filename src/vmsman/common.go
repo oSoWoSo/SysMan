@@ -237,12 +237,12 @@ func LoadVMs(vmDir string) []VM {
 
 // VMCreateConfig holds the parameters used to create a new VM.
 type VMCreateConfig struct {
-	Name      string
-	GuestOS   string
-	ISO       string
-	MemoryMB  int
-	CPUCores  int
-	SSHUser   string
+	Name     string
+	GuestOS  string
+	ISO      string
+	MemoryMB int
+	CPUCores int
+	SSHUser  string
 }
 
 // vmNameRe rejects unsafe VM names.
