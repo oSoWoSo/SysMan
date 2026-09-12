@@ -121,9 +121,6 @@ type guiApp struct {
 	win     fyne.Window
 	backend Backend
 
-	serviceDir     string
-	serviceDestDir string
-
 	services    []Service
 	statusCache map[string]ServiceStatus // populated by reload(), read by showDetail
 	selectedKey string

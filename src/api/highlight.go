@@ -360,7 +360,7 @@ type coloredSegment struct {
 	bold bool
 }
 
-func (s *coloredSegment) Inline() bool              { return true }
+func (s *coloredSegment) Inline() bool              { return false }
 func (s *coloredSegment) Textual() string           { return s.text }
 func (s *coloredSegment) Select(_, _ fyne.Position) {}
 func (s *coloredSegment) SelectedText() string      { return "" }
