@@ -1,4 +1,4 @@
-VERSION  ?= 0.021 Alpha
+VERSION  ?= 0.023 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr/local
@@ -95,7 +95,7 @@ ifeq ($(GOOS),linux)
 	@if ! pkg-config --exists --print-errors $(PKG_CONFIG_MODULES); then \
 		echo ""; \
 		echo "Missing GUI build dependencies. On Void Linux:"; \
-		echo "  sudo xbps-install libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel libXxf86vm-devel MesaLib-devel wayland-devel libxkbcommon-devel"; \
+		echo "  sudo xbps-install libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel libXxf86vm-devel MesaLib-devel wayland-devel libxkbcommon-devel libglvnd-devel"; \
 		exit 1; \
 	fi
 	@echo "check-deps: OK"

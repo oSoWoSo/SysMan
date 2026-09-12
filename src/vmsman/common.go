@@ -321,13 +321,9 @@ func (b *QEMUBackend) BootStream(vm *VM, onLog func(string)) error {
 	}
 	_ = tty.Close()
 
-	// Track our wrapper process immediately so the VM reports as running and
-	// can be stopped even before quickemu writes its own .pid file. The pid
-	// file goes into the VM's state directory (same layout quickemu/dh uses).
-	pidPath, _ := vmStatePaths(b.vmDir, *vm)
-	if err := os.MkdirAll(filepath.Dir(pidPath), 0o755); err == nil {
-		_ = os.WriteFile(pidPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0o644) //nolint:gosec
-	}
+	// The pid file is written by quickemu/qemu itself; writing our wrapper pid
+	// there would make quickemu see a live process and abort with "already
+	// running".
 
 	go streamPtyOutput(master, logPath, onLog)
 

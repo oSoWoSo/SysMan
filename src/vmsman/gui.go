@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image/color"
 	"strings"
+	"time"
 
 	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"fyne.io/fyne/v2"
@@ -84,6 +85,7 @@ type guiApp struct {
 	prevLogVM   string
 	root        fyne.CanvasObject
 	bottomBar   fyne.CanvasObject
+	stopRefresh chan struct{}
 }
 
 func (s *guiApp) filtered() []VM {
@@ -114,6 +116,27 @@ func (s *guiApp) reload() {
 			s.clearDetail()
 		}
 	})
+}
+
+// startAutoRefresh polls VM state periodically so VMs started or stopped
+// outside vmsman (or moments after a boot) show up without manual reloads.
+func (s *guiApp) startAutoRefresh() {
+	if s.stopRefresh != nil {
+		close(s.stopRefresh)
+	}
+	s.stopRefresh = make(chan struct{})
+	go func() {
+		t := time.NewTicker(3 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				s.reload()
+			case <-s.stopRefresh:
+				return
+			}
+		}
+	}()
 }
 
 func (s *guiApp) updateCount() {
@@ -407,6 +430,8 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	)
 
 	s.applyFilter(FilterAll)
+
+	s.startAutoRefresh()
 
 	return s.root
 }
