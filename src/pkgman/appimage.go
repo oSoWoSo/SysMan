@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
+
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 )
 
 const (
@@ -27,12 +30,21 @@ type appImageEntry struct {
 // AppImageBackend implements PkgBackend for AppImage packages managed via AM/AppMan.
 type AppImageBackend struct {
 	mu      sync.Mutex
+	dir     string                   // AppImage applications dir (override or appman/am default)
 	catalog []Package                // HTTP catalog: name + description (all available apps)
 	apps    map[string]appImageEntry // from am -f --byname (installed apps only)
+	sizes   map[string]string        // on-disk size per lowercase name (lazy, cached)
 }
 
+// NewAppImageBackend returns an AppImageBackend using the configured applications
+// dir (sysman config override, else appman/am config, else ~/Applications).
 func NewAppImageBackend() *AppImageBackend {
-	return &AppImageBackend{}
+	return NewAppImageBackendWithDir(effectiveAppImageDir(common.LoadSysManConfig().Pkgman.AppImageDir))
+}
+
+// NewAppImageBackendWithDir creates the backend for an explicit applications dir.
+func NewAppImageBackendWithDir(dir string) *AppImageBackend {
+	return &AppImageBackend{dir: dir}
 }
 
 func (b *AppImageBackend) Name() string { return "appimage" }
@@ -116,6 +128,7 @@ func (b *AppImageBackend) Reload() {
 	b.mu.Lock()
 	b.catalog = nil
 	b.apps = nil
+	b.sizes = nil
 	b.mu.Unlock()
 }
 
@@ -180,22 +193,145 @@ func (b *AppImageBackend) loadApps() map[string]appImageEntry {
 	return apps
 }
 
+// loadInstalledDirs scans the configured applications directory plus the
+// system-wide am directory (/opt) for installed apps. The directory scan is
+// authoritative for the installed state and works even when am/appman is not
+// on PATH. Returns lowercase name → path. Never cached: the dirs may change.
+func (b *AppImageBackend) loadInstalledDirs() map[string]string {
+	return scanAllInstalledApps(b.dir, "/opt")
+}
+
+// ── On-disk size ────────────────────────────────────────────────────
+
+// appDirSize returns the total size in bytes of an installed app. Directories
+// (the AM per-app layout) are walked recursively; a lone .AppImage file is
+// measured directly. Returns 0 when the path cannot be read.
+func appDirSize(path string) int64 {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	if !fi.IsDir() {
+		return fi.Size()
+	}
+	var total int64
+	err = filepath.WalkDir(path, func(_ string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.Type().IsRegular() {
+			if fi, err := d.Info(); err == nil {
+				total += fi.Size()
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0
+	}
+	return total
+}
+
+// humanSize renders a byte count as a compact B/KB/MB/GB string.
+func humanSize(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGT"[exp])
+}
+
+// installedSizeFor returns the human-readable on-disk size of an installed app.
+// Lazily computes it from the scanned install dir (falling back to the size
+// reported by am/appman when no path is known) and caches the result until Reload.
+func (b *AppImageBackend) installedSizeFor(name string) string {
+	key := strings.ToLower(name)
+	b.mu.Lock()
+	if b.sizes != nil {
+		if s, ok := b.sizes[key]; ok {
+			b.mu.Unlock()
+			return s
+		}
+	} else {
+		b.sizes = make(map[string]string)
+	}
+	b.mu.Unlock()
+
+	size := ""
+	if files := b.loadInstalledDirs(); files != nil {
+		if p, ok := files[key]; ok {
+			if n := appDirSize(p); n > 0 {
+				size = humanSize(n)
+			}
+		}
+	}
+	if size == "" {
+		if apps := b.loadApps(); apps != nil {
+			if entry, ok := apps[key]; ok && strings.TrimSpace(entry.Size) != "" {
+				size = strings.TrimSpace(entry.Size)
+			}
+		}
+	}
+
+	b.mu.Lock()
+	b.sizes[key] = size
+	b.mu.Unlock()
+	return size
+}
+
 // List returns the full app list with current installed state.
-// HTTP catalog provides all available apps; am output provides installed state + metadata.
+// HTTP catalog provides all available apps; am output and the configured
+// applications dir provide installed state + metadata.
 func (b *AppImageBackend) List() []Package {
 	catalog := b.loadCatalog()
 	apps := b.loadApps()
+	files := b.loadInstalledDirs()
 
-	pkgs := make([]Package, len(catalog))
-	for i, p := range catalog {
-		pkgs[i] = p
+	pkgs := make([]Package, 0, len(catalog)+len(files))
+	known := make(map[string]bool, len(catalog)+len(files))
+	for _, p := range catalog {
+		key := strings.ToLower(p.Name)
+		known[key] = true
+		installed := false
+		kind := ""
 		if apps != nil {
-			if entry, ok := apps[strings.ToLower(p.Name)]; ok {
-				pkgs[i].Installed = true
-				if pkgs[i].ShortDesc == "" && entry.Type != "" {
-					pkgs[i].ShortDesc = entry.Type
+			if entry, ok := apps[key]; ok {
+				installed = true
+				kind = entry.Type
+			}
+		}
+		if !installed && files != nil {
+			if _, ok := files[key]; ok {
+				installed = true
+				if kind == "" {
+					kind = "AppImage"
 				}
 			}
+		}
+		if installed {
+			p.Installed = true
+			if p.ShortDesc == "" && kind != "" {
+				p.ShortDesc = kind
+			}
+		}
+		pkgs = append(pkgs, p)
+	}
+	// Include apps found in the directory that are not in the catalog.
+	if files != nil {
+		for name, path := range files {
+			if known[name] {
+				continue
+			}
+			pkgs = append(pkgs, Package{
+				Name:      strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+				Installed: true,
+				ShortDesc: "AppImage",
+			})
 		}
 	}
 	return pkgs
@@ -227,6 +363,21 @@ func (b *AppImageBackend) Detail(name string) PackageDetail {
 			d.Architecture = entry.Type
 			d.InstalledSize = entry.Size
 		}
+	}
+
+	// Fall back to the scanned applications dir.
+	if files := b.loadInstalledDirs(); files != nil {
+		if _, ok := files[strings.ToLower(name)]; ok {
+			if d.Architecture == "" {
+				d.Architecture = "AppImage"
+			}
+		}
+	}
+
+	// Prefer the real on-disk size; fall back to the am-reported size.
+	// Non-installed apps know no size, so InstalledSize stays empty.
+	if size := b.installedSizeFor(name); size != "" {
+		d.InstalledSize = size
 	}
 
 	return d

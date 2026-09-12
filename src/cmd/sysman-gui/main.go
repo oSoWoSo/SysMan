@@ -270,6 +270,8 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 
 	vmsmanVMDir := newFormEntry(cfg.Vmsman.VMDir, vmman.DefaultVMDir)
 
+	pkgmanAppImageDir := newFormEntry(cfg.Pkgman.AppImageDir, pkgman.DefaultAppImageDir())
+
 	langDir := newFormEntry(cfg.LangDir, "")
 
 	btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
@@ -281,6 +283,7 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 		cfg.Srcman.SearchEngine = strings.TrimSpace(srcmanSearchEngine.Text)
 		cfg.Srcman.ForkURL = strings.TrimSpace(srcmanForkURL.Text)
 		cfg.Vmsman.VMDir = strings.TrimSpace(vmsmanVMDir.Text)
+		cfg.Pkgman.AppImageDir = strings.TrimSpace(pkgmanAppImageDir.Text)
 		cfg.LangDir = strings.TrimSpace(langDir.Text)
 		if err := common.SaveSysManConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("save config: %w", err), win)
@@ -307,6 +310,10 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	headerVmsman.TextStyle = fyne.TextStyle{Bold: true}
 	headerVmsman.TextSize = 14
 
+	headerPkgman := canvas.NewText("Pkgman", headerColor)
+	headerPkgman.TextStyle = fyne.TextStyle{Bold: true}
+	headerPkgman.TextSize = 14
+
 	headerCommon := canvas.NewText("Common", headerColor)
 	headerCommon.TextStyle = fyne.TextStyle{Bold: true}
 	headerCommon.TextSize = 14
@@ -319,6 +326,8 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	sep3.SetMinSize(fyne.NewSize(0, 1))
 	sep4 := canvas.NewRectangle(dividerColor)
 	sep4.SetMinSize(fyne.NewSize(0, 1))
+	sep5 := canvas.NewRectangle(dividerColor)
+	sep5.SetMinSize(fyne.NewSize(0, 1))
 
 	formSerman := widget.NewForm(
 		widget.NewFormItem("Service Dir", sermanServiceDir),
@@ -337,6 +346,10 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 		widget.NewFormItem("VM dir", vmsmanVMDir),
 	)
 
+	formPkgman := widget.NewForm(
+		widget.NewFormItem("AppImage Dir", pkgmanAppImageDir),
+	)
+
 	formCommon := widget.NewForm(
 		widget.NewFormItem("Language dir", langDir),
 	)
@@ -353,6 +366,9 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 		container.NewPadded(headerVmsman),
 		container.NewPadded(formVmsman),
 		container.NewPadded(sep4),
+		container.NewPadded(headerPkgman),
+		container.NewPadded(formPkgman),
+		container.NewPadded(sep5),
 		container.NewPadded(headerCommon),
 		container.NewPadded(formCommon),
 		layout.NewSpacer(),

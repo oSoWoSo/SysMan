@@ -30,6 +30,7 @@ var (
 	pNormalStyle    = lipgloss.NewStyle().Padding(0, 1)
 	pInstalledStyle = lipgloss.NewStyle().Foreground(pSuccess).Padding(0, 1)
 	pSubtleStyle    = lipgloss.NewStyle().Foreground(pSubtle)
+	pStrikeStyle    = lipgloss.NewStyle().Foreground(pSubtle).Strikethrough(true)
 	pDangerStyle    = lipgloss.NewStyle().Foreground(pDanger).Bold(true)
 	pSuccessStyle   = lipgloss.NewStyle().Foreground(pSuccess)
 	pWarnStyle      = lipgloss.NewStyle().Foreground(pWarn)
@@ -742,9 +743,16 @@ func (m pkgModel) render() string {
 		if m.detail.Repository != "" {
 			sb.WriteString("  " + pSubtleStyle.Render(t("tui.repo")+": "+m.detail.Repository) + "\n")
 		}
-		if m.detail.InstalledSize != "" {
-			sb.WriteString("  " + pSubtleStyle.Render(t("tui.size")+": "+m.detail.InstalledSize) + "\n")
+		size := m.detail.InstalledSize
+		struck := size == ""
+		if size == "" {
+			size = "—"
 		}
+		sizeStyle := pSubtleStyle
+		if struck {
+			sizeStyle = pStrikeStyle
+		}
+		sb.WriteString("  " + sizeStyle.Render(t("tui.size")+": "+size) + "\n")
 		if m.detail.Homepage != "" {
 			sb.WriteString("  " + pSubtleStyle.Render("🌐 "+m.detail.Homepage) + "\n")
 		}

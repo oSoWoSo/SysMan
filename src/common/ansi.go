@@ -10,6 +10,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -104,41 +106,62 @@ func ParseSeq(seq string) (color.NRGBA, bool) {
 	return color.NRGBA{}, false
 }
 
-// ansiColoredSegment is a RichTextSegment that renders text in a specific color.
-type ansiColoredSegment struct {
+// ansiRun is a single coloured text fragment within one log line.
+type ansiRun struct {
 	text string
 	col  color.Color
 }
 
-func (s *ansiColoredSegment) Inline() bool { return true }
-
-func (s *ansiColoredSegment) Textual() string { return s.text }
-
-func (s *ansiColoredSegment) Select(_, _ fyne.Position) {}
-
-func (s *ansiColoredSegment) SelectedText() string { return "" }
-
-func (s *ansiColoredSegment) Unselect() {}
-
-func (s *ansiColoredSegment) Visual() fyne.CanvasObject {
-	t := canvas.NewText(s.text, s.col)
-	t.TextStyle = fyne.TextStyle{Monospace: true}
-	return t
+// ansiBlockSegment is a RichTextSegment that renders one log line as its own
+// paragraph row. It is deliberately NOT inline: inline segments that carry
+// the line break get merged by Fyne's richtext renderer into phantom blank
+// rows, so every line is rendered as a separate non-inline block instead.
+type ansiBlockSegment struct {
+	runs []ansiRun
 }
 
-func (s *ansiColoredSegment) Update(o fyne.CanvasObject) {
-	t := o.(*canvas.Text)
-	t.Text = s.text
-	t.Color = s.col
-	t.Refresh()
+func (s *ansiBlockSegment) Inline() bool { return false }
+
+func (s *ansiBlockSegment) Textual() string {
+	var b strings.Builder
+	for _, r := range s.runs {
+		b.WriteString(r.text)
+	}
+	return b.String()
 }
+
+func (s *ansiBlockSegment) Select(_, _ fyne.Position) {}
+
+func (s *ansiBlockSegment) SelectedText() string { return "" }
+
+func (s *ansiBlockSegment) Unselect() {}
+
+func (s *ansiBlockSegment) Visual() fyne.CanvasObject {
+	if len(s.runs) == 1 {
+		t := canvas.NewText(s.runs[0].text, s.runs[0].col)
+		t.TextStyle = fyne.TextStyle{Monospace: true}
+		return t
+	}
+	objs := make([]fyne.CanvasObject, 0, len(s.runs))
+	for _, r := range s.runs {
+		t := canvas.NewText(r.text, r.col)
+		t.TextStyle = fyne.TextStyle{Monospace: true}
+		objs = append(objs, t)
+	}
+	return container.NewHBox(objs...)
+}
+
+func (s *ansiBlockSegment) Update(o fyne.CanvasObject) {}
 
 // HasAnsiCodes checks if text contains ANSI SGR escape sequences.
 func HasAnsiCodes(text string) bool {
 	return AnsiRe.MatchString(text)
 }
 
-// AnsiToRichSegments converts text with ANSI SGR codes into Fyne RichText segments.
+// AnsiToRichSegments converts text with ANSI SGR codes into Fyne RichText
+// segments. Each line becomes one non-inline block segment, so lines are
+// rendered one per row without the phantom blank rows Fyne inserts when
+// newlines are carried by inline segments.
 func AnsiToRichSegments(text string) []widget.RichTextSegment {
 	if text == "" {
 		return nil
@@ -148,38 +171,39 @@ func AnsiToRichSegments(text string) []widget.RichTextSegment {
 	lines := strings.Split(text, "\n")
 
 	for lineIdx, line := range lines {
-		lineSegs := parseAnsiLine(line)
-		if len(lineSegs) > 0 {
-			segs = append(segs, lineSegs...)
+		seg := parseAnsiLine(line)
+		if len(seg.runs) == 0 {
+			// A genuinely empty line renders as one blank row. A trailing
+			// newline (empty last line) is skipped to avoid a phantom row.
 			if lineIdx < len(lines)-1 {
-				segs = append(segs, &widget.TextSegment{
-					Text:  "\n",
-					Style: widget.RichTextStyle{Inline: true},
+				segs = append(segs, &ansiBlockSegment{
+					runs: []ansiRun{{text: "", col: theme.ForegroundColor()}},
 				})
 			}
+			continue
 		}
+		segs = append(segs, seg)
 	}
 
 	return segs
 }
 
-func parseAnsiLine(line string) []widget.RichTextSegment {
+// parseAnsiLine converts a single line into one block segment, keeping the
+// colour per ANSI run. Lines without ANSI codes keep the theme foreground.
+func parseAnsiLine(line string) *ansiBlockSegment {
 	if !AnsiRe.MatchString(line) {
 		if line == "" {
-			return nil
+			return &ansiBlockSegment{}
 		}
-		return []widget.RichTextSegment{
-			&widget.TextSegment{
-				Text:  line,
-				Style: widget.RichTextStyle{TextStyle: fyne.TextStyle{Monospace: true}},
-			},
+		return &ansiBlockSegment{
+			runs: []ansiRun{{text: line, col: theme.ForegroundColor()}},
 		}
 	}
 
 	parts := AnsiRe.Split(line, -1)
 	codes := AnsiRe.FindAllString(line, -1)
 
-	var segs []widget.RichTextSegment
+	var runs []ansiRun
 	curColor := color.Color(DefaultFG)
 
 	for i, part := range parts {
@@ -193,13 +217,9 @@ func parseAnsiLine(line string) []widget.RichTextSegment {
 		}
 
 		if part != "" {
-			segs = append(segs, &ansiColoredSegment{text: part, col: curColor})
+			runs = append(runs, ansiRun{text: part, col: curColor})
 		}
 	}
 
-	if len(segs) == 0 {
-		return nil
-	}
-
-	return segs
+	return &ansiBlockSegment{runs: runs}
 }

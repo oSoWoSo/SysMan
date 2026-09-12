@@ -62,17 +62,28 @@ type guiApp struct {
 	searchText string
 	filter     FilterMode
 
-	vmList      *widget.List
-	detailName  *widget.Label
-	detailState *widget.Label
-	detailPID   *widget.Label
-	detailPort  *widget.Label
-	btnBoot     *common.HoverableButton
-	btnKill     *common.HoverableButton
-	btnConnect  *common.HoverableButton
-	btnAbout    *common.HoverableButton
-	statusBar   *common.StatusBar
-	countLabel  *widget.Label
+	vmList       *widget.List
+	detailName   *widget.Label
+	detailState  *widget.Label
+	detailPID    *widget.Label
+	detailPort   *widget.Label
+	detailSSH    *widget.Label
+	btnBoot      *common.HoverableButton
+	btnKill      *common.HoverableButton
+	btnConnect   *common.HoverableButton
+	btnNew       *common.HoverableButton
+	btnEdit      *common.HoverableButton
+	btnLog       *common.HoverableButton
+	btnSSHUser   *common.HoverableButton
+	btnAbout     *common.HoverableButton
+	statusBar    *common.StatusBar
+	countLabel   *widget.Label
+	logScroll    *container.Scroll
+	logText      *widget.RichText
+	logBuf       strings.Builder
+	prevLogVM    string
+	root         fyne.CanvasObject
+	bottomBar    fyne.CanvasObject
 }
 
 func (s *guiApp) filtered() []VM {
@@ -120,16 +131,20 @@ func (s *guiApp) clearDetail() {
 	s.detailState.SetText(t("detail.empty"))
 	s.detailPID.SetText(t("detail.empty"))
 	s.detailPort.SetText(t("detail.empty"))
+	s.detailSSH.SetText(t("detail.empty"))
 	s.btnBoot.Disable()
 	s.btnKill.Disable()
 	s.btnConnect.Disable()
+	s.btnEdit.Disable()
+	s.btnLog.Disable()
+	s.btnSSHUser.Disable()
 }
 
 func (s *guiApp) showDetail(vm VM) {
 	s.detailName.SetText(vm.Name)
 	if vm.Running {
-		s.detailState.SetText(t("state.running"))
 		s.detailState.Importance = widget.SuccessImportance
+		s.detailState.SetText(t("state.running"))
 		s.btnBoot.Disable()
 		s.btnKill.Enable()
 		s.btnConnect.Enable()
@@ -139,21 +154,49 @@ func (s *guiApp) showDetail(vm VM) {
 		if vm.SPICEPort > 0 {
 			s.detailPort.SetText(fmt.Sprintf("%d", vm.SPICEPort))
 		}
+		if vm.SSHPort > 0 {
+			s.detailSSH.SetText(fmt.Sprintf("%s@localhost:%d", sshUser(vm), vm.SSHPort))
+		}
 	} else {
-		s.detailState.SetText(t("state.stopped"))
 		s.detailState.Importance = widget.DangerImportance
+		s.detailState.SetText(t("state.stopped"))
 		s.btnBoot.Enable()
 		s.btnKill.Disable()
 		s.btnConnect.Disable()
 		s.detailPID.SetText(t("detail.empty"))
 		s.detailPort.SetText(t("detail.empty"))
+		s.detailSSH.SetText(t("detail.empty"))
 	}
+	s.btnEdit.Enable()
+	s.btnLog.Enable()
+	s.btnSSHUser.Enable()
+	s.showLogFor(vm.Name)
+}
+
+// appendLog appends a line to the log view. Safe to call from goroutines.
+func (s *guiApp) appendLog(line string) {
+	fyne.Do(func() {
+		s.logBuf.WriteString(line)
+		s.logText.Segments = common.AnsiToRichSegments(s.logBuf.String())
+		s.logText.Refresh()
+		s.logScroll.ScrollToBottom()
+	})
+}
+
+// showLogFor loads the on-disk <name>.log file into the log view.
+func (s *guiApp) showLogFor(name string) {
+	if name == s.prevLogVM {
+		return
+	}
+	s.prevLogVM = name
+	s.logBuf.Reset()
+	s.logBuf.WriteString(readVMLog(s.backend.VMDir(), name))
+	s.logText.Segments = common.AnsiToRichSegments(s.logBuf.String())
+	s.logText.Refresh()
+	s.logScroll.ScrollToBottom()
 }
 
 func (s *guiApp) buildContent() fyne.CanvasObject {
-	header := canvas.NewText("VMman - Viewer Manager", color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
-	header.TextStyle = fyne.TextStyle{Bold: true}
-
 	if s.statusBar == nil {
 		s.statusBar = common.NewStatusBar()
 	}
@@ -166,10 +209,15 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		s.vmList.Refresh()
 	}
 
+	s.btnNew = common.NewHoverableButton(t("btn.new"), theme.ContentAddIcon(), t("tooltip.vmsman.new"), s.statusBar, func() {
+		s.showCreateView()
+	})
+	s.btnNew.Importance = widget.SuccessImportance
+
 	filterAll := common.NewHoverableButtonText(t("filter.all"), t("tooltip.vmsman.filter_all"), s.statusBar, func() { s.applyFilter(FilterAll) })
 	filterRunning := common.NewHoverableButtonText(t("filter.running"), t("tooltip.vmsman.filter_running"), s.statusBar, func() { s.applyFilter(FilterRunning) })
 	filterStopped := common.NewHoverableButtonText(t("filter.stopped"), t("tooltip.vmsman.filter_stopped"), s.statusBar, func() { s.applyFilter(FilterStopped) })
-	filterRow := container.NewHBox(filterAll, filterRunning, filterStopped)
+	filterRow := container.NewHBox(s.btnNew, filterAll, filterRunning, filterStopped)
 
 	s.countLabel = widget.NewLabel("")
 	s.countLabel.Alignment = fyne.TextAlignCenter
@@ -198,9 +246,6 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		}
 	}
 
-	detailTitle := canvas.NewText(t("detail.header"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
-	detailTitle.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
-
 	s.detailName = widget.NewLabel(t("detail.empty"))
 	s.detailName.Selectable = true
 	s.detailState = widget.NewLabel(t("detail.empty"))
@@ -209,23 +254,31 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	s.detailPID.Selectable = true
 	s.detailPort = widget.NewLabel(t("detail.empty"))
 	s.detailPort.Selectable = true
+	s.detailSSH = widget.NewLabel(t("detail.empty"))
+	s.detailSSH.Selectable = true
 
 	detailForm := container.NewVBox(
-		widget.NewLabel(t("detail.name")+":"), s.detailName,
-		widget.NewLabel(t("detail.state")+":"), s.detailState,
-		widget.NewLabel(t("detail.pid")+":"), s.detailPID,
-		widget.NewLabel(t("detail.spice")+":"), s.detailPort,
+		container.NewHBox(widget.NewLabel(t("detail.name")+":"), layout.NewSpacer(), s.detailName),
+		container.NewHBox(widget.NewLabel(t("detail.state")+":"), layout.NewSpacer(), s.detailState),
+		container.NewHBox(widget.NewLabel(t("detail.pid")+":"), layout.NewSpacer(), s.detailPID),
+		container.NewHBox(widget.NewLabel(t("detail.spice")+":"), layout.NewSpacer(), s.detailPort),
+		container.NewHBox(widget.NewLabel(t("detail.ssh")+":"), layout.NewSpacer(), s.detailSSH),
 	)
 
 	s.btnBoot = common.NewHoverableButton(t("btn.boot"), theme.MediaPlayIcon(), t("tooltip.vmsman.boot"), s.statusBar, func() {
 		vm := s.selectedVM()
 		if vm != nil {
+			// Reset the log view so boot output starts fresh.
+			s.prevLogVM = ""
+			s.logBuf.Reset()
+			s.logText.Segments = nil
+			s.logText.Refresh()
 			go func() {
-				if err := s.backend.Boot(vm); err != nil {
+				if err := s.backend.BootStream(vm, s.appendLog); err != nil {
 					s.setStatus(t("status.err") + err.Error())
 				} else {
 					s.setStatus(t("status.boot"))
-					s.reload()
+					go s.reload()
 				}
 			}()
 		}
@@ -254,16 +307,47 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 
 	s.btnConnect = common.NewHoverableButton(t("btn.connect"), theme.NewSuccessThemedResource(theme.ConfirmIcon()), t("tooltip.vmsman.connect"), s.statusBar, func() {
 		vm := s.selectedVM()
-		if vm != nil && vm.SPICEPort > 0 {
-			if err := ConnectToVM(vm.SPICEPort, "remote-viewer"); err != nil {
-				s.setStatus(t("status.err") + err.Error())
+		if vm != nil {
+			if vm.SPICEPort > 0 {
+				if err := ConnectToVM(vm.SPICEPort, "remote-viewer"); err != nil {
+					s.setStatus(t("status.err") + err.Error())
+					return
+				}
+			} else if vm.SSHPort > 0 {
+				if err := ConnectToVMSSH(vm.SSHPort, vm.SSHUser); err != nil {
+					s.setStatus(t("status.err") + err.Error())
+					return
+				}
 			} else {
-				s.setStatus(t("status.connected"))
+				return
 			}
+			s.setStatus(t("status.connected"))
 		}
 	})
 	s.btnConnect.Importance = widget.SuccessImportance
 	s.btnConnect.Disable()
+
+	s.btnEdit = common.NewHoverableButton(t("btn.edit"), theme.DocumentCreateIcon(), t("tooltip.vmsman.edit"), s.statusBar, func() {
+		vm := s.selectedVM()
+		if vm != nil {
+			s.showEditConfigDialog(vm)
+		}
+	})
+	s.btnEdit.Disable()
+
+	s.btnLog = common.NewHoverableButton(t("btn.log"), theme.DocumentIcon(), t("tooltip.vmsman.log"), s.statusBar, func() {
+		if vm := s.selectedVM(); vm != nil {
+			s.showLogFor(vm.Name)
+		}
+	})
+	s.btnLog.Disable()
+
+	s.btnSSHUser = common.NewHoverableButton(t("btn.ssh_user"), theme.AccountIcon(), t("tooltip.vmsman.ssh_user"), s.statusBar, func() {
+		if vm := s.selectedVM(); vm != nil {
+			s.showSSHUserDialog(vm)
+		}
+	})
+	s.btnSSHUser.Disable()
 
 	s.btnAbout = common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.vmsman.about"), s.statusBar, func() {
 		common.ShowAbout(common.AboutConfig{
@@ -293,32 +377,38 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	})
 	btnSettings.Importance = widget.LowImportance
 
-	buttonRow := container.NewHBox(s.btnBoot, s.btnKill, s.btnConnect, layout.NewSpacer())
+	buttonRow := container.NewHBox(s.btnBoot, s.btnKill, s.btnConnect, s.btnEdit, s.btnLog, s.btnSSHUser, layout.NewSpacer())
 
-	rightPanel := container.NewVBox(
-		detailTitle,
-		widget.NewSeparator(),
+	detailTop := container.NewVBox(
 		detailForm,
 		widget.NewSeparator(),
 		buttonRow,
-		layout.NewSpacer(),
-		s.statusBar,
 	)
 
-	leftTop := container.NewVBox(header, widget.NewSeparator(), search, filterRow, s.countLabel, widget.NewSeparator())
+	s.logText = widget.NewRichText()
+	s.logText.Wrapping = fyne.TextWrapOff
+	s.logScroll = container.NewScroll(s.logText)
+	rightPanel := container.NewBorder(detailTop, nil, nil, nil, s.logScroll)
+
+	leftTop := container.NewVBox(search, filterRow, s.countLabel, widget.NewSeparator())
 	leftPanel := container.NewBorder(leftTop, nil, nil, nil, s.vmList)
 
 	split := container.NewHSplit(container.NewPadded(leftPanel), container.NewPadded(rightPanel))
 	split.SetOffset(0.42)
 
 	statusBarRow := container.NewHBox(btnSettings, s.btnAbout, layout.NewSpacer(), s.statusBar)
+	s.bottomBar = container.NewVBox(widget.NewSeparator(), statusBarRow)
 
-	return container.NewBorder(
+	s.root = container.NewBorder(
 		nil,
-		container.NewVBox(widget.NewSeparator(), statusBarRow),
+		s.bottomBar,
 		nil, nil,
 		split,
 	)
+
+	s.applyFilter(FilterAll)
+
+	return s.root
 }
 
 func (s *guiApp) buildContentWithHeader() fyne.CanvasObject {
@@ -348,6 +438,134 @@ func (s *guiApp) setStatus(msg string) {
 	fyne.Do(func() {
 		s.statusBar.SetText(msg)
 	})
+}
+
+// showCreateView switches the whole window to the "create VM" form. Cancel or
+// a successful create returns to the main view.
+func (s *guiApp) showCreateView() {
+	nameEntry := widget.NewEntry()
+	nameEntry.SetPlaceHolder(t("new.name_ph"))
+	guestOSEntry := widget.NewEntry()
+	guestOSEntry.SetPlaceHolder(t("new.guest_os_ph"))
+	isoEntry := widget.NewEntry()
+	isoEntry.SetPlaceHolder(t("new.iso_ph"))
+	memoryEntry := widget.NewEntry()
+	memoryEntry.SetPlaceHolder("2048")
+	coresEntry := widget.NewEntry()
+	coresEntry.SetPlaceHolder("2")
+	sshUserEntry := widget.NewEntry()
+	sshUserEntry.SetPlaceHolder(t("new.ssh_user_ph"))
+
+	form := &widget.Form{
+		Items: []*widget.FormItem{
+			widget.NewFormItem(t("new.name"), nameEntry),
+			widget.NewFormItem(t("new.guest_os"), guestOSEntry),
+			widget.NewFormItem(t("new.iso"), isoEntry),
+			widget.NewFormItem(t("new.memory"), memoryEntry),
+			widget.NewFormItem(t("new.cores"), coresEntry),
+			widget.NewFormItem(t("new.ssh_user"), sshUserEntry),
+		},
+		SubmitText: t("btn.create"),
+		CancelText: t("btn.cancel"),
+		OnSubmit: func() {
+			name := strings.TrimSpace(nameEntry.Text)
+			if name == "" {
+				s.setStatus(t("status.err") + t("new.err_name"))
+				return
+			}
+			cfg := VMCreateConfig{
+				Name:    name,
+				GuestOS: strings.TrimSpace(guestOSEntry.Text),
+				ISO:     strings.TrimSpace(isoEntry.Text),
+				SSHUser: strings.TrimSpace(sshUserEntry.Text),
+			}
+			if cfg.GuestOS == "" {
+				cfg.GuestOS = "linux"
+			}
+			_, _ = fmt.Sscanf(memoryEntry.Text, "%d", &cfg.MemoryMB)
+			_, _ = fmt.Sscanf(coresEntry.Text, "%d", &cfg.CPUCores)
+			if err := s.backend.Create(cfg); err != nil {
+				s.setStatus(t("status.err") + err.Error())
+				return
+			}
+			s.setStatus(fmt.Sprintf(t("status.created"), cfg.Name))
+			s.showMainView()
+			s.reload()
+		},
+		OnCancel: func() { s.showMainView() },
+	}
+
+	title := canvas.NewText(t("new.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
+	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+
+	center := container.NewPadded(container.NewVBox(title, widget.NewSeparator(), form))
+	s.win.SetContent(container.NewBorder(nil, s.bottomBar, nil, nil, center))
+}
+
+// showMainView restores the main content after the create view.
+func (s *guiApp) showMainView() {
+	if s.root == nil {
+		return
+	}
+	s.win.SetContent(s.root)
+}
+
+// showEditConfigDialog opens an editor for the selected VM's .conf file.
+func (s *guiApp) showEditConfigDialog(vm *VM) {
+	content, err := s.backend.ReadConfig(vm)
+	if err != nil {
+		s.setStatus(t("status.err") + err.Error())
+		return
+	}
+	editor := widget.NewMultiLineEntry()
+	editor.SetText(content)
+	editor.Wrapping = fyne.TextWrapOff
+	editor.TextStyle = fyne.TextStyle{Monospace: true}
+	scroll := container.NewScroll(editor)
+	scroll.SetMinSize(fyne.NewSize(520, 380))
+
+	d := dialog.NewCustomConfirm(fmt.Sprintf(t("edit.title"), vm.Name), t("btn.save"), t("btn.cancel"), scroll,
+		func(ok bool) {
+			if !ok {
+				return
+			}
+			if err := s.backend.WriteConfig(vm, editor.Text); err != nil {
+				s.setStatus(t("status.err") + err.Error())
+				return
+			}
+			s.setStatus(fmt.Sprintf(t("status.saved"), vm.Name))
+			s.reload()
+		}, s.win)
+	d.Resize(fyne.NewSize(560, 440))
+	d.Show()
+}
+
+// showSSHUserDialog lets the user set the SSH login user for a single VM,
+// stored as ssh_user="..." in the VM's config file.
+func (s *guiApp) showSSHUserDialog(vm *VM) {
+	entry := widget.NewEntry()
+	entry.SetText(vm.SSHUser)
+	entry.SetPlaceHolder(t("ssh_user.empty"))
+	f := dialog.NewForm(fmt.Sprintf(t("ssh_user.title"), vm.Name), t("btn.save"), t("btn.cancel"),
+		[]*widget.FormItem{widget.NewFormItem(t("btn.ssh_user"), entry)},
+		func(ok bool) {
+			if !ok {
+				return
+			}
+			user := strings.TrimSpace(entry.Text)
+			if user != "" && !ValidVMName(user) {
+				s.setStatus(t("status.err") + t("new.err_name"))
+				return
+			}
+			if err := SetSSHUser(vm, user); err != nil {
+				s.setStatus(t("status.err") + err.Error())
+				return
+			}
+			s.setStatus(fmt.Sprintf(t("status.saved"), vm.Name))
+			s.reload()
+		}, s.win)
+	f.Resize(fyne.NewSize(420, 200))
+	f.Show()
 }
 
 // RunGUI runs the GUI.

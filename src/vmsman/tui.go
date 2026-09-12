@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
@@ -26,7 +28,7 @@ var (
 	tnormalStyle   = lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Light: lipgloss.Color("#333333"), Dark: lipgloss.Color("#CCCCCC")}).Padding(0, 1)
 
 	trunningBadge = lipgloss.NewStyle().Foreground(tGreen).Bold(true)
-	tstoppedBadge = lipgloss.NewStyle().Foreground(tsubtleColor)
+	tstoppedBadge = lipgloss.NewStyle().Foreground(tdanger).Bold(true)
 	tstatusOk     = lipgloss.NewStyle().Foreground(tGreen).Italic(true)
 	tstatusErr    = lipgloss.NewStyle().Foreground(tdanger).Bold(true)
 	tdangerStyle  = lipgloss.NewStyle().Foreground(tdanger)
@@ -52,18 +54,58 @@ type tuiModel struct {
 	height        int
 	confirmAction string // "", "kill"
 	confirmArg    string // VM name
+
+	// create-VM prompts
+	createMode   bool
+	createStep   int // 0 = name, 1 = guest os, 2 = ssh user
+	createName   string
+	createGuestOS string
+	createInput  textinput.Model
+
+	// log screen
+	logMode bool
+	logBuf  string
+	logSink *tuiLogBuffer
 }
+
+// tuiLogBuffer accumulates log lines written from stream goroutines.
+type tuiLogBuffer struct {
+	mu  sync.Mutex
+	buf strings.Builder
+}
+
+// Add appends a line to the buffer (safe from any goroutine).
+func (b *tuiLogBuffer) Add(line string) {
+	b.mu.Lock()
+	b.buf.WriteString(line)
+	b.mu.Unlock()
+}
+
+// Drain returns and clears everything currently buffered.
+func (b *tuiLogBuffer) Drain() string {
+	b.mu.Lock()
+	s := b.buf.String()
+	b.buf.Reset()
+	b.mu.Unlock()
+	return s
+}
+
+const maxTuiLogBytes = 512 * 1024
 
 type tuiVMMsg struct{ vms []VM }
 type tuiErrMsg struct{ err error }
 type tuiStatusMsg struct{ msg string }
+type tuiTickMsg struct{}
 
 var (
 	tkeyUp      = key.NewBinding(key.WithKeys("up", "k"))
 	tkeyDown    = key.NewBinding(key.WithKeys("down", "j"))
 	tkeyConnect = key.NewBinding(key.WithKeys("c"))
 	tkeyBoot    = key.NewBinding(key.WithKeys("b"))
-	tkeyKill    = key.NewBinding(key.WithKeys("k"))
+	tkeyKill    = key.NewBinding(key.WithKeys("K"))
+	tkeyNew     = key.NewBinding(key.WithKeys("n"))
+	tkeyEdit    = key.NewBinding(key.WithKeys("e"))
+	tkeyLog     = key.NewBinding(key.WithKeys("l"))
 	tkeyQuit    = key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"))
 	tkeySearch  = key.NewBinding(key.WithKeys("/"))
 	tkeyEsc     = key.NewBinding(key.WithKeys("esc"))
@@ -86,6 +128,12 @@ func NewTuiModel(b Backend) tea.Model {
 	ti.SetStyles(st)
 	ti.Prompt = "/ "
 
+	ci := textinput.New()
+	ci.CharLimit = 64
+	ci.SetWidth(28)
+	ci.SetStyles(st)
+	ci.Prompt = t("new.name") + " > "
+
 	// Check if VM directory exists and report any errors
 	status := ""
 	statusErr := false
@@ -95,12 +143,14 @@ func NewTuiModel(b Backend) tea.Model {
 	}
 
 	return tuiModel{
-		id:        zone.NewPrefix(),
-		backend:   b,
-		vms:       b.List(),
-		search:    ti,
-		status:    status,
-		statusErr: statusErr,
+		id:          zone.NewPrefix(),
+		backend:     b,
+		vms:         b.List(),
+		search:      ti,
+		createInput: ci,
+		logSink:     &tuiLogBuffer{},
+		status:      status,
+		statusErr:   statusErr,
 	}
 }
 
@@ -137,6 +187,23 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 
 	case tea.KeyPressMsg:
+		if m.logMode {
+			m.logBuf = appendLog(m.logBuf, m.logSink.Drain())
+			switch msg.String() {
+			case "esc", "q":
+				m.logMode = false
+				return m, nil
+			case "ctrl+c":
+				return m, tea.Quit
+			default:
+				return m, nil
+			}
+		}
+
+		if m.createMode {
+			return m.updateCreate(msg)
+		}
+
 		if m.searchMode {
 			switch {
 			case key.Matches(msg, tkeyEsc):
@@ -213,19 +280,13 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case key.Matches(msg, tkeyConnect):
 			vm := m.selectedVM()
-			if vm != nil && vm.Running && vm.SPICEPort > 0 {
-				return m, func() tea.Msg {
-					err := ConnectToVM(vm.SPICEPort, "remote-viewer")
-					if err != nil {
-						return tuiErrMsg{err}
-					}
-					return tuiStatusMsg{t("status.connected")}
-				}
+			if vm != nil && vm.Running && (vm.SPICEPort > 0 || vm.SSHPort > 0) {
+				return m, connectCmd(vm)
 			}
 		case key.Matches(msg, tkeyBoot):
 			vm := m.selectedVM()
 			if vm != nil && !vm.Running {
-				return m, vmmanBackendCmd(m.backend, vm, "boot")
+				return m, m.bootLogCmd(vm)
 			}
 		case key.Matches(msg, tkeyKill):
 			vm := m.selectedVM()
@@ -233,6 +294,30 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmAction = "kill"
 				m.confirmArg = vm.Name
 				return m, nil
+			}
+		case key.Matches(msg, tkeyNew):
+			m.createMode = true
+			m.createStep = 0
+			m.createName = ""
+			m.createInput.SetValue("")
+			m.createInput.Prompt = t("new.name") + " > "
+			m.createInput.Placeholder = t("new.name_ph")
+			m.createInput.Focus()
+			return m, textinput.Blink
+		case key.Matches(msg, tkeyEdit):
+			vm := m.selectedVM()
+			if vm != nil {
+				OpenEditor(m.backend.VMDir(), vm.Name)
+				m.status = fmt.Sprintf(t("status.saved"), vm.Name)
+				m.statusErr = false
+				return m, nil
+			}
+		case key.Matches(msg, tkeyLog):
+			vm := m.selectedVM()
+			if vm != nil {
+				m.logBuf = readVMLog(m.backend.VMDir(), vm.Name)
+				m.logMode = true
+				return m, m.logTick()
 			}
 		case key.Matches(msg, tkeyReload):
 			return m, func() tea.Msg {
@@ -268,7 +353,34 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if zone.Get(m.id + "a_boot").InBounds(msg) {
 			vm := m.selectedVM()
 			if vm != nil && !vm.Running {
-				return m, vmmanBackendCmd(m.backend, vm, "boot")
+				return m, m.bootLogCmd(vm)
+			}
+		}
+		if zone.Get(m.id + "a_new").InBounds(msg) {
+			m.createMode = true
+			m.createStep = 0
+			m.createName = ""
+			m.createInput.SetValue("")
+			m.createInput.Prompt = t("new.name") + " > "
+			m.createInput.Placeholder = t("new.name_ph")
+			m.createInput.Focus()
+			return m, textinput.Blink
+		}
+		if zone.Get(m.id + "a_edit").InBounds(msg) {
+			vm := m.selectedVM()
+			if vm != nil {
+				OpenEditor(m.backend.VMDir(), vm.Name)
+				m.status = fmt.Sprintf(t("status.saved"), vm.Name)
+				m.statusErr = false
+				return m, nil
+			}
+		}
+		if zone.Get(m.id + "a_log").InBounds(msg) {
+			vm := m.selectedVM()
+			if vm != nil {
+				m.logBuf = readVMLog(m.backend.VMDir(), vm.Name)
+				m.logMode = true
+				return m, m.logTick()
 			}
 		}
 		if zone.Get(m.id + "a_kill").InBounds(msg) {
@@ -281,14 +393,8 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if zone.Get(m.id + "a_connect").InBounds(msg) {
 			vm := m.selectedVM()
-			if vm != nil && vm.Running && vm.SPICEPort > 0 {
-				return m, func() tea.Msg {
-					err := ConnectToVM(vm.SPICEPort, "remote-viewer")
-					if err != nil {
-						return tuiErrMsg{err}
-					}
-					return tuiStatusMsg{t("status.connected")}
-				}
+			if vm != nil && vm.Running && (vm.SPICEPort > 0 || vm.SSHPort > 0) {
+				return m, connectCmd(vm)
 			}
 		}
 		if zone.Get(m.id + "a_reload").InBounds(msg) {
@@ -323,6 +429,12 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = msg.msg
 		m.statusErr = false
 		return m, func() tea.Msg { return tuiVMMsg{vms: m.backend.List()} }
+	case tuiTickMsg:
+		m.logBuf = appendLog(m.logBuf, m.logSink.Drain())
+		if m.logMode {
+			return m, m.logTick()
+		}
+		return m, nil
 	}
 
 	return m, nil
@@ -402,14 +514,20 @@ func (m tuiModel) bottomBar() string {
 // detailButtons renders action buttons inside the right panel.
 func (m tuiModel) detailButtons() string {
 	vm := m.selectedVM()
-	buttons := []string{}
+	buttons := []string{
+		common.TBtn(m.id, "a_new", t("btn.new"), "n", false),
+	}
+	if vm != nil {
+		buttons = append(buttons, common.TBtn(m.id, "a_edit", t("btn.edit"), "e", false))
+		buttons = append(buttons, common.TBtn(m.id, "a_log", t("btn.log"), "l", false))
+	}
 	if vm != nil && !vm.Running {
 		buttons = append(buttons, common.TBtn(m.id, "a_boot", t("btn.boot"), "b", false))
 	}
 	if vm != nil && vm.Running {
-		buttons = append(buttons, common.TBtn(m.id, "a_kill", t("btn.kill"), "k", false))
+		buttons = append(buttons, common.TBtn(m.id, "a_kill", t("btn.kill"), "K", false))
 	}
-	if vm != nil && vm.Running && vm.SPICEPort > 0 {
+	if vm != nil && vm.Running && (vm.SPICEPort > 0 || vm.SSHPort > 0) {
 		buttons = append(buttons, common.TBtn(m.id, "a_connect", t("btn.connect"), "c", false))
 	}
 	buttons = append(buttons, common.TBtn(m.id, "a_reload", t("btn.reload"), "r", false))
@@ -419,6 +537,12 @@ func (m tuiModel) detailButtons() string {
 func (m tuiModel) render() string {
 	if m.showAbout {
 		return m.renderAbout()
+	}
+	if m.logMode {
+		return m.renderLog()
+	}
+	if m.createMode {
+		return m.renderCreate()
 	}
 	narrow := m.width > 0 && m.width < 60
 	list := m.filtered()
@@ -467,7 +591,7 @@ func (m tuiModel) render() string {
 		searchRow = thelpStyle.Render(t("search.hint"))
 	}
 
-	stats := tstoppedBadge.Render(fmt.Sprintf(t("stats.fmt"), runningTotal, len(m.vms), len(list)))
+	stats := thelpStyle.Render(fmt.Sprintf(t("stats.fmt"), runningTotal, len(m.vms), len(list)))
 
 	overhead := m.listOverhead()
 	listHeight := 8
@@ -489,9 +613,9 @@ func (m tuiModel) render() string {
 		vm := list[i]
 		var badge string
 		if vm.Running {
-			badge = trunningBadge.Render("[▶]")
+			badge = "[▶]"
 		} else {
-			badge = tstoppedBadge.Render("[■]")
+			badge = "[■]"
 		}
 		line := fmt.Sprintf("%s %s", badge, vm.Name)
 		if i == m.cursor {
@@ -547,6 +671,9 @@ func (m tuiModel) buildDetail(list []VM) string {
 		if vm.SPICEPort > 0 {
 			detail += tnormalStyle.Render(t("detail.spice")+":  "+fmt.Sprintf("%d", vm.SPICEPort)) + "\n"
 		}
+		if vm.SSHPort > 0 {
+			detail += tnormalStyle.Render(t("detail.ssh")+":     "+fmt.Sprintf("%s@localhost:%d", sshUser(vm), vm.SSHPort)) + "\n"
+		}
 	}
 	detail += "\n\n" + m.detailButtons()
 	return detail
@@ -565,7 +692,7 @@ func (m tuiModel) compactDetail(list []VM) string {
 	}
 	line := " " + tnormalStyle.Render(vm.Name) + " " + stateStr
 	if vm.Running && vm.PID > 0 {
-		line += tstoppedBadge.Render(fmt.Sprintf(" pid %d", vm.PID))
+		line += thelpStyle.Render(fmt.Sprintf(" pid %d", vm.PID))
 	}
 	return line + "\n"
 }
@@ -584,6 +711,137 @@ func vmmanBackendCmd(b Backend, vm *VM, action string) tea.Cmd {
 		}
 		return tuiStatusMsg{t("status." + action)}
 	}
+}
+
+// connectCmd connects to a VM, preferring SPICE and falling back to SSH.
+func connectCmd(vm *VM) tea.Cmd {
+	return func() tea.Msg {
+		var err error
+		if vm.SPICEPort > 0 {
+			err = ConnectToVM(vm.SPICEPort, "remote-viewer")
+		} else if vm.SSHPort > 0 {
+			err = ConnectToVMSSH(vm.SSHPort, vm.SSHUser)
+		}
+		if err != nil {
+			return tuiErrMsg{err}
+		}
+		return tuiStatusMsg{t("status.connected")}
+	}
+}
+
+// appendLog appends text to a bounded log buffer.
+func appendLog(buf, text string) string {
+	buf += text
+	if len(buf) > maxTuiLogBytes {
+		buf = buf[len(buf)-maxTuiLogBytes:]
+	}
+	return buf
+}
+
+// logTick schedules periodic log drain while the log screen is open.
+func (m tuiModel) logTick() tea.Cmd {
+	return tea.Tick(200*time.Millisecond, func(time.Time) tea.Msg { return tuiTickMsg{} })
+}
+
+// bootLogCmd starts a VM and streams its quickemu output into the log buffer.
+func (m tuiModel) bootLogCmd(vm *VM) tea.Cmd {
+	return func() tea.Msg {
+		if err := m.backend.BootStream(vm, func(line string) { m.logSink.Add(line) }); err != nil {
+			return tuiErrMsg{err}
+		}
+		return tuiStatusMsg{t("status.boot")}
+	}
+}
+
+// updateCreate handles keyboard input during the create-VM prompts.
+func (m tuiModel) updateCreate(msg tea.KeyPressMsg) (tuiModel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.createMode = false
+		m.createStep = 0
+		m.createInput.SetValue("")
+		m.createInput.Blur()
+		return m, nil
+	case "enter":
+		value := strings.TrimSpace(m.createInput.Value())
+		if m.createStep == 0 {
+			if value == "" {
+				return m, nil
+			}
+			m.createName = value
+			m.createStep = 1
+			m.createInput.SetValue("")
+			m.createInput.Prompt = t("new.guest_os") + " > "
+			m.createInput.Placeholder = t("new.guest_os_ph")
+			m.createInput.Focus()
+			return m, nil
+		}
+		if m.createStep == 1 {
+			if value == "" {
+				value = "linux"
+			}
+			m.createGuestOS = value
+			m.createStep = 2
+			m.createInput.SetValue("")
+			m.createInput.Prompt = t("new.ssh_user") + " > "
+			m.createInput.Placeholder = t("new.ssh_user_ph")
+			m.createInput.Focus()
+			return m, nil
+		}
+		name := m.createName
+		guestOS := m.createGuestOS
+		sshUser := strings.TrimSpace(value)
+		m.createMode = false
+		m.createStep = 0
+		m.createInput.SetValue("")
+		m.createInput.Prompt = "/ "
+		m.createInput.Blur()
+		return m, func() tea.Msg {
+			if err := m.backend.Create(VMCreateConfig{Name: name, GuestOS: guestOS, SSHUser: sshUser}); err != nil {
+				return tuiErrMsg{err}
+			}
+			return tuiStatusMsg{fmt.Sprintf(t("status.created"), name)}
+		}
+	default:
+		var cmd tea.Cmd
+		m.createInput, cmd = m.createInput.Update(msg)
+		return m, cmd
+	}
+}
+
+// renderLog renders the fullscreen log screen for the selected VM.
+func (m tuiModel) renderLog() string {
+	vm := m.selectedVM()
+	name := ""
+	if vm != nil {
+		name = vm.Name
+	}
+	title := ttitleStyle.Render(fmt.Sprintf(t("log.title"), name) + " - " + t("log.hint"))
+	body := m.logBuf
+	if body == "" {
+		body = tnormalStyle.Render(t("log.empty"))
+	}
+	return "\n" + title + "\n\n" + body + "\n"
+}
+
+// renderCreate renders the create-VM prompt screen.
+func (m tuiModel) renderCreate() string {
+	title := ttitleStyle.Render(t("new.title"))
+	var line string
+	switch m.createStep {
+	case 0:
+		line = tsectionStyle.Render(t("new.name")) + " " + lipgloss.NewStyle().Foreground(thighlight).Render(m.createInput.View()) + "\n" + thelpStyle.Render(t("log.hint"))
+	case 1:
+		line = tsectionStyle.Render(fmt.Sprintf("%s: %s", t("new.name"), m.createName)) + "\n\n" +
+			tsectionStyle.Render(t("new.guest_os")) + " " + lipgloss.NewStyle().Foreground(thighlight).Render(m.createInput.View()) +
+			thelpStyle.Render("  ("+t("new.guest_os_ph")+")")
+	case 2:
+		line = tsectionStyle.Render(fmt.Sprintf("%s: %s", t("new.name"), m.createName)) + "\n" +
+			tsectionStyle.Render(fmt.Sprintf("%s: %s", t("new.guest_os"), m.createGuestOS)) + "\n\n" +
+			tsectionStyle.Render(t("new.ssh_user")) + " " + lipgloss.NewStyle().Foreground(thighlight).Render(m.createInput.View()) +
+			thelpStyle.Render("  ("+t("new.ssh_user_ph")+")")
+	}
+	return "\n" + title + "\n\n" + line + "\n"
 }
 
 // renderAbout renders the about screen.

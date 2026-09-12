@@ -11,6 +11,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/fsnotify/fsnotify"
 )
@@ -349,7 +350,10 @@ func loadConfigData() string {
 
 // ── Rendering ─────────────────────────────────────────────────────────
 
-// coloredSegment is a widget.RichTextSegment that renders one line in a fixed colour.
+// coloredSegment is a widget.RichTextSegment that renders one line in a fixed
+// colour. It is deliberately NOT inline so every line becomes its own row:
+// inline segments that carry line breaks get merged by Fyne's richtext
+// renderer into phantom blank rows.
 type coloredSegment struct {
 	text string
 	col  color.Color
@@ -363,7 +367,11 @@ func (s *coloredSegment) SelectedText() string      { return "" }
 func (s *coloredSegment) Unselect()                 {}
 
 func (s *coloredSegment) Visual() fyne.CanvasObject {
-	t := canvas.NewText(s.text, s.col)
+	col := s.col
+	if col == nil {
+		col = theme.ForegroundColor()
+	}
+	t := canvas.NewText(s.text, col)
 	t.TextStyle.Bold = s.bold
 	t.TextStyle.Monospace = true
 	return t
@@ -372,7 +380,11 @@ func (s *coloredSegment) Visual() fyne.CanvasObject {
 func (s *coloredSegment) Update(o fyne.CanvasObject) {
 	t := o.(*canvas.Text)
 	t.Text = s.text
-	t.Color = s.col
+	col := s.col
+	if col == nil {
+		col = theme.ForegroundColor()
+	}
+	t.Color = col
 	t.TextStyle.Bold = s.bold
 	t.Refresh()
 }
@@ -381,36 +393,21 @@ func (s *coloredSegment) Update(o fyne.CanvasObject) {
 // with syntax highlighting applied line by line.
 func (h *Highlighter) RichSegments(text string) []widget.RichTextSegment {
 	if text == "" {
-		return []widget.RichTextSegment{
-			&widget.TextSegment{
-				Text:  "",
-				Style: widget.RichTextStyle{TextStyle: fyne.TextStyle{Monospace: true}},
-			},
-		}
+		return []widget.RichTextSegment{&coloredSegment{}}
 	}
 	var segs []widget.RichTextSegment
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {
 		if line == "" {
+			// A genuinely empty line renders as one blank row. A trailing
+			// newline (empty last line) is skipped to avoid a phantom row.
+			if i < len(lines)-1 {
+				segs = append(segs, &coloredSegment{})
+			}
 			continue
 		}
 		col, bold := h.matchLine(line)
-		var seg widget.RichTextSegment
-		if col != nil {
-			seg = &coloredSegment{text: line, col: col, bold: bold}
-		} else {
-			seg = &widget.TextSegment{
-				Text:  line,
-				Style: widget.RichTextStyle{TextStyle: fyne.TextStyle{Monospace: true}},
-			}
-		}
-		segs = append(segs, seg)
-		if i < len(lines)-1 {
-			segs = append(segs, &widget.TextSegment{
-				Text:  "\n",
-				Style: widget.RichTextStyle{Inline: true},
-			})
-		}
+		segs = append(segs, &coloredSegment{text: line, col: col, bold: bold})
 	}
 	return segs
 }

@@ -449,9 +449,14 @@ func TestRichSegments_MultiLine_NewlineSeparators(t *testing.T) {
 	h := &Highlighter{}
 	text := "line1\nline2\nline3"
 	segs := h.RichSegments(text)
-	// 3 lines + 2 newline segments = 5
-	if len(segs) != 5 {
-		t.Errorf("3 lines: expected 5 segments, got %d", len(segs))
+	// 3 lines, one non-inline segment per line (no newline separator segments)
+	if len(segs) != 3 {
+		t.Errorf("3 lines: expected 3 segments, got %d", len(segs))
+	}
+	for i, seg := range segs {
+		if seg.Inline() {
+			t.Errorf("segment %d should be a non-inline block, got Inline()=true", i)
+		}
 	}
 }
 

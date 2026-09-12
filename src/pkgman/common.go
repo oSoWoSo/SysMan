@@ -5,9 +5,12 @@ package pkgman
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"codeberg.org/oSoWoSo/SysMan/src/api"
@@ -22,6 +25,35 @@ const Usage = "pkgman [-g|-t]\n\nOptions:\n  -g, --gui   GUI (default)\n  -t, --
 type QueueEntry struct {
 	Name   string
 	Action string // "install" or "remove"
+}
+
+// buildOps splits queue entries into install/remove name lists. The optional
+// selected package is appended (install when not installed, remove when
+// installed) only when it is not already present in the queue, so Apply can act
+// on the current selection even without an explicit queue entry.
+func buildOps(queue []QueueEntry, selected *Package) (installs, removes []string) {
+	for _, e := range queue {
+		switch e.Action {
+		case "install":
+			installs = append(installs, e.Name)
+		case "remove":
+			removes = append(removes, e.Name)
+		}
+	}
+	if selected == nil || selected.Name == "" {
+		return installs, removes
+	}
+	for _, e := range queue {
+		if e.Name == selected.Name {
+			return installs, removes
+		}
+	}
+	if selected.Installed {
+		removes = append(removes, selected.Name)
+	} else {
+		installs = append(installs, selected.Name)
+	}
+	return installs, removes
 }
 
 // isTTY reports whether stdout is connected to a terminal.
@@ -339,4 +371,219 @@ func OpenBrowser(url string) {
 	}
 	cmd := exec.Command("xdg-open", url) //nolint:gosec
 	_ = cmd.Start()
+}
+
+// ── AppImage directory (appman/am config) ────────────────────────────
+
+// readAppIconfig returns the first non-empty line of an appman/am config file,
+// which holds the user's AppImage applications directory.
+func readAppIconfig(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			return line
+		}
+	}
+	return ""
+}
+
+// DefaultAppImageDir returns the AppImage applications directory inherited from
+// the appman/am configuration, falling back to ~/Applications.
+// Relative config paths are resolved against the home directory, matching the
+// behaviour of appman itself.
+func DefaultAppImageDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = ""
+	}
+	for _, p := range []string{
+		filepath.Join(home, ".config", "appman", "appman-config"),
+		filepath.Join(home, ".config", "AM", "appman-config"),
+	} {
+		if d := readAppIconfig(p); d != "" {
+			if !filepath.IsAbs(d) && home != "" {
+				return filepath.Join(home, d)
+			}
+			return d
+		}
+	}
+	if home != "" {
+		return filepath.Join(home, "Applications")
+	}
+	return ""
+}
+
+// effectiveAppImageDir resolves the AppImage directory: an explicit
+// configuration override wins, otherwise the appman/am-configured default.
+func effectiveAppImageDir(override string) string {
+	if override = strings.TrimSpace(override); override != "" {
+		return override
+	}
+	return DefaultAppImageDir()
+}
+
+// scanInstalledApps lists installed AM/AppMan apps under dir. For each depth-1
+// entry it detects both layouts:
+//   - a subdirectory containing a `remove` script (the AM per-app layout; the
+//     AppImage binary itself carries no .AppImage suffix), and
+//   - a lone file ending in .AppImage (the --launcher layout).
+//
+// Returns lowercased app name → path. nil when the directory cannot be read.
+func scanInstalledApps(dir string) map[string]string {
+	if dir == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	apps := make(map[string]string)
+	for _, e := range entries {
+		path := filepath.Join(dir, e.Name())
+		if e.IsDir() {
+			if _, err := os.Stat(filepath.Join(path, "remove")); err != nil {
+				continue
+			}
+			if e.Name() != "" {
+				apps[strings.ToLower(e.Name())] = path
+			}
+			continue
+		}
+		name := e.Name()
+		if !strings.HasSuffix(strings.ToLower(name), ".appimage") {
+			continue
+		}
+		base := strings.TrimSuffix(name, filepath.Ext(name))
+		if base != "" {
+			apps[strings.ToLower(base)] = path
+		}
+	}
+	return apps
+}
+
+// scanAllInstalledApps merges scanInstalledApps over several roots. Earlier
+// roots win on name conflicts. A top-level `am` directory is skipped when it
+// belongs to a system-wide am installation (its own install dir under /opt).
+func scanAllInstalledApps(dirs ...string) map[string]string {
+	apps := make(map[string]string)
+	for i, dir := range dirs {
+		for name, path := range scanInstalledApps(dir) {
+			if i > 0 && name == "am" {
+				continue
+			}
+			if _, exists := apps[name]; !exists {
+				apps[name] = path
+			}
+		}
+	}
+	if len(apps) == 0 {
+		return nil
+	}
+	return apps
+}
+
+// ── xbps user repositories (custom repos) ────────────────────────────
+
+// defaultReposFile is the name of the managed repos file inside /etc/xbps.d.
+const defaultReposFile = "sysman-repos.conf"
+
+// uniqueSortedRepos trims, drops empties, sorts, and dedupes a repo list.
+func uniqueSortedRepos(repos []string) []string {
+	seen := make(map[string]bool)
+	out := make([]string, 0, len(repos))
+	for _, r := range repos {
+		r = strings.TrimSpace(r)
+		if r == "" || seen[r] {
+			continue
+		}
+		seen[r] = true
+		out = append(out, r)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// reposConfContent renders repository lines for the managed xbps.d conff file.
+func reposConfContent(repos []string) string {
+	repos = uniqueSortedRepos(repos)
+	if len(repos) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range repos {
+		b.WriteString("repository=" + r + "\n")
+	}
+	return b.String()
+}
+
+// loadReposConf parses `repository=` lines from the managed conff file in dir.
+func loadReposConf(dir, file string) []string {
+	data, err := os.ReadFile(filepath.Join(dir, file))
+	if err != nil {
+		return nil
+	}
+	var repos []string
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if v, ok := strings.CutPrefix(line, "repository="); ok {
+			if v = strings.TrimSpace(v); v != "" {
+				repos = append(repos, v)
+			}
+		}
+	}
+	return repos
+}
+
+// writeReposConf writes the managed conff file into dir (unprivileged; works on
+// any writable dir, e.g. a temp dir for tests).
+func writeReposConf(dir, file string, repos []string) error {
+	if dir == "" || file == "" {
+		return fmt.Errorf("repos config dir/file not set")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, file+".tmp*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.WriteString(reposConfContent(repos)); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	return os.Rename(tmpName, filepath.Join(dir, file))
+}
+
+// syncSystemRepos applies the used-repo set to /etc/xbps.d/<file> with privilege
+// escalation (install -Dm644 into the root-owned repo dir).
+func syncSystemRepos(repos []string, file string) error {
+	if file == "" {
+		file = defaultReposFile
+	}
+	tmp, err := os.CreateTemp("", "sysman-repos-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.WriteString(reposConfContent(repos)); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+		return err
+	}
+	_ = tmp.Close()
+	defer os.Remove(tmpName) //nolint:errcheck
+
+	dst := filepath.Join("/etc/xbps.d", file)
+	_, err = runElevated(nil, []string{"install", "-Dm644", tmpName, dst})
+	return err
 }

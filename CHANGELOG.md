@@ -8,16 +8,36 @@ All notable changes to SysMan are documented here.
 
 ### Added
 - **`common.NewApp()` helper** — unified Fyne app creation with shared AppID
+- **vmsman: Create VM button (green)** — GUI form + TUI prompts for name, guest OS, ISO, memory, CPU cores; writes a valid quickemu `.conf`
+- **vmsman: Live boot log** — quickemu runs under a PTY so its full terminal output is captured and streamed into the GUI log panel and a dedicated TUI log screen while a VM is running
+- **vmsman: Config editor** — multi-line dialog in the GUI and external `$EDITOR` in the TUI to edit any VM's `.conf`
+- **vmsman: PID tracking** — the boot wrapper's PID is written to `<name>.pid` immediately, so a VM reports as running and can be stopped right away
+- **vmsman: SSH connect** — SSH ports from `<name>.ports` are shown in the detail panel; Connect opens `ssh -p <port> localhost` in a terminal when no SPICE port exists
+- **vmsman: SSH user support** — per-VM `ssh_user="..."` setting in `.conf` (set in the create form or config editor); Connect uses it (`user@localhost`), falling back to the current OS user, and keeps the terminal open after ssh exits
+- **vmsman: SSH user dialog (GUI)** — a per-VM "SSH user" button opens a small dialog that writes/updates/removes the `ssh_user=` line, so each VM can use a different login user without hand-editing the config
+- **vmsman: detail rows** — GUI detail labels and their values now sit on the same line (value right-aligned)
+- **pkgman: AppImage size** — installed AppImages show their real on-disk size (walked app directory or single file) in the detail panel instead of a bare "installed" marker; lazily computed and cached per reload, falling back to the am/appman-reported size
+- **pkgman: Apply without a queue** — the GUI Apply button now installs/removes the currently selected package directly even when it is not in the queue (install if not installed, remove if installed)
 
 ### Changed
 - **Go modules updated** — fyne 2.8.0, fsnotify 1.10.1, x/term 0.45.0, Go 1.25
 - **Charm stack upgraded to v2** — bubbletea, bubbles, lipgloss
-- **Version bumped to 0.019 Alpha**
+- **vmsman: Boot is non-blocking** — output is streamed to `<name>.log` and the UI instead of blocking on `quickemu`
+- **vmsman: Graceful VM stop** — Kill asks quickemu for a clean shutdown, falls back to SIGTERM/SIGKILL on the tracked PID, and removes stale `.pid`/`.ports` files
+- **vmsman: GUI layout** — VM details share the right panel with a docked, resizable log split (VSplit)
+- **vmsman: TUI keys** — `n` new VM, `e` edit config, `l` view log, `K` kill (was `k`)
+- **Version bumped to 0.022 Alpha**
 
 ### Fixed
 - **Fyne preferences error** — apps now use a unique application ID
 - **Fyne threading** — `fyne.Do` migration declared
+- **vmsman: GUI empty row when embedded in sysman** — the stats row (… běží / … celkem) between the filter buttons and the VM list is now populated at build time instead of showing a blank line
+- **vmsman: inconsistent running-state colors** — green/red is used only for the running/stopped *state* (detail row and TUI compact/state view); the VM list itself stays in the normal text color while still marking running VMs with `[▶]` and stopped ones with `[■]` (the TUI stopped badge was previously grey and unlike the green running badge)
+- **pkgman: misleading AppImage size** — non-installed apps are no longer labelled "installed" in the detail Size row; the row now renders a struck-through "—" when the package is not installed (GUI strikethrough and TUI)
 - **TUI migration for Bubble Tea v2** — updated key handling and view API
+- **vmsman: running VMs not detected** — quickemu/dh stores pid/ports in a per-VM directory (`<VMDIR>/<name>/<name>.pid`); state files are now read from the disk image's directory, so running VMs show correctly and are killable
+- **vmsman: `.ports` parsing** — supports quickemu format lines (`ssh,<port>`, `spice,<port>`) instead of only the legacy `SPICE=` syntax
+- **vmsman: SSH connection failed instantly** — Connect now uses the VM's `ssh_user` (defaults to the current OS user) instead of an anonymous `localhost` connection, the terminal stays open to show SSH errors, and ssh runs with `StrictHostKeyChecking=no` + a throwaway `known_hosts` (VM host keys change on every reinstall)
 
 ---
 

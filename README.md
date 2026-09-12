@@ -380,6 +380,13 @@ chmod +x ~/service/smoketest/run
 
 `smoketest` then appears in the user scope with no elevation prompt. Without a supervising `runsvdir-<user>` the status reports "not running", which is fine for verifying the list, scope toggle, and control calls.
 
+### Packages (pkgman)
+
+Packages offer two settings (gear button in the toolbar):
+
+- **AppImage dir** — directory scanned for installed apps. Leave empty to inherit the path from the appman/am configuration (`~/.config/appman/appman-config` or `~/.config/AM/appman-config`, falling back to `~/Applications`); an explicit value overrides it. Installed-state detection follows the AM layout: each installed app is a subdirectory containing a `remove` script (the AppImage binary has no `.AppImage` suffix), or a lone `.AppImage` file (`--launcher` style). The same scan covers the system-wide am directory `/opt`.
+- **Custom xbps repositories** — a user-level pool of repository URLs stored in `~/.config/sysman/sysman.conf`. Adding/removing entries needs no privileges. Once a repository is **used**, the active set is written elevated to `/etc/xbps.d/<repos_file>` (default `sysman-repos.conf`) as `repository=<url>` lines — this is the only place the managed file is touched, never Void's own `00-repository-main.conf`. A later package sync may ask you to confirm the repository's signing key.
+
 ---
 
 ## Dependencies

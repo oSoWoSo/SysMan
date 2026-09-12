@@ -355,6 +355,13 @@ permit nopass :wheel cmd rm
 permit nopass :wheel cmd sv
 ```
 
+### Balíčky (pkgman)
+
+Balíčky nabízejí dvě nastavení (tlačítko ozubeného kola na liště):
+
+- **AppImage Dir** — adresář prohledávaný na nainstalované aplikace. Ponechte prázdné pro zdědění cesty z konfigurace appman/am (`~/.config/appman/appman-config` nebo `~/.config/AM/appman-config`, fallback `~/Applications`); explicitní hodnota má přednost. Detekce instalace odpovídá rozložení AM: každá nainstalovaná aplikace je podadresář se skriptem `remove` (binárka AppImage nemá příponu `.AppImage`), případně samostatný soubor `.AppImage` (režim `--launcher`). Stejný průzkum pokrývá i systémový adresář am `/opt`.
+- **Vlastní repozitáře xbps** — uživatelský seznam URL repozitářů uložený v `~/.config/sysman/sysman.conf`. Přidání/odebrání záznamů nevyžaduje oprávnění. Jakmile je repozitář **použit**, aktivní sada se zapíše s oprávněními do `/etc/xbps.d/<repos_file>` (výchozí `sysman-repos.conf`) jako řádky `repository=<url>` — toto je jediné místo, kam se spravovaný soubor zapisuje, nikdy se nedotýká souboru `00-repository-main.conf`. Při dalším sync balíčků může být vyžádáno potvrzení podpisového klíče repozitáře.
+
 ---
 
 ## Závislosti

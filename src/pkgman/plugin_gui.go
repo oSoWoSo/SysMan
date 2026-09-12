@@ -181,12 +181,11 @@ func (g *pkgGuiApp) showDetail(name string) {
 	g.detailDesc.SetText("…")
 	g.detailHome.Hide()
 	g.detailRepo.SetText("…")
-	g.detailSize.SetText("…")
+	g.setSizeText("…", false)
 
 	list := g.filtered()
 	if g.selected >= 0 && g.selected < len(list) {
-		pkg := list[g.selected]
-		if pkg.Installed {
+		if list[g.selected].Installed {
 			g.detailInstall.SetText(t("pkg.installed"))
 		} else {
 			g.detailInstall.SetText(t("pkg.not_installed"))
@@ -219,18 +218,28 @@ func (g *pkgGuiApp) showDetail(name string) {
 				g.detailRepo.SetText("—")
 			}
 			size := ""
+			struck := false
 			if d.InstalledSize != "" {
 				size = d.InstalledSize
 			} else if d.FilenameSize != "" {
 				size = d.FilenameSize
 			}
-			if size != "" {
-				g.detailSize.SetText(size)
-			} else {
-				g.detailSize.SetText("—")
+			if size == "" {
+				size = "—"
+				// Unknown size (e.g. not-installed appimage); strike the row
+				// through so it is not mistaken for real data.
+				struck = true
 			}
+			g.setSizeText(size, struck)
 		})
 	}()
+}
+
+// setSizeText updates the detail Size row. struck renders the value struck
+// through (used for not installed / unknown sizes).
+func (g *pkgGuiApp) setSizeText(text string, struck bool) {
+	g.detailSize.TextStyle = fyne.TextStyle{Strikethrough: struck}
+	g.detailSize.SetText(text)
 }
 
 func (g *pkgGuiApp) clearDetail() {
@@ -240,7 +249,178 @@ func (g *pkgGuiApp) clearDetail() {
 	g.detailInstall.SetText("—")
 	g.detailHome.Hide()
 	g.detailRepo.SetText("—")
-	g.detailSize.SetText("—")
+	g.setSizeText("—", false)
+}
+
+// ── Settings (AppImage dir) ──────────────────────────────────────────
+
+// showAppImageSettings opens the module settings dialog for the AppImage dir.
+// An empty value keeps the appman/am-configured default.
+func (g *pkgGuiApp) showAppImageSettings() {
+	label := t("settings.appimage_dir")
+	cfg := common.LoadSysManConfig()
+	common.ShowSettingsDialog(
+		g.win,
+		"pkgman",
+		[]common.SettingsField{{
+			Label:       label,
+			Value:       cfg.Pkgman.AppImageDir,
+			Placeholder: DefaultAppImageDir(),
+		}},
+		func(values map[string]string) {
+			cfg := common.LoadSysManConfig()
+			cfg.Pkgman.AppImageDir = strings.TrimSpace(values[label])
+			if err := common.SaveSysManConfig(cfg); err != nil {
+				common.ShowSettingsError(g.win, err)
+				return
+			}
+			g.statusBar.SetText(t("settings.saved"))
+			g.reload()
+		},
+	)
+}
+
+// ── Custom xbps repositories ─────────────────────────────────────────
+
+// pkgReposFile returns the managed repos filename (config or default).
+func pkgReposFile() string {
+	cfg := common.LoadSysManConfig()
+	if cfg.Pkgman.ReposFile == "" {
+		return defaultReposFile
+	}
+	return cfg.Pkgman.ReposFile
+}
+
+// usedRepoSet returns the set of repositories currently active in
+// /etc/xbps.d/<repoFile> (read-only, no elevation required).
+func usedRepoSet(repoFile string) map[string]bool {
+	set := make(map[string]bool)
+	for _, r := range loadReposConf("/etc/xbps.d", repoFile) {
+		set[r] = true
+	}
+	return set
+}
+
+// showReposDialog opens the custom-repository manager. The user pool lives in
+// the sysman config; Use/Stop enables/disables repos system-wide via an elevated
+// write to /etc/xbps.d/<repoFile>.
+func (g *pkgGuiApp) showReposDialog() {
+	repoFile := pkgReposFile()
+	root := container.NewVBox()
+	dlg := dialog.NewCustom(t("repos.title"), t("btn.close"), root, g.win)
+	dlg.Resize(fyne.NewSize(620, 520))
+	dlg.Show()
+
+	rebuild := func() {}
+	rebuild = func() {
+		root.Objects = []fyne.CanvasObject{g.reposContent(repoFile, rebuild)}
+		root.Refresh()
+	}
+	rebuild()
+}
+
+// reposContent builds the repositories dialog widget tree.
+func (g *pkgGuiApp) reposContent(repoFile string, refresh func()) fyne.CanvasObject {
+	cfg := common.LoadSysManConfig()
+	pool := cfg.Pkgman.Repos
+	used := usedRepoSet(repoFile)
+
+	status := widget.NewLabel("")
+	status.Wrapping = fyne.TextWrapWord
+
+	var listing []fyne.CanvasObject
+	if len(pool) == 0 {
+		listing = append(listing, widget.NewLabel(t("repos.empty")))
+	}
+	for _, repo := range pool {
+		repo := repo
+		lbl := widget.NewLabel(repo)
+		lbl.Wrapping = fyne.TextWrapBreak
+		lbl.Selectable = true
+
+		isUsed := used[repo]
+		useLabel, useTip := t("btn.repos_use"), t("tooltip.pkgman.repos_use")
+		if isUsed {
+			useLabel, useTip = t("btn.repos_stop"), t("tooltip.pkgman.repos_stop")
+		}
+		btnUse := common.NewHoverableButtonText(useLabel, useTip, g.statusBar, func() {
+			if isUsed {
+				delete(used, repo)
+			} else {
+				used[repo] = true
+			}
+			repos := make([]string, 0, len(used))
+			for r := range used {
+				repos = append(repos, r)
+			}
+			g.statusBar.SetText(fmt.Sprintf("%s…", t("action.repos_sync")))
+			go func() {
+				err := syncSystemRepos(repos, repoFile)
+				fyne.Do(func() {
+					refresh()
+					if err != nil {
+						g.statusBar.SetText(fmt.Sprintf("✗ %s: %s", t("action.repos_sync"), err.Error()))
+					} else {
+						g.statusBar.SetText(t("repos.synced"))
+						g.reload()
+					}
+				})
+			}()
+		})
+		btnUse.Importance = widget.MediumImportance
+
+		btnRemove := common.NewHoverableButtonText(t("btn.repos_remove"), t("tooltip.pkgman.repos_remove"), g.statusBar, func() {
+			cfg := common.LoadSysManConfig()
+			pool2 := make([]string, 0, len(cfg.Pkgman.Repos))
+			for _, r := range cfg.Pkgman.Repos {
+				if r != repo {
+					pool2 = append(pool2, r)
+				}
+			}
+			cfg.Pkgman.Repos = pool2
+			if err := common.SaveSysManConfig(cfg); err != nil {
+				common.ShowSettingsError(g.win, err)
+				return
+			}
+			refresh()
+		})
+		btnRemove.Importance = widget.LowImportance
+
+		listing = append(listing, container.NewBorder(nil, nil, nil, container.NewHBox(btnUse, btnRemove), lbl))
+	}
+
+	addEntry := widget.NewEntry()
+	addEntry.PlaceHolder = "https://repo.example.com/void-current"
+	addBtn := common.NewHoverableButtonText(t("btn.repos_add"), t("tooltip.pkgman.repos_add"), g.statusBar, func() {
+		repo := strings.TrimSpace(addEntry.Text)
+		if repo == "" {
+			status.SetText(t("repos.add_empty"))
+			return
+		}
+		cfg := common.LoadSysManConfig()
+		for _, r := range cfg.Pkgman.Repos {
+			if r == repo {
+				status.SetText(t("repos.add_exists"))
+				return
+			}
+		}
+		cfg.Pkgman.Repos = append(cfg.Pkgman.Repos, repo)
+		if err := common.SaveSysManConfig(cfg); err != nil {
+			common.ShowSettingsError(g.win, err)
+			return
+		}
+		addEntry.SetText("")
+		status.SetText(t("repos.added"))
+		refresh()
+	})
+	addBtn.Importance = widget.HighImportance
+
+	hint := widget.NewLabel(t("repos.hint"))
+	hint.Wrapping = fyne.TextWrapWord
+
+	addRow := container.NewBorder(nil, nil, nil, addBtn, addEntry)
+	boxed := container.NewVBox(append(listing, addRow, status, hint)...)
+	return container.NewPadded(container.NewVScroll(boxed))
 }
 
 // streamWriter is an io.Writer that appends each line to the outputRich widget
@@ -350,18 +530,16 @@ func (g *pkgGuiApp) clearQueue() {
 }
 
 func (g *pkgGuiApp) applyQueue() {
-	if len(g.queue) == 0 {
+	var selected *Package
+	list := g.filtered()
+	if g.selected >= 0 && g.selected < len(list) {
+		pkg := list[g.selected]
+		selected = &pkg
+	}
+	if len(g.queue) == 0 && selected == nil {
 		return
 	}
-	var installs, removes []string
-	for _, e := range g.queue {
-		switch e.Action {
-		case "install":
-			installs = append(installs, e.Name)
-		case "remove":
-			removes = append(removes, e.Name)
-		}
-	}
+	installs, removes := buildOps(g.queue, selected)
 	g.queue = nil
 	g.refreshQueue()
 
@@ -594,7 +772,11 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 
 	btnAbout := common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.pkgman.about"), g.statusBar, func() { g.showAbout() })
 	btnAbout.Importance = widget.LowImportance
-	statusBar := container.NewHBox(btnAbout, btnReload, layout.NewSpacer(), g.statusBar)
+	btnSettings := common.NewHoverableButton("", theme.SettingsIcon(), t("tooltip.pkgman.settings"), g.statusBar, func() { g.showAppImageSettings() })
+	btnSettings.Importance = widget.LowImportance
+	btnRepos := common.NewHoverableButton("", theme.DownloadIcon(), t("tooltip.pkgman.repos"), g.statusBar, func() { g.showReposDialog() })
+	btnRepos.Importance = widget.LowImportance
+	statusBar := container.NewHBox(btnAbout, btnReload, btnSettings, btnRepos, layout.NewSpacer(), g.statusBar)
 
 	rightTop := container.NewVBox(detailForm, widget.NewSeparator(), actionRow, widget.NewSeparator())
 	outputToolbar := container.NewHBox(g.btnCopy, layout.NewSpacer())

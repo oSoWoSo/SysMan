@@ -33,12 +33,38 @@ strings:
   detail.state: State
   detail.pid: PID
   detail.spice: SPICE
+  detail.ssh: SSH
   detail.empty: "--"
 
   status.boot: VM started
   status.kill: VM stopped
   status.connected: Connected to VM
   status.err: Error
+  status.created: "VM %s created"
+  status.saved: "Saved config %s"
+
+  new.title: New VM
+  new.name: Name
+  new.name_ph: e.g. dev-machine
+  new.guest_os: Guest OS
+  new.guest_os_ph: linux
+  new.iso: ISO image path
+  new.iso_ph: /path/to/isos/foo.iso
+  new.memory: Memory (MB)
+  new.cores: CPU cores
+  new.ssh_user: SSH user
+  new.ssh_user_ph: guest login (empty = current user)
+  new.err_name: "Invalid VM name (use letters, digits, dot, dash, underscore)"
+  new.err_exists: "VM %s already exists"
+
+  edit.title: "Edit config: %s"
+
+  log.title: "VM log: %s"
+  log.empty: No log output yet
+  log.hint: (esc/q to close)
+
+  ssh_user.title: "SSH user for %s"
+  ssh_user.empty: guest login (empty = current OS user)
 
   confirm.title: Confirm
   confirm.kill: "Kill VM %s?"
@@ -50,6 +76,12 @@ strings:
   btn.boot: Boot
   btn.kill: Kill
   btn.connect: Connect
+  btn.new: New
+  btn.edit: Edit
+  btn.log: Log
+  btn.ssh_user: SSH user
+  btn.create: Create
+  btn.save: Save
   btn.reload: Reload
   btn.about: About
   btn.close: Close
@@ -64,6 +96,10 @@ strings:
   tooltip.vmsman.boot: Boot selected VM
   tooltip.vmsman.kill: Stop/Kill the VM
   tooltip.vmsman.connect: Connect to VM via SPICE
+  tooltip.vmsman.new: Create a new VM
+  tooltip.vmsman.edit: Edit the VM config file
+  tooltip.vmsman.log: Show the VM boot log
+  tooltip.vmsman.ssh_user: Set the SSH login user for this VM
   tooltip.vmsman.about: About this application
   tooltip.vmsman.reload: Reload VM list
   tooltip.vmsman.filter: Filter VMs

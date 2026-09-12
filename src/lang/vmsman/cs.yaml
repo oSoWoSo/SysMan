@@ -33,12 +33,38 @@ strings:
   detail.state: Stav
   detail.pid: PID
   detail.spice: SPICE
+  detail.ssh: SSH
   detail.empty: "--"
 
   status.boot: VM spuštěn
   status.kill: VM zastaven
   status.connected: Připojeno k VM
   status.err: Chyba
+  status.created: "VM %s vytvořeno"
+  status.saved: "Konfigurace %s uložena"
+
+  new.title: Nové VM
+  new.name: Název
+  new.name_ph: např. dev-machine
+  new.guest_os: Hostitelský OS
+  new.guest_os_ph: linux
+  new.iso: Cesta k ISO souboru
+  new.iso_ph: /cesta/k/iso/foo.iso
+  new.memory: Paměť (MB)
+  new.cores: Počet jader CPU
+  new.ssh_user: SSH uživatel
+  new.ssh_user_ph: přihlášení do VM (prázdné = aktuální uživatel)
+  new.err_name: "Neplatný název VM (použijte písmena, číslice, tečku, pomlčku, podtržítko)"
+  new.err_exists: "VM %s již existuje"
+
+  edit.title: "Upravit konfiguraci: %s"
+
+  log.title: "Log VM: %s"
+  log.empty: Zatím žádný výstup logu
+  log.hint: (esc/q pro zavření)
+
+  ssh_user.title: "SSH uživatel pro %s"
+  ssh_user.empty: přihlášení v guest OS (prázdné = aktuální uživatel)
 
   confirm.title: Potvrzení
   confirm.kill: "Zabít VM %s?"
@@ -50,6 +76,12 @@ strings:
   btn.boot: Spustit
   btn.kill: Zabít
   btn.connect: Připojit
+  btn.new: Nové
+  btn.edit: Upravit
+  btn.log: Log
+  btn.ssh_user: SSH uživatel
+  btn.create: Vytvořit
+  btn.save: Uložit
   btn.reload: Znovu načíst
   btn.about: O aplikaci
   btn.close: Zavřít
@@ -64,6 +96,10 @@ strings:
   tooltip.vmsman.boot: Spustit vybrané VM
   tooltip.vmsman.kill: Zastavit/zabít VM
   tooltip.vmsman.connect: Připojit k VM přes SPICE
+  tooltip.vmsman.new: Vytvořit nové VM
+  tooltip.vmsman.edit: Upravit konfigurační soubor VM
+  tooltip.vmsman.log: Zobrazit log spuštění VM
+  tooltip.vmsman.ssh_user: Nastavit přihlašovacího SSH uživatele pro toto VM
   tooltip.vmsman.about: O této aplikaci
   tooltip.vmsman.reload: Znovu načíst seznam VM
   tooltip.vmsman.filter: Filtrovat VM

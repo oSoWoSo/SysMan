@@ -29,6 +29,9 @@ type SermanConfig struct {
 
 // PkgmanConfig is the packages configuration.
 type PkgmanConfig struct {
+	AppImageDir string   `yaml:"appimage_dir,omitempty"` // "" = auto (from appman/am config)
+	Repos       []string `yaml:"repos,omitempty"`        // user repo pool (config store only)
+	ReposFile   string   `yaml:"repos_file,omitempty"`   // managed file in /etc/xbps.d (default "sysman-repos.conf")
 }
 
 // Config is the templates configuration.
@@ -76,7 +79,7 @@ func LoadSysManConfig() SysManConfig {
 		return c
 	}
 
-	if _, hasSerman := raw["serman"]; !hasSerman {
+	if _, legacy := raw["service_dir"]; legacy {
 		if serviceDir, ok := raw["service_dir"].(string); ok {
 			c.Serman.ServiceDir = serviceDir
 		}
@@ -144,6 +147,15 @@ func SaveSysManConfig(cfg SysManConfig) error {
 	}
 	if cfg.LangDir == "" {
 		cfg.LangDir = existing.LangDir
+	}
+	if cfg.Pkgman.AppImageDir == "" {
+		cfg.Pkgman.AppImageDir = existing.Pkgman.AppImageDir
+	}
+	if cfg.Pkgman.ReposFile == "" {
+		cfg.Pkgman.ReposFile = existing.Pkgman.ReposFile
+	}
+	if len(cfg.Pkgman.Repos) == 0 {
+		cfg.Pkgman.Repos = existing.Pkgman.Repos
 	}
 
 	out, err := yaml.Marshal(cfg)
