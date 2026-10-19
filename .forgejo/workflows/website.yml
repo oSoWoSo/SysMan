@@ -2,6 +2,9 @@ name: "Copy content of output directory to pages branch"
 on:
   push:
     branches: main
+    paths:
+      - web/**
+      - README.md
   pull_request:
   workflow_dispatch:
 jobs:
