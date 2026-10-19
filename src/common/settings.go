@@ -61,8 +61,8 @@ func ShowSettingsDialog(win fyne.Window, moduleName string, fields []SettingsFie
 		container.NewPadded(btnSave),
 	)
 
-	d := dialog.NewCustom("Settings", "Close", content, win)
-	d.Resize(fyne.NewSize(500, 400))
+	d := dialog.NewCustom("Settings", "Close", container.NewPadded(container.NewVScroll(content)), win)
+	d.Resize(fyne.NewSize(520, 460))
 	d.Show()
 }
 

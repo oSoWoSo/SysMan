@@ -20,9 +20,11 @@ strings:
   search.placeholder: "Search packages…"
 
   filter.all: "All"
-  filter.installed: "Installed"
-  filter.available: "Available"
+  filter.installed: "-"
+  filter.available: "+"
+  filter.xbps: "XBPS"
   filter.appimage: "AppImage"
+  filter.flatpak: "Flatpak"
 
   action.install: "+"
   action.remove: "-"
@@ -99,7 +101,8 @@ strings:
 
   appimage.am_missing: "am/appman not found in PATH"
   tooltip.pkgman.backend: "Switch package backend"
-  tooltip.pkgman.settings: "Package settings (AppImage dir)"
+  tooltip.pkgman.flatpak: "Switch to Flatpak backend"
+  settings.repos_file: "Managed repos file in /etc/xbps.d"
   tooltip.pkgman.repos: "Manage custom xbps repositories"
   tooltip.pkgman.repos_use: "Enable this repository system-wide"
   tooltip.pkgman.repos_stop: "Disable this repository system-wide"
@@ -115,5 +118,6 @@ strings:
   repos.add_empty: "Enter a repository URL first."
   repos.add_exists: "Repository already in the pool."
   repos.added: "Repository added to the pool."
-  repos.synced: "Repositories synced to /etc/xbps.d."
+  repos.confirm_title: "Trust repository?"
+  repos.confirm_body: "Enable %s?\n\nYou may be asked to confirm its signing key during the next xbps sync."
   action.repos_sync: "repos"

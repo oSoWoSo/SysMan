@@ -63,9 +63,11 @@ func isTTY() bool {
 
 // Package represents a single package entry.
 type Package struct {
-	Name      string
-	Installed bool   // true when the package is currently installed
-	ShortDesc string // short description, may be populated lazily
+	Name        string
+	Installed   bool       // true when the package is currently installed
+	ShortDesc   string     // short description, may be populated lazily
+	DisplayName string     `json:"-" yaml:"-"` // human-readable name (flatpak)
+	Backend     PkgBackend `json:"-" yaml:"-"`
 }
 
 // FilterMode represents the filter state for package lists.

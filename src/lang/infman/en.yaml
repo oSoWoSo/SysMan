@@ -31,7 +31,11 @@ strings:
   info.shell: "Shell"
   info.desktop: "Desktop"
   info.disk: "Disk /"
-  info.disk.fmt: "%s used / %s total"
+  info.loadavg: "Load average"
+  info.swap: "Swap"
+  info.gpu: "GPU"
+  info.init: "Init"
+  info.xbps: "XBPS"
   info.entries: "entries"
 
   status.loading: "Loading…"

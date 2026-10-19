@@ -58,7 +58,11 @@ type pkgGuiApp struct {
 	queue    []QueueEntry
 
 	btnAppImage *common.HoverableButton
+	btnXbps     *common.HoverableButton
 	appImageOn  bool
+	xbpsOn      bool
+	btnFlatpak  *common.HoverableButton
+	flatpakOn   bool
 
 	pkgList       *widget.List
 	detailName    *widget.Label
@@ -73,17 +77,19 @@ type pkgGuiApp struct {
 	btnCopy       *common.HoverableButton
 	highlighter   *api.Highlighter
 	statusBar     *common.StatusBar
-	queueLabel    *widget.Label
-	queueContent  *fyne.Container
-	queueScroll   *container.Scroll
-	lastOutput    string
+
+	queueLabel   *widget.Label
+	queueContent *fyne.Container
+	queueScroll  *container.Scroll
+	lastOutput   string
 }
 
 func (g *pkgGuiApp) doUI(fn func()) {
+
 	fyne.Do(fn)
 }
-
 func (g *pkgGuiApp) showAbout() {
+
 	title := canvas.NewText(t("app.title"), color.NRGBA{R: 0x00, G: 0xb8, B: 0xd4, A: 0xff})
 	title.TextSize = 26
 	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
@@ -110,8 +116,8 @@ func (g *pkgGuiApp) showAbout() {
 	d := dialog.NewCustom(t("btn.about"), t("btn.close"), content, g.win)
 	d.Show()
 }
-
 func (g *pkgGuiApp) filtered() []Package {
+
 	return Filter(g.packages, g.filter, g.search,
 		func(p Package) bool { return p.Installed },
 		func(p Package, q string) bool {
@@ -120,47 +126,73 @@ func (g *pkgGuiApp) filtered() []Package {
 		},
 	)
 }
-
 func (g *pkgGuiApp) reload() {
-	g.backend.Reload()
+
 	g.selected = -1
 	g.clearDetail()
 	g.statusBar.SetText(t("pkg.loading"))
+
 	go func() {
-		pkgs := g.backend.List()
+		var pkgs []Package
+		for _, b := range g.enabledBackends() {
+			b.Reload()
+			for _, p := range b.List() {
+				p.Backend = b
+				pkgs = append(pkgs, p) //nolint:staticcheck
+			}
+		}
 		g.doUI(func() {
 			g.packages = pkgs
+
 			g.pkgList.Refresh()
 			g.statusBar.SetText(fmt.Sprintf(t("pkg.count"), len(g.packages)))
 		})
 	}()
 }
+func (g *pkgGuiApp) enabledBackends() []PkgBackend {
+	var out []PkgBackend
+	if g.xbpsOn {
+		out = append(out, NewXbpsBackend())
+	}
+	if g.appImageOn {
+		out = append(out, NewAppImageBackend())
+	}
+	if g.flatpakOn {
+		out = append(out, NewFlatpakBackend())
+	}
+	if len(out) == 0 {
+		out = append(out, NewXbpsBackend())
+		g.xbpsOn = true
+	}
+	return out
+}
 
 // reloadAndReselect reloads the package list and re-selects the package named
 // prevName (if still present), refreshing buttons to reflect the new installed state.
 func (g *pkgGuiApp) reloadAndReselect(prevName string) {
-	g.backend.Reload()
 	g.selected = -1
 	g.clearDetail()
 	g.statusBar.SetText(t("pkg.loading"))
 	go func() {
-		pkgs := g.backend.List()
+		var pkgs []Package
+		for _, b := range g.enabledBackends() {
+			b.Reload()
+			for _, p := range b.List() {
+				p.Backend = b
+				pkgs = append(pkgs, p)
+			}
+		}
 		g.doUI(func() {
 			g.packages = pkgs
 			g.pkgList.Refresh()
-			if prevName != "" {
-				list := g.filtered()
-				for i, pkg := range list {
-					if pkg.Name == prevName {
-						g.selected = i
-						g.pkgList.Select(i)
-						g.showDetail(prevName)
-						break
-					}
+			for i, p := range g.filtered() {
+				if p.Name == prevName {
+					g.selected = i
+					break
 				}
 			}
-			if g.selected == -1 {
-				g.clearDetail()
+			if g.selected >= 0 {
+				g.showDetail(prevName)
 			}
 			g.statusBar.SetText(fmt.Sprintf(t("pkg.count"), len(g.packages)))
 		})
@@ -190,6 +222,10 @@ func (g *pkgGuiApp) showDetail(name string) {
 		} else {
 			g.detailInstall.SetText(t("pkg.not_installed"))
 		}
+	}
+
+	if g.selected >= 0 && g.selected < len(list) && list[g.selected].Backend != nil {
+		g.backend = list[g.selected].Backend
 	}
 
 	go func() {
@@ -257,39 +293,62 @@ func (g *pkgGuiApp) clearDetail() {
 // showAppImageSettings opens the module settings dialog for the AppImage dir.
 // An empty value keeps the appman/am-configured default.
 func (g *pkgGuiApp) showAppImageSettings() {
-	label := t("settings.appimage_dir")
 	cfg := common.LoadSysManConfig()
-	common.ShowSettingsDialog(
-		g.win,
-		"pkgman",
-		[]common.SettingsField{{
-			Label:       label,
-			Value:       cfg.Pkgman.AppImageDir,
-			Placeholder: DefaultAppImageDir(),
-		}},
-		func(values map[string]string) {
-			cfg := common.LoadSysManConfig()
-			cfg.Pkgman.AppImageDir = strings.TrimSpace(values[label])
-			if err := common.SaveSysManConfig(cfg); err != nil {
-				common.ShowSettingsError(g.win, err)
-				return
-			}
-			g.statusBar.SetText(t("settings.saved"))
-			g.reload()
-		},
+
+	appImageEntry := widget.NewEntry()
+	appImageEntry.SetPlaceHolder(DefaultAppImageDir())
+	appImageEntry.SetText(cfg.Pkgman.AppImageDir)
+
+	reposFileEntry := widget.NewEntry()
+	reposFileEntry.SetPlaceHolder(defaultReposFile)
+	reposFileEntry.SetText(cfg.Pkgman.ReposFile)
+
+	root := container.NewVBox()
+	rebuild := func() {}
+	rebuild = func() {
+		rf := reposFileEntry.Text
+		if strings.TrimSpace(rf) == "" {
+			rf = defaultReposFile
+		}
+		root.Objects = []fyne.CanvasObject{g.reposContent(rf, rebuild)}
+		root.Refresh()
+	}
+
+	btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
+		cfg := common.LoadSysManConfig()
+		cfg.Pkgman.AppImageDir = strings.TrimSpace(appImageEntry.Text)
+		cfg.Pkgman.ReposFile = strings.TrimSpace(reposFileEntry.Text)
+		if err := common.SaveSysManConfig(cfg); err != nil {
+			common.ShowSettingsError(g.win, err)
+			return
+		}
+		g.statusBar.SetText(t("settings.saved"))
+		rebuild()
+		g.reload()
+	})
+	btnSave.Importance = widget.HighImportance
+
+	content := container.NewVBox(
+		widget.NewLabelWithStyle("pkgman Settings", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewForm(
+			widget.NewFormItem(t("settings.appimage_dir"), appImageEntry),
+			widget.NewFormItem(t("settings.repos_file"), reposFileEntry),
+		),
+		btnSave,
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle(t("repos.title"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		container.NewVScroll(root),
 	)
+	rebuild()
+
+	d := dialog.NewCustom("Settings", "Close", container.NewPadded(content), g.win)
+	d.Resize(fyne.NewSize(640, 560))
+	d.Show()
 }
 
 // ── Custom xbps repositories ─────────────────────────────────────────
 
-// pkgReposFile returns the managed repos filename (config or default).
-func pkgReposFile() string {
-	cfg := common.LoadSysManConfig()
-	if cfg.Pkgman.ReposFile == "" {
-		return defaultReposFile
-	}
-	return cfg.Pkgman.ReposFile
-}
+// repos management is now embedded in settings.
 
 // usedRepoSet returns the set of repositories currently active in
 // /etc/xbps.d/<repoFile> (read-only, no elevation required).
@@ -301,23 +360,7 @@ func usedRepoSet(repoFile string) map[string]bool {
 	return set
 }
 
-// showReposDialog opens the custom-repository manager. The user pool lives in
-// the sysman config; Use/Stop enables/disables repos system-wide via an elevated
-// write to /etc/xbps.d/<repoFile>.
-func (g *pkgGuiApp) showReposDialog() {
-	repoFile := pkgReposFile()
-	root := container.NewVBox()
-	dlg := dialog.NewCustom(t("repos.title"), t("btn.close"), root, g.win)
-	dlg.Resize(fyne.NewSize(620, 520))
-	dlg.Show()
-
-	rebuild := func() {}
-	rebuild = func() {
-		root.Objects = []fyne.CanvasObject{g.reposContent(repoFile, rebuild)}
-		root.Refresh()
-	}
-	rebuild()
-}
+// repos management is now embedded in settings.
 
 // reposContent builds the repositories dialog widget tree.
 func (g *pkgGuiApp) reposContent(repoFile string, refresh func()) fyne.CanvasObject {
@@ -344,28 +387,39 @@ func (g *pkgGuiApp) reposContent(repoFile string, refresh func()) fyne.CanvasObj
 			useLabel, useTip = t("btn.repos_stop"), t("tooltip.pkgman.repos_stop")
 		}
 		btnUse := common.NewHoverableButtonText(useLabel, useTip, g.statusBar, func() {
-			if isUsed {
-				delete(used, repo)
-			} else {
-				used[repo] = true
+			enable := func() {
+				if isUsed {
+					delete(used, repo)
+				} else {
+					used[repo] = true
+				}
+				repos := make([]string, 0, len(used))
+				for r := range used {
+					repos = append(repos, r)
+				}
+				g.statusBar.SetText(fmt.Sprintf("%s…", t("action.repos_sync")))
+				go func() {
+					err := syncSystemRepos(repos, repoFile)
+					fyne.Do(func() {
+						refresh()
+						if err != nil {
+							g.statusBar.SetText(fmt.Sprintf("✗ %s: %s", t("action.repos_sync"), err.Error()))
+						} else {
+							g.statusBar.SetText(t("repos.synced"))
+							g.reload()
+						}
+					})
+				}()
 			}
-			repos := make([]string, 0, len(used))
-			for r := range used {
-				repos = append(repos, r)
-			}
-			g.statusBar.SetText(fmt.Sprintf("%s…", t("action.repos_sync")))
-			go func() {
-				err := syncSystemRepos(repos, repoFile)
-				fyne.Do(func() {
-					refresh()
-					if err != nil {
-						g.statusBar.SetText(fmt.Sprintf("✗ %s: %s", t("action.repos_sync"), err.Error()))
-					} else {
-						g.statusBar.SetText(t("repos.synced"))
-						g.reload()
+			if !isUsed {
+				dialog.ShowConfirm(t("repos.confirm_title"), fmt.Sprintf(t("repos.confirm_body"), repo), func(ok bool) {
+					if ok {
+						enable()
 					}
-				})
-			}()
+				}, g.win)
+				return
+			}
+			enable()
 		})
 		btnUse.Importance = widget.MediumImportance
 
@@ -451,9 +505,16 @@ func (g *pkgGuiApp) setOutput(text string) {
 	g.outputRich.Refresh()
 	g.outputScroll.ScrollToBottom()
 }
-
 func (g *pkgGuiApp) runOp(label string, fn func(w io.Writer) (string, error)) {
 	prevName := g.selectedName()
+	if sel := g.selectedName(); sel != "" {
+		for _, p := range g.packages {
+			if p.Name == sel && p.Backend != nil {
+				g.backend = p.Backend
+				break
+			}
+		}
+	}
 	g.statusBar.SetText(fmt.Sprintf("Running: %s…", label))
 	g.outputRich.Segments = nil
 	g.outputRich.Refresh()
@@ -585,7 +646,9 @@ func (g *pkgGuiApp) applyQueue() {
 }
 
 func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
-	g.filter = FilterAll
+	g.xbpsOn = true
+	g.appImageOn = false
+	g.flatpakOn = false
 
 	// ── Status bar (must be created before any HoverableButton) ──────
 	if g.statusBar == nil {
@@ -632,14 +695,25 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	btnFilterInstalled = common.NewHoverableButtonText(t("filter.installed"), t("tooltip.pkgman.filter_installed"), g.statusBar, func() { applyFilter(FilterInstalled) })
 	btnFilterAvailable = common.NewHoverableButtonText(t("filter.available"), t("tooltip.pkgman.filter_available"), g.statusBar, func() { applyFilter(FilterAvailable) })
 
-	// ── AppImage toggle button ───────────────────────────────────────
+	// ── Backend toggle buttons ────────────────────────────────────────
+	g.xbpsOn = true
+	g.btnXbps = common.NewHoverableButtonText(t("filter.xbps"), t("tooltip.pkgman.backend"), g.statusBar, func() {
+		g.xbpsOn = !g.xbpsOn
+		if g.xbpsOn {
+			g.btnXbps.Importance = widget.HighImportance
+		} else {
+			g.btnXbps.Importance = widget.MediumImportance
+		}
+		g.btnXbps.Refresh()
+		g.reload()
+	})
+	g.btnXbps.Importance = widget.HighImportance
+
 	g.btnAppImage = common.NewHoverableButtonText(t("filter.appimage"), t("tooltip.pkgman.backend"), g.statusBar, func() {
 		g.appImageOn = !g.appImageOn
 		if g.appImageOn {
-			g.backend = NewAppImageBackend()
 			g.btnAppImage.Importance = widget.HighImportance
 		} else {
-			g.backend = NewXbpsBackend()
 			g.btnAppImage.Importance = widget.MediumImportance
 		}
 		g.btnAppImage.Refresh()
@@ -647,7 +721,19 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	g.btnAppImage.Importance = widget.MediumImportance
 
-	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable, widget.NewSeparator(), g.btnAppImage)
+	g.btnFlatpak = common.NewHoverableButtonText(t("filter.flatpak"), t("tooltip.pkgman.flatpak"), g.statusBar, func() {
+		g.flatpakOn = !g.flatpakOn
+		if g.flatpakOn {
+			g.btnFlatpak.Importance = widget.HighImportance
+		} else {
+			g.btnFlatpak.Importance = widget.MediumImportance
+		}
+		g.btnFlatpak.Refresh()
+		g.reload()
+	})
+	g.btnFlatpak.Importance = widget.MediumImportance
+
+	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable, widget.NewSeparator(), g.btnXbps, g.btnAppImage, g.btnFlatpak)
 
 	// ── Package list ──────────────────────────────────────────────────
 	installedColor := color.RGBA{R: 0x44, G: 0xDD, B: 0x77, A: 0xFF} // grn
@@ -676,7 +762,11 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 				star.Text = " "
 				star.Color = color.Transparent
 			}
-			name.Text = pkg.Name
+			if pkg.DisplayName != "" {
+				name.Text = pkg.DisplayName
+			} else {
+				name.Text = pkg.Name
+			}
 			star.Refresh()
 			name.Refresh()
 		},
@@ -774,9 +864,8 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	btnAbout.Importance = widget.LowImportance
 	btnSettings := common.NewHoverableButton("", theme.SettingsIcon(), t("tooltip.pkgman.settings"), g.statusBar, func() { g.showAppImageSettings() })
 	btnSettings.Importance = widget.LowImportance
-	btnRepos := common.NewHoverableButton("", theme.DownloadIcon(), t("tooltip.pkgman.repos"), g.statusBar, func() { g.showReposDialog() })
-	btnRepos.Importance = widget.LowImportance
-	statusBar := container.NewHBox(btnAbout, btnReload, btnSettings, btnRepos, layout.NewSpacer(), g.statusBar)
+	// repos management is now part of settings
+	statusBar := container.NewHBox(btnAbout, btnReload, btnSettings, layout.NewSpacer(), g.statusBar)
 
 	rightTop := container.NewVBox(detailForm, widget.NewSeparator(), actionRow, widget.NewSeparator())
 	outputToolbar := container.NewHBox(g.btnCopy, layout.NewSpacer())
@@ -813,11 +902,11 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 		title.TextStyle = fyne.TextStyle{Bold: true}
 		header = container.NewVBox(container.NewPadded(title), widget.NewSeparator())
 	}
-
 	return container.NewBorder(
 		header,
 		container.NewVBox(widget.NewSeparator(), container.NewPadded(statusBar)),
 		nil, nil,
 		split,
 	)
+
 }

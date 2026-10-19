@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -342,7 +343,7 @@ func (b *AppImageBackend) Detail(name string) PackageDetail {
 	d := PackageDetail{
 		Name:       name,
 		Repository: "AppImage",
-		Homepage:   fmt.Sprintf("https://portable-linux-apps.github.io/apps/%s.html", name),
+		Homepage:   appImageHomepage(name),
 	}
 
 	// Fill description from catalog
@@ -453,4 +454,9 @@ func (b *AppImageBackend) Update(w io.Writer) (string, error) {
 // OpenURL opens the given URL in the default browser.
 func (b *AppImageBackend) OpenURL(url string) {
 	OpenBrowser(url)
+}
+
+// appImageHomepage builds the portable-linux-apps page for an AppImage name.
+func appImageHomepage(name string) string {
+	return fmt.Sprintf("https://portable-linux-apps.github.io/en/app/%s.html", url.PathEscape(name))
 }

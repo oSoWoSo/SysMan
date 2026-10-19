@@ -10,16 +10,17 @@ package infman
 
 import (
 	"bufio"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"fmt"
+	zone "github.com/lrstanley/bubblezone/v2"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
-
-	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
-	zone "github.com/lrstanley/bubblezone/v2"
+	"syscall"
 )
 
 // Usage is the --help text for infoman.
@@ -106,7 +107,29 @@ func collectNative() []infoEntry {
 			break
 		}
 	}
+	// Load average from /proc/loadavg
+	if la := readLoadAvg(); la != "" {
+		add(t("info.loadavg"), la)
+	}
 
+	// Swap from /proc/meminfo
+	if total, free, ok := readSwap(); ok && total > 0 {
+		used := total - free
+		add(t("info.swap"), fmt.Sprintf(t("info.memory.fmt"), formatMiB(used), formatMiB(total)))
+	}
+
+	// GPU (best-effort, via lspci)
+	if gpu := readGPU(); gpu != "" {
+		add(t("info.gpu"), gpu)
+	}
+
+	// Void-specific: init system and xbps version
+	if init := readInit(); init != "" {
+		add(t("info.init"), init)
+	}
+	if v := readXbpsVersion(); v != "" {
+		add(t("info.xbps"), v)
+	}
 	// Disk usage for /
 	if used, total, ok := readDisk("/"); ok {
 		add(t("info.disk"), fmt.Sprintf(t("info.disk.fmt"), formatGB(used), formatGB(total)))
@@ -236,15 +259,98 @@ func readUptime() string {
 	}
 }
 
-// readDisk returns (usedBytes, totalBytes, ok) for the given mount point.
-// Only available on Linux - returns false on other OSes.
-func readDisk(_ string) (uint64, uint64, bool) {
-	// Skip on non-Linux (disk info won't be shown but binary will work)
+// readDisk implemented below.
+
+func readDisk(path string) (uint64, uint64, bool) {
 	if runtime.GOOS != "linux" {
 		return 0, 0, false
 	}
-	//stat := unix.Statfs_t{} // dummy reference to satisfy build
-	return 0, 0, false
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(path, &st); err != nil {
+		return 0, 0, false
+	}
+	total := st.Blocks * uint64(st.Bsize)
+	free := st.Bavail * uint64(st.Bsize)
+	if total == 0 {
+		return 0, 0, false
+	}
+	return total - free, total, true
+}
+
+func readLoadAvg() string {
+	data, err := os.ReadFile("/proc/loadavg")
+	if err != nil {
+		return ""
+	}
+	fields := strings.Fields(string(data))
+	if len(fields) < 3 {
+		return ""
+	}
+	return fields[0] + " " + fields[1] + " " + fields[2]
+}
+
+func readSwap() (int64, int64, bool) {
+	f, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return 0, 0, false
+	}
+	defer func() { _ = f.Close() }()
+	var total, free int64
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := sc.Text()
+		if strings.HasPrefix(line, "SwapTotal:") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				total, _ = strconv.ParseInt(fields[1], 10, 64)
+			}
+		} else if strings.HasPrefix(line, "SwapFree:") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				free, _ = strconv.ParseInt(fields[1], 10, 64)
+			}
+		}
+	}
+	return total, free, true
+}
+
+func readGPU() string {
+	out, err := exec.Command("lspci").Output()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		low := strings.ToLower(line)
+		if strings.Contains(low, "vga") || strings.Contains(low, "3d controller") || strings.Contains(low, "display") {
+			if idx := strings.Index(line, ": "); idx >= 0 && idx < 12 {
+				line = line[idx+2:]
+			}
+			if v := strings.TrimSpace(line); v != "" {
+				return v
+			}
+		}
+	}
+	return ""
+}
+
+func readInit() string {
+	data, err := os.ReadFile("/proc/1/comm")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func readXbpsVersion() string {
+	out, err := exec.Command("xbps-query", "-V").Output()
+	if err != nil {
+		return ""
+	}
+	line := strings.TrimSpace(string(out))
+	if i := strings.IndexByte(line, '\n'); i >= 0 {
+		line = line[:i]
+	}
+	return line
 }
 
 func formatMiB(kib int64) string {

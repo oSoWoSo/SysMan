@@ -20,9 +20,11 @@ strings:
   search.placeholder: "Hledat balíčky…"
 
   filter.all: "Vše"
-  filter.installed: "Nainstalované"
-  filter.available: "Dostupné"
+  filter.installed: "-"
+  filter.available: "+"
+  filter.xbps: "XBPS"
   filter.appimage: "AppImage"
+  filter.flatpak: "Flatpak"
 
   action.install: "+"
   action.remove: "-"
@@ -99,7 +101,8 @@ strings:
 
   appimage.am_missing: "am/appman nenalezen v PATH"
   tooltip.pkgman.backend: "Přepnout backend balíčků"
-  tooltip.pkgman.settings: "Nastavení balíčků (adresář AppImage)"
+  tooltip.pkgman.flatpak: "Přepnout na Flatpak backend"
+  settings.repos_file: "Soubor repozitářů ve /etc/xbps.d"
   tooltip.pkgman.repos: "Správa vlastních repozitářů xbps"
   tooltip.pkgman.repos_use: "Povolit tento repozitář systémově"
   tooltip.pkgman.repos_stop: "Zakázat tento repozitář systémově"
@@ -115,5 +118,6 @@ strings:
   repos.add_empty: "Nejprve zadejte URL repozitáře."
   repos.add_exists: "Repozitář je již v seznamu."
   repos.added: "Repozitář přidán do seznamu."
-  repos.synced: "Repozitáře synchronizovány do /etc/xbps.d."
+  repos.confirm_title: "Důvěřovat repozitáři?"
+  repos.confirm_body: "Povolit %s?\n\nPři dalším xbps sync můžete být požádáni o potvrzení podpisového klíče."
   action.repos_sync: "repos"
