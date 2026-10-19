@@ -18,6 +18,9 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
 
       - name: go
         uses: actions/setup-go@v7
@@ -27,17 +30,28 @@ jobs:
 
       - name: dependencies
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y \
-            gcc pkg-config libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            gcc pkg-config jq curl \
+            libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
 
       - name: version
         id: version
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          if [ -n "$RELEASE_TAG" ]; then
+            VERSION="$RELEASE_TAG"
           else
-            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            VERSION="${GITHUB_REF#refs/tags/}"
           fi
+
+          if ! git rev-parse --verify --quiet "refs/tags/${VERSION}^{commit}" >/dev/null; then
+            echo "ERROR: tag ${VERSION} does not exist."
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: go mod
         run: go mod download
@@ -62,20 +76,26 @@ jobs:
               cp "$module" "${module}_pkg/"
               cp "${module}-tui" "${module}_pkg/" 2>/dev/null || true
               cp -r lang/ "${module}_pkg/" 2>/dev/null || true
-              tar czf "${module}-${VERSION}-linux-x86_64.tar.gz" "${module}_pkg"
-              sha256sum "${module}-${VERSION}-linux-x86_64.tar.gz" > "${module}-${VERSION}-linux-x86_64.tar.gz.sha256"
+
+              archive="${module}-${VERSION}-linux-x86_64.tar.gz"
+              tar czf "$archive" "${module}_pkg"
+              sha256sum "$archive" > "${archive}.sha256"
+
               rm -rf "${module}_pkg"
-              echo "Created ${module}-${VERSION}-linux-x86_64.tar.gz"
+              echo "Created ${archive}"
             fi
           done
 
-          # TUI-only tarballs for linux-x86_64-musl (same static binary, musl-labelled)
+          # TUI-only tarballs for linux-x86_64-musl
           for bin in sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vmsman-tui; do
             [ -f "$bin" ] || continue
+
             name="${bin}-${VERSION}-linux-x86_64-musl"
+            archive="${name}.tar.gz"
+
             cp "$bin" "$name"
-            sha256sum "$name" > "${name}.sha256"
-            tar czf "${name}.tar.gz" "$name" lang/ 2>/dev/null || tar czf "${name}.tar.gz" "$name"
+            tar czf "$archive" "$name" lang/ 2>/dev/null || tar czf "$archive" "$name"
+            sha256sum "$archive" > "${archive}.sha256"
             rm "$name"
           done
 
@@ -86,105 +106,215 @@ jobs:
             [ -f "$f" ] && cp "$f" all/ 2>/dev/null || true
           done
           cp -r lang/* all/ 2>/dev/null || true
-          tar czf "SysMan-${VERSION}-linux-x86_64.tar.gz" all/
-          sha256sum "SysMan-${VERSION}-linux-x86_64.tar.gz" > "SysMan-${VERSION}-linux-x86_64.tar.gz.sha256"
+
+          archive="SysMan-${VERSION}-linux-x86_64.tar.gz"
+          tar czf "$archive" all/
+          sha256sum "$archive" > "${archive}.sha256"
           rm -rf all
 
       - name: release
         env:
           TEA: ${{ secrets.TEA }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          if [ -z "${TEA}" ]; then
+          if [ -z "$TEA" ]; then
             echo "ERROR: TEA secret is not set."
-            echo "Add it (organization or repository secret) at: https://codeberg.org/oSoWoSo/SysMan/settings/actions"
-            echo "Name: TEA"
             exit 1
           fi
 
-          VERSION=${{ steps.version.outputs.VERSION }}
           REPO="oSoWoSo/SysMan"
           API="https://codeberg.org/api/v1"
 
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -n "${PREV_TAG}" ]; then
-            CHANGELOG=$(git log --oneline --no-decorate ${PREV_TAG}..HEAD)
+          if PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null); then
+            :
+          else
+            DESCRIBE_STATUS=$?
+            # No previous tag is valid for the first release; retain the initial changelog fallback.
+            echo "NOTICE: git describe found no previous release tag for ${VERSION} (exit ${DESCRIBE_STATUS}); using the initial-release changelog."
+            PREV_TAG=""
+          fi
+          if [ -n "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --oneline --no-decorate "${PREV_TAG}..HEAD") || {
+              GIT_LOG_STATUS=$?
+              echo "ERROR: git log failed to build the changelog for ${VERSION} from ${PREV_TAG}..HEAD (exit ${GIT_LOG_STATUS})."
+              exit 1
+            }
           else
             CHANGELOG="Initial release"
           fi
 
-          # Reuse an existing release (idempotent re-runs); only a 404 means create it.
-          LOOKUP_RESPONSE=$(curl -sS -w '\n%{http_code}' "${API}/repos/${REPO}/releases/tags/${VERSION}" \
-            -H "Authorization: token ${TEA}")
-          CURL_STATUS=$?
-          if [ "${CURL_STATUS}" -ne 0 ]; then
-            echo "ERROR: Release lookup for ${VERSION} failed at the transport level (curl exit ${CURL_STATUS})."
-            exit 1
-          fi
+          LOOKUP_RESPONSE=$(curl -sS -w '\n%{http_code}' \
+            "${API}/repos/${REPO}/releases/tags/${VERSION}" \
+            -H "Authorization: token ${TEA}") || {
+              CURL_STATUS=$?
+              echo "ERROR: Release lookup for tag ${VERSION} failed (curl exit ${CURL_STATUS}). Partial response, if any:"
+              printf '%s\n' "$LOOKUP_RESPONSE"
+              exit 1
+            }
+
           LOOKUP_CODE=${LOOKUP_RESPONSE##*$'\n'}
           LOOKUP_BODY=${LOOKUP_RESPONSE%$'\n'*}
           RELEASE_ID=""
-          if [ "${LOOKUP_CODE}" = "200" ]; then
-            RELEASE_ID=$(printf '%s' "${LOOKUP_BODY}" | jq -er '.id | select(type == "number")' 2>/dev/null) || RELEASE_ID=""
-            if [ -z "${RELEASE_ID}" ]; then
-              echo "ERROR: Release lookup for ${VERSION} returned HTTP 200 but no valid numeric release ID. Response body:"
-              printf '%s\n' "${LOOKUP_BODY}"
+
+          if [ "$LOOKUP_CODE" = "200" ]; then
+            RELEASE_ID=$(printf '%s' "$LOOKUP_BODY" |
+              jq -er '.id | select(type == "number")' 2>/dev/null) || {
+              echo "ERROR: jq could not parse a numeric release ID from the HTTP 200 lookup response for tag ${VERSION}. Response body:"
+              printf '%s\n' "$LOOKUP_BODY"
+              exit 1
+            }
+
+            if [ -z "$RELEASE_ID" ]; then
+              echo "ERROR: Release lookup returned no valid numeric release ID."
+              printf '%s\n' "$LOOKUP_BODY"
               exit 1
             fi
-            echo "Release for tag ${VERSION} already exists (ID: ${RELEASE_ID}); reusing it."
-          elif [ "${LOOKUP_CODE}" = "404" ]; then
-            # Create release with changelog
-            RELEASE_RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "${API}/repos/${REPO}/releases" \
+            echo "Reusing release ${VERSION} (ID: ${RELEASE_ID})."
+
+          elif [ "$LOOKUP_CODE" = "404" ]; then
+            PAYLOAD=$(jq -n \
+              --arg tag "$VERSION" \
+              --arg body "$CHANGELOG" \
+              '{tag_name: $tag, name: $tag, body: $body, draft: false}') || {
+              JQ_STATUS=$?
+              echo "ERROR: jq failed to construct the release creation payload for tag ${VERSION} (exit ${JQ_STATUS})."
+              exit 1
+            }
+
+            RELEASE_RESPONSE=$(curl -sS -w '\n%{http_code}' \
+              -X POST "${API}/repos/${REPO}/releases" \
               -H "Authorization: token ${TEA}" \
               -H "Content-Type: application/json" \
-              -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"$(echo "${CHANGELOG}" | sed 's/"/\\"/g' | tr '\n' ' ')\",\"draft\":false}")
-            CURL_STATUS=$?
-            if [ "${CURL_STATUS}" -ne 0 ]; then
-              echo "ERROR: Release creation for ${VERSION} failed at the transport level (curl exit ${CURL_STATUS})."
-              exit 1
-            fi
+              -d "$PAYLOAD") || {
+                CURL_STATUS=$?
+                echo "ERROR: Release creation for tag ${VERSION} failed (curl exit ${CURL_STATUS}). Partial response, if any:"
+                printf '%s\n' "$RELEASE_RESPONSE"
+                exit 1
+              }
 
             HTTP_CODE=${RELEASE_RESPONSE##*$'\n'}
             RELEASE_BODY=${RELEASE_RESPONSE%$'\n'*}
 
             if [ "$HTTP_CODE" != "201" ]; then
-              echo "ERROR: Failed to create release (HTTP ${HTTP_CODE}):"
-              echo "${RELEASE_BODY}"
+              echo "ERROR: Creating release for tag ${VERSION} failed (HTTP ${HTTP_CODE}):"
+              printf '%s\n' "$RELEASE_BODY"
               exit 1
             fi
 
-            RELEASE_ID=$(printf '%s' "${RELEASE_BODY}" | jq -er '.id | select(type == "number")' 2>/dev/null) || RELEASE_ID=""
-            if [ -z "${RELEASE_ID}" ]; then
-              echo "ERROR: Release creation for ${VERSION} succeeded (HTTP ${HTTP_CODE}) but response had no valid numeric release ID. Response body:"
-              printf '%s\n' "${RELEASE_BODY}"
+            RELEASE_ID=$(printf '%s' "$RELEASE_BODY" |
+              jq -er '.id | select(type == "number")' 2>/dev/null) || {
+              echo "ERROR: jq could not parse a numeric release ID from the HTTP ${HTTP_CODE} creation response for tag ${VERSION}. Response body:"
+              printf '%s\n' "$RELEASE_BODY"
+              exit 1
+            }
+
+            if [ -z "$RELEASE_ID" ]; then
+              echo "ERROR: Release creation for tag ${VERSION} returned no valid numeric release ID after HTTP ${HTTP_CODE}. Response body:"
+              printf '%s\n' "$RELEASE_BODY"
               exit 1
             fi
-            echo "Created release ${VERSION} (ID: ${RELEASE_ID})"
+            echo "Created release ${VERSION} (ID: ${RELEASE_ID})."
+
           else
-            echo "ERROR: Release lookup for ${VERSION} failed (HTTP ${LOOKUP_CODE}). Response body:"
-            printf '%s\n' "${LOOKUP_BODY}"
+            echo "ERROR: Release lookup failed (HTTP ${LOOKUP_CODE}):"
+            printf '%s\n' "$LOOKUP_BODY"
             exit 1
           fi
 
-          # Upload all tarballs and checksums
+          ASSETS_URL="${API}/repos/${REPO}/releases/${RELEASE_ID}/assets"
+
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
-            ASSET_URL="${API}/repos/${REPO}/releases/${RELEASE_ID}/assets"
-            UPLOAD_RESPONSE=$(curl -sS -w '\n%{http_code}' -X POST "${ASSET_URL}" \
-              -H "Authorization: token ${TEA}" \
-              -F "attachment=@${f}")
-            CURL_STATUS=$?
-            ASSET_NAME=$(basename "$f")
-            if [ "${CURL_STATUS}" -ne 0 ]; then
-              echo "ERROR: Upload of ${ASSET_NAME} failed at the transport level (curl exit ${CURL_STATUS})."
+            ASSET_NAME=$(basename "$f") || {
+              BASENAME_STATUS=$?
+              echo "ERROR: basename failed to determine the upload name for asset path ${f} on release ${VERSION} (exit ${BASENAME_STATUS})."
+              exit 1
+            }
+            if [ ! -r "$f" ]; then
+              echo "ERROR: Asset ${ASSET_NAME} for release ${VERSION} exists but is not readable; refusing to list/delete/upload assets."
               exit 1
             fi
+
+            # Remove an older asset with the same name so reruns can succeed.
+            ASSETS_RESPONSE=$(curl -sS -w '\n%{http_code}' "$ASSETS_URL" \
+              -H "Authorization: token ${TEA}") || {
+                CURL_STATUS=$?
+                echo "ERROR: Listing existing assets before processing ${ASSET_NAME} on release ${VERSION} failed (curl exit ${CURL_STATUS}). Partial response, if any:"
+                printf '%s\n' "$ASSETS_RESPONSE"
+                exit 1
+              }
+
+            ASSETS_CODE=${ASSETS_RESPONSE##*$'\n'}
+            ASSETS_BODY=${ASSETS_RESPONSE%$'\n'*}
+            if [ "$ASSETS_CODE" != "200" ]; then
+              echo "ERROR: Listing existing assets before processing ${ASSET_NAME} on release ${VERSION} failed (HTTP ${ASSETS_CODE}):"
+              printf '%s\n' "$ASSETS_BODY"
+              exit 1
+            fi
+
+            if ! printf '%s' "$ASSETS_BODY" | jq -e 'type == "array"' >/dev/null 2>&1; then
+              echo "ERROR: jq could not parse the asset listing as a JSON array before processing ${ASSET_NAME} on release ${VERSION} (HTTP ${ASSETS_CODE}). Response body:"
+              printf '%s\n' "$ASSETS_BODY"
+              exit 1
+            fi
+            EXISTING_IDS=$(printf '%s' "$ASSETS_BODY" |
+              jq -r --arg name "$ASSET_NAME" \
+                '.[] | select(.name == $name) | .id') || {
+                  JQ_STATUS=$?
+                  echo "ERROR: jq failed to find existing asset IDs for ${ASSET_NAME} on release ${VERSION} (exit ${JQ_STATUS}, HTTP ${ASSETS_CODE}). Response body:"
+                  printf '%s\n' "$ASSETS_BODY"
+                  exit 1
+                }
+
+            while IFS= read -r ASSET_ID; do
+              [ -n "$ASSET_ID" ] || continue
+              case "$ASSET_ID" in
+                *[!0-9]* )
+                  echo "ERROR: jq returned invalid asset ID '${ASSET_ID}' while replacing ${ASSET_NAME} on release ${VERSION} (HTTP ${ASSETS_CODE}). Response body:"
+                  printf '%s\n' "$ASSETS_BODY"
+                  exit 1
+                  ;;
+              esac
+
+              DELETE_RESPONSE=$(curl -sS -w '\n%{http_code}' \
+                -X DELETE "${ASSETS_URL}/${ASSET_ID}" \
+                -H "Authorization: token ${TEA}") || {
+                  CURL_STATUS=$?
+                  echo "ERROR: Deleting existing asset ID ${ASSET_ID} (${ASSET_NAME}) from release ${VERSION} failed (curl exit ${CURL_STATUS}). Partial response, if any:"
+                  printf '%s\n' "$DELETE_RESPONSE"
+                  exit 1
+                }
+
+              DELETE_CODE=${DELETE_RESPONSE##*$'\n'}
+              DELETE_BODY=${DELETE_RESPONSE%$'\n'*}
+              case "$DELETE_CODE" in
+                2*) echo "Removed previous asset ${ASSET_NAME}." ;;
+                *)
+                  echo "ERROR: Deleting existing asset ID ${ASSET_ID} (${ASSET_NAME}) from release ${VERSION} failed (HTTP ${DELETE_CODE}):"
+                  printf '%s\n' "$DELETE_BODY"
+                  exit 1
+                  ;;
+              esac
+            done <<< "$EXISTING_IDS"
+
+            UPLOAD_RESPONSE=$(curl -sS -w '\n%{http_code}' \
+              -X POST "${ASSETS_URL}?name=${ASSET_NAME}" \
+              -H "Authorization: token ${TEA}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@${f}") || {
+                CURL_STATUS=$?
+                echo "ERROR: Uploading asset ${ASSET_NAME} to release ${VERSION} failed (curl exit ${CURL_STATUS}). Partial response, if any:"
+                printf '%s\n' "$UPLOAD_RESPONSE"
+                exit 1
+              }
+
             UPLOAD_CODE=${UPLOAD_RESPONSE##*$'\n'}
             UPLOAD_BODY=${UPLOAD_RESPONSE%$'\n'*}
-            case "${UPLOAD_CODE}" in
-              2*) echo "Uploaded ${ASSET_NAME} (HTTP ${UPLOAD_CODE})" ;;
+            case "$UPLOAD_CODE" in
+              2*) echo "Uploaded ${ASSET_NAME} (HTTP ${UPLOAD_CODE})." ;;
               *)
-                echo "ERROR: Upload of ${ASSET_NAME} failed (HTTP ${UPLOAD_CODE}). Response body:"
-                printf '%s\n' "${UPLOAD_BODY}"
+                echo "ERROR: Uploading asset ${ASSET_NAME} to release ${VERSION} failed (HTTP ${UPLOAD_CODE}):"
+                printf '%s\n' "$UPLOAD_BODY"
                 exit 1
                 ;;
             esac
@@ -222,6 +352,7 @@ jobs:
             gomips: softfloat
             label: ""
             musl_label: linux-mipsel-musl
+
           # Other platforms
           - goos: freebsd
             goarch: amd64
@@ -243,6 +374,9 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
 
       - name: go
         uses: actions/setup-go@v7
@@ -252,12 +386,21 @@ jobs:
 
       - name: version
         id: version
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          if [ -n "$RELEASE_TAG" ]; then
+            VERSION="$RELEASE_TAG"
           else
-            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            VERSION="${GITHUB_REF#refs/tags/}"
           fi
+
+          if ! git rev-parse --verify --quiet "refs/tags/${VERSION}^{commit}" >/dev/null; then
+            echo "ERROR: tag ${VERSION} does not exist."
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: go mod
         run: go mod download
@@ -279,24 +422,27 @@ jobs:
           MUSL_LABEL: ${{ matrix.musl_label }}
         run: |
           cd build
+
           for bin in sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vmsman-tui; do
             [ -f "$bin" ] || continue
 
-            # glibc-labelled tarball
-            if [ -n "${LABEL}" ]; then
+            if [ -n "$LABEL" ]; then
               name="${bin}-${VERSION}-${LABEL}"
+              archive="${name}.tar.gz"
+
               cp "$bin" "$name"
-              sha256sum "$name" > "${name}.sha256"
-              tar czf "${name}.tar.gz" "$name" lang/ 2>/dev/null || tar czf "${name}.tar.gz" "$name"
+              tar czf "$archive" "$name" lang/ 2>/dev/null || tar czf "$archive" "$name"
+              sha256sum "$archive" > "${archive}.sha256"
               rm "$name"
             fi
 
-            # musl-labelled tarball (same static binary, different name)
-            if [ -n "${MUSL_LABEL}" ]; then
+            if [ -n "$MUSL_LABEL" ]; then
               name="${bin}-${VERSION}-${MUSL_LABEL}"
+              archive="${name}.tar.gz"
+
               cp "$bin" "$name"
-              sha256sum "$name" > "${name}.sha256"
-              tar czf "${name}.tar.gz" "$name" lang/ 2>/dev/null || tar czf "${name}.tar.gz" "$name"
+              tar czf "$archive" "$name" lang/ 2>/dev/null || tar czf "$archive" "$name"
+              sha256sum "$archive" > "${archive}.sha256"
               rm "$name"
             fi
           done
@@ -304,57 +450,138 @@ jobs:
       - name: upload
         env:
           TEA: ${{ secrets.TEA }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          if [ -z "${TEA}" ]; then
+          if [ -z "$TEA" ]; then
             echo "ERROR: TEA secret is not set."
             exit 1
           fi
 
-          VERSION=${{ steps.version.outputs.VERSION }}
           REPO="oSoWoSo/SysMan"
           API="https://codeberg.org/api/v1"
 
-          # Get release ID by tag (release was created by release-linux-amd64 job)
-          LOOKUP_RESPONSE=$(curl -sS -w '\n%{http_code}' "${API}/repos/${REPO}/releases/tags/${VERSION}" \
-            -H "Authorization: token ${TEA}")
-          CURL_STATUS=$?
-          if [ "${CURL_STATUS}" -ne 0 ]; then
-            echo "ERROR: Release lookup for ${VERSION} failed at the transport level (curl exit ${CURL_STATUS})."
-            exit 1
-          fi
+          LOOKUP_RESPONSE=$(curl -sS -w '\n%{http_code}' \
+            "${API}/repos/${REPO}/releases/tags/${VERSION}" \
+            -H "Authorization: token ${TEA}") || {
+              CURL_STATUS=$?
+              echo "ERROR: Release lookup for tag ${VERSION} failed (curl exit ${CURL_STATUS}). Partial response, if any:"
+              printf '%s\n' "$LOOKUP_RESPONSE"
+              exit 1
+            }
+
           LOOKUP_CODE=${LOOKUP_RESPONSE##*$'\n'}
           LOOKUP_BODY=${LOOKUP_RESPONSE%$'\n'*}
-          if [ "${LOOKUP_CODE}" != "200" ]; then
-            echo "ERROR: Release lookup for ${VERSION} failed (HTTP ${LOOKUP_CODE}). Response body:"
-            printf '%s\n' "${LOOKUP_BODY}"
-            exit 1
-          fi
-          RELEASE_ID=$(printf '%s' "${LOOKUP_BODY}" | jq -er '.id | select(type == "number")' 2>/dev/null) || RELEASE_ID=""
-          if [ -z "${RELEASE_ID}" ]; then
-            echo "ERROR: Release lookup for ${VERSION} returned HTTP 200 but no valid numeric release ID. Response body:"
-            printf '%s\n' "${LOOKUP_BODY}"
+          if [ "$LOOKUP_CODE" != "200" ]; then
+            echo "ERROR: Release lookup for tag ${VERSION} failed (HTTP ${LOOKUP_CODE}):"
+            printf '%s\n' "$LOOKUP_BODY"
             exit 1
           fi
 
+          RELEASE_ID=$(printf '%s' "$LOOKUP_BODY" |
+            jq -er '.id | select(type == "number")' 2>/dev/null) || {
+              echo "ERROR: jq could not parse a numeric release ID from the HTTP 200 lookup response for tag ${VERSION}. Response body:"
+              printf '%s\n' "$LOOKUP_BODY"
+              exit 1
+            }
+          if [ -z "$RELEASE_ID" ]; then
+            echo "ERROR: Release lookup for tag ${VERSION} returned an empty release ID after parsing HTTP 200. Response body:"
+            printf '%s\n' "$LOOKUP_BODY"
+            exit 1
+          fi
+
+          ASSETS_URL="${API}/repos/${REPO}/releases/${RELEASE_ID}/assets"
+
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
-            ASSET_URL="${API}/repos/${REPO}/releases/${RELEASE_ID}/assets"
-            UPLOAD_RESPONSE=$(curl -sS -w '\n%{http_code}' -X POST "${ASSET_URL}" \
-              -H "Authorization: token ${TEA}" \
-              -F "attachment=@${f}")
-            CURL_STATUS=$?
-            ASSET_NAME=$(basename "$f")
-            if [ "${CURL_STATUS}" -ne 0 ]; then
-              echo "ERROR: Upload of ${ASSET_NAME} failed at the transport level (curl exit ${CURL_STATUS})."
+            ASSET_NAME=$(basename "$f") || {
+              BASENAME_STATUS=$?
+              echo "ERROR: basename failed to determine the upload name for asset path ${f} on release ${VERSION} (exit ${BASENAME_STATUS})."
+              exit 1
+            }
+            if [ ! -r "$f" ]; then
+              echo "ERROR: Asset ${ASSET_NAME} for release ${VERSION} exists but is not readable; refusing to list/delete/upload assets."
               exit 1
             fi
+
+            ASSETS_RESPONSE=$(curl -sS -w '\n%{http_code}' "$ASSETS_URL" \
+              -H "Authorization: token ${TEA}") || {
+                CURL_STATUS=$?
+                echo "ERROR: Listing existing assets before processing ${ASSET_NAME} on release ${VERSION} failed (curl exit ${CURL_STATUS}). Partial response, if any:"
+                printf '%s\n' "$ASSETS_RESPONSE"
+                exit 1
+              }
+
+            ASSETS_CODE=${ASSETS_RESPONSE##*$'\n'}
+            ASSETS_BODY=${ASSETS_RESPONSE%$'\n'*}
+            if [ "$ASSETS_CODE" != "200" ]; then
+              echo "ERROR: Listing existing assets before processing ${ASSET_NAME} on release ${VERSION} failed (HTTP ${ASSETS_CODE}):"
+              printf '%s\n' "$ASSETS_BODY"
+              exit 1
+            fi
+
+            if ! printf '%s' "$ASSETS_BODY" | jq -e 'type == "array"' >/dev/null 2>&1; then
+              echo "ERROR: jq could not parse the asset listing as a JSON array before processing ${ASSET_NAME} on release ${VERSION} (HTTP ${ASSETS_CODE}). Response body:"
+              printf '%s\n' "$ASSETS_BODY"
+              exit 1
+            fi
+            EXISTING_IDS=$(printf '%s' "$ASSETS_BODY" |
+              jq -r --arg name "$ASSET_NAME" \
+                '.[] | select(.name == $name) | .id') || {
+                  JQ_STATUS=$?
+                  echo "ERROR: jq failed to find existing asset IDs for ${ASSET_NAME} on release ${VERSION} (exit ${JQ_STATUS}, HTTP ${ASSETS_CODE}). Response body:"
+                  printf '%s\n' "$ASSETS_BODY"
+                  exit 1
+                }
+
+            while IFS= read -r ASSET_ID; do
+              [ -n "$ASSET_ID" ] || continue
+              case "$ASSET_ID" in
+                *[!0-9]* )
+                  echo "ERROR: jq returned invalid asset ID '${ASSET_ID}' while replacing ${ASSET_NAME} on release ${VERSION} (HTTP ${ASSETS_CODE}). Response body:"
+                  printf '%s\n' "$ASSETS_BODY"
+                  exit 1
+                  ;;
+              esac
+
+              DELETE_RESPONSE=$(curl -sS -w '\n%{http_code}' \
+                -X DELETE "${ASSETS_URL}/${ASSET_ID}" \
+                -H "Authorization: token ${TEA}") || {
+                  CURL_STATUS=$?
+                  echo "ERROR: Deleting existing asset ID ${ASSET_ID} (${ASSET_NAME}) from release ${VERSION} failed (curl exit ${CURL_STATUS}). Partial response, if any:"
+                  printf '%s\n' "$DELETE_RESPONSE"
+                  exit 1
+                }
+
+              DELETE_CODE=${DELETE_RESPONSE##*$'\n'}
+              DELETE_BODY=${DELETE_RESPONSE%$'\n'*}
+              case "$DELETE_CODE" in
+                2*) echo "Removed previous asset ${ASSET_NAME}." ;;
+                *)
+                  echo "ERROR: Deleting existing asset ID ${ASSET_ID} (${ASSET_NAME}) from release ${VERSION} failed (HTTP ${DELETE_CODE}):"
+                  printf '%s\n' "$DELETE_BODY"
+                  exit 1
+                  ;;
+              esac
+            done <<< "$EXISTING_IDS"
+
+            UPLOAD_RESPONSE=$(curl -sS -w '\n%{http_code}' \
+              -X POST "${ASSETS_URL}?name=${ASSET_NAME}" \
+              -H "Authorization: token ${TEA}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@${f}") || {
+                CURL_STATUS=$?
+                echo "ERROR: Uploading asset ${ASSET_NAME} to release ${VERSION} failed (curl exit ${CURL_STATUS}). Partial response, if any:"
+                printf '%s\n' "$UPLOAD_RESPONSE"
+                exit 1
+              }
+
             UPLOAD_CODE=${UPLOAD_RESPONSE##*$'\n'}
             UPLOAD_BODY=${UPLOAD_RESPONSE%$'\n'*}
-            case "${UPLOAD_CODE}" in
-              2*) echo "Uploaded ${ASSET_NAME} (HTTP ${UPLOAD_CODE})" ;;
+            case "$UPLOAD_CODE" in
+              2*) echo "Uploaded ${ASSET_NAME} (HTTP ${UPLOAD_CODE})." ;;
               *)
-                echo "ERROR: Upload of ${ASSET_NAME} failed (HTTP ${UPLOAD_CODE}). Response body:"
-                printf '%s\n' "${UPLOAD_BODY}"
+                echo "ERROR: Uploading asset ${ASSET_NAME} to release ${VERSION} failed (HTTP ${UPLOAD_CODE}):"
+                printf '%s\n' "$UPLOAD_BODY"
                 exit 1
                 ;;
             esac
