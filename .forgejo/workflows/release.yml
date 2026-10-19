@@ -354,22 +354,22 @@ jobs:
             musl_label: linux-mipsel-musl
 
           # Other platforms
-          - goos: freebsd
-            goarch: amd64
-            label: freebsd-amd64
-            musl_label: ""
-          - goos: freebsd
-            goarch: arm64
-            label: freebsd-arm64
-            musl_label: ""
-          - goos: openbsd
-            goarch: amd64
-            label: openbsd-amd64
-            musl_label: ""
-          - goos: openbsd
-            goarch: arm64
-            label: openbsd-arm64
-            musl_label: ""
+          #- goos: freebsd
+            #goarch: amd64
+            #label: freebsd-amd64
+            #musl_label: ""
+          #- goos: freebsd
+            #goarch: arm64
+            #label: freebsd-arm64
+            #musl_label: ""
+          #- goos: openbsd
+            #goarch: amd64
+            #label: openbsd-amd64
+            #musl_label: ""
+          #- goos: openbsd
+            #goarch: arm64
+            #label: openbsd-arm64
+            #musl_label: ""
 
     steps:
       - name: checkout
