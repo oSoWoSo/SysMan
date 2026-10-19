@@ -111,21 +111,39 @@ jobs:
             CHANGELOG="Initial release"
           fi
 
-          # Reuse the release if it already exists (idempotent re-runs).
-          RELEASE_ID=$(curl -s "${API}/repos/${REPO}/releases/tags/${VERSION}" \
-            -H "Authorization: token ${TEA}" | grep '"id"' | head -1 | grep -o '[0-9]*')
-
-          if [ -n "${RELEASE_ID}" ]; then
+          # Reuse an existing release (idempotent re-runs); only a 404 means create it.
+          LOOKUP_RESPONSE=$(curl -sS -w '\n%{http_code}' "${API}/repos/${REPO}/releases/tags/${VERSION}" \
+            -H "Authorization: token ${TEA}")
+          CURL_STATUS=$?
+          if [ "${CURL_STATUS}" -ne 0 ]; then
+            echo "ERROR: Release lookup for ${VERSION} failed at the transport level (curl exit ${CURL_STATUS})."
+            exit 1
+          fi
+          LOOKUP_CODE=${LOOKUP_RESPONSE##*$'\n'}
+          LOOKUP_BODY=${LOOKUP_RESPONSE%$'\n'*}
+          RELEASE_ID=""
+          if [ "${LOOKUP_CODE}" = "200" ]; then
+            RELEASE_ID=$(printf '%s' "${LOOKUP_BODY}" | jq -er '.id | select(type == "number")' 2>/dev/null) || RELEASE_ID=""
+            if [ -z "${RELEASE_ID}" ]; then
+              echo "ERROR: Release lookup for ${VERSION} returned HTTP 200 but no valid numeric release ID. Response body:"
+              printf '%s\n' "${LOOKUP_BODY}"
+              exit 1
+            fi
             echo "Release for tag ${VERSION} already exists (ID: ${RELEASE_ID}); reusing it."
-          else
+          elif [ "${LOOKUP_CODE}" = "404" ]; then
             # Create release with changelog
-            RELEASE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API}/repos/${REPO}/releases" \
+            RELEASE_RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "${API}/repos/${REPO}/releases" \
               -H "Authorization: token ${TEA}" \
               -H "Content-Type: application/json" \
               -d "{\"tag_name\":\"${VERSION}\",\"name\":\"${VERSION}\",\"body\":\"$(echo "${CHANGELOG}" | sed 's/"/\\"/g' | tr '\n' ' ')\",\"draft\":false}")
+            CURL_STATUS=$?
+            if [ "${CURL_STATUS}" -ne 0 ]; then
+              echo "ERROR: Release creation for ${VERSION} failed at the transport level (curl exit ${CURL_STATUS})."
+              exit 1
+            fi
 
-            HTTP_CODE=$(echo "$RELEASE_RESPONSE" | tail -1)
-            RELEASE_BODY=$(echo "$RELEASE_RESPONSE" | head -n -1)
+            HTTP_CODE=${RELEASE_RESPONSE##*$'\n'}
+            RELEASE_BODY=${RELEASE_RESPONSE%$'\n'*}
 
             if [ "$HTTP_CODE" != "201" ]; then
               echo "ERROR: Failed to create release (HTTP ${HTTP_CODE}):"
@@ -133,17 +151,42 @@ jobs:
               exit 1
             fi
 
-            RELEASE_ID=$(echo "${RELEASE_BODY}" | grep '"id"' | head -1 | grep -o '[0-9]*')
+            RELEASE_ID=$(printf '%s' "${RELEASE_BODY}" | jq -er '.id | select(type == "number")' 2>/dev/null) || RELEASE_ID=""
+            if [ -z "${RELEASE_ID}" ]; then
+              echo "ERROR: Release creation for ${VERSION} succeeded (HTTP ${HTTP_CODE}) but response had no valid numeric release ID. Response body:"
+              printf '%s\n' "${RELEASE_BODY}"
+              exit 1
+            fi
             echo "Created release ${VERSION} (ID: ${RELEASE_ID})"
+          else
+            echo "ERROR: Release lookup for ${VERSION} failed (HTTP ${LOOKUP_CODE}). Response body:"
+            printf '%s\n' "${LOOKUP_BODY}"
+            exit 1
           fi
 
           # Upload all tarballs and checksums
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
             ASSET_URL="${API}/repos/${REPO}/releases/${RELEASE_ID}/assets"
-            curl -s -X POST "${ASSET_URL}" \
+            UPLOAD_RESPONSE=$(curl -sS -w '\n%{http_code}' -X POST "${ASSET_URL}" \
               -H "Authorization: token ${TEA}" \
-              -F "attachment=@${f}" && echo "Uploaded $(basename $f)"
+              -F "attachment=@${f}")
+            CURL_STATUS=$?
+            ASSET_NAME=$(basename "$f")
+            if [ "${CURL_STATUS}" -ne 0 ]; then
+              echo "ERROR: Upload of ${ASSET_NAME} failed at the transport level (curl exit ${CURL_STATUS})."
+              exit 1
+            fi
+            UPLOAD_CODE=${UPLOAD_RESPONSE##*$'\n'}
+            UPLOAD_BODY=${UPLOAD_RESPONSE%$'\n'*}
+            case "${UPLOAD_CODE}" in
+              2*) echo "Uploaded ${ASSET_NAME} (HTTP ${UPLOAD_CODE})" ;;
+              *)
+                echo "ERROR: Upload of ${ASSET_NAME} failed (HTTP ${UPLOAD_CODE}). Response body:"
+                printf '%s\n' "${UPLOAD_BODY}"
+                exit 1
+                ;;
+            esac
           done
 
   release-cross:
@@ -271,18 +314,47 @@ jobs:
           API="https://codeberg.org/api/v1"
 
           # Get release ID by tag (release was created by release-linux-amd64 job)
-          RELEASE_ID=$(curl -s "${API}/repos/${REPO}/releases/tags/${VERSION}" \
-            -H "Authorization: token ${TEA}" | grep '"id"' | head -1 | grep -o '[0-9]*')
-
+          LOOKUP_RESPONSE=$(curl -sS -w '\n%{http_code}' "${API}/repos/${REPO}/releases/tags/${VERSION}" \
+            -H "Authorization: token ${TEA}")
+          CURL_STATUS=$?
+          if [ "${CURL_STATUS}" -ne 0 ]; then
+            echo "ERROR: Release lookup for ${VERSION} failed at the transport level (curl exit ${CURL_STATUS})."
+            exit 1
+          fi
+          LOOKUP_CODE=${LOOKUP_RESPONSE##*$'\n'}
+          LOOKUP_BODY=${LOOKUP_RESPONSE%$'\n'*}
+          if [ "${LOOKUP_CODE}" != "200" ]; then
+            echo "ERROR: Release lookup for ${VERSION} failed (HTTP ${LOOKUP_CODE}). Response body:"
+            printf '%s\n' "${LOOKUP_BODY}"
+            exit 1
+          fi
+          RELEASE_ID=$(printf '%s' "${LOOKUP_BODY}" | jq -er '.id | select(type == "number")' 2>/dev/null) || RELEASE_ID=""
           if [ -z "${RELEASE_ID}" ]; then
-            echo "ERROR: Could not find release ID for tag ${VERSION}"
+            echo "ERROR: Release lookup for ${VERSION} returned HTTP 200 but no valid numeric release ID. Response body:"
+            printf '%s\n' "${LOOKUP_BODY}"
             exit 1
           fi
 
           for f in build/*.tar.gz build/*.sha256; do
             [ -f "$f" ] || continue
             ASSET_URL="${API}/repos/${REPO}/releases/${RELEASE_ID}/assets"
-            curl -s -X POST "${ASSET_URL}" \
+            UPLOAD_RESPONSE=$(curl -sS -w '\n%{http_code}' -X POST "${ASSET_URL}" \
               -H "Authorization: token ${TEA}" \
-              -F "attachment=@${f}" && echo "Uploaded $(basename $f)"
+              -F "attachment=@${f}")
+            CURL_STATUS=$?
+            ASSET_NAME=$(basename "$f")
+            if [ "${CURL_STATUS}" -ne 0 ]; then
+              echo "ERROR: Upload of ${ASSET_NAME} failed at the transport level (curl exit ${CURL_STATUS})."
+              exit 1
+            fi
+            UPLOAD_CODE=${UPLOAD_RESPONSE##*$'\n'}
+            UPLOAD_BODY=${UPLOAD_RESPONSE%$'\n'*}
+            case "${UPLOAD_CODE}" in
+              2*) echo "Uploaded ${ASSET_NAME} (HTTP ${UPLOAD_CODE})" ;;
+              *)
+                echo "ERROR: Upload of ${ASSET_NAME} failed (HTTP ${UPLOAD_CODE}). Response body:"
+                printf '%s\n' "${UPLOAD_BODY}"
+                exit 1
+                ;;
+            esac
           done
