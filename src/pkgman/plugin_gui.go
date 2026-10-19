@@ -303,7 +303,8 @@ func (g *pkgGuiApp) showAppImageSettings() {
 	reposFileEntry.SetPlaceHolder(defaultReposFile)
 	reposFileEntry.SetText(cfg.Pkgman.ReposFile)
 
-	root := container.NewVBox()
+	// Stack layout lets the repository manager fill the dialog's remaining space.
+	root := container.NewStack()
 	rebuild := func() {}
 	rebuild = func() {
 		rf := reposFileEntry.Text
@@ -328,7 +329,7 @@ func (g *pkgGuiApp) showAppImageSettings() {
 	})
 	btnSave.Importance = widget.HighImportance
 
-	content := container.NewVBox(
+	header := container.NewVBox(
 		widget.NewLabelWithStyle("pkgman Settings", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewForm(
 			widget.NewFormItem(t("settings.appimage_dir"), appImageEntry),
@@ -337,8 +338,8 @@ func (g *pkgGuiApp) showAppImageSettings() {
 		btnSave,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle(t("repos.title"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewVScroll(root),
 	)
+	content := container.NewBorder(header, nil, nil, nil, root)
 	rebuild()
 
 	d := dialog.NewCustom("Settings", "Close", container.NewPadded(content), g.win)
@@ -473,8 +474,10 @@ func (g *pkgGuiApp) reposContent(repoFile string, refresh func()) fyne.CanvasObj
 	hint.Wrapping = fyne.TextWrapWord
 
 	addRow := container.NewBorder(nil, nil, nil, addBtn, addEntry)
-	boxed := container.NewVBox(append(listing, addRow, status, hint)...)
-	return container.NewPadded(container.NewVScroll(boxed))
+	// Only the list scrolls; the add controls remain visible below it.
+	listScroll := container.NewVScroll(container.NewVBox(listing...))
+	footer := container.NewVBox(addRow, status, hint)
+	return container.NewPadded(container.NewBorder(nil, footer, nil, nil, listScroll))
 }
 
 // streamWriter is an io.Writer that appends each line to the outputRich widget
