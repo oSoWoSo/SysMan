@@ -2,6 +2,7 @@ package serman
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +27,7 @@ var (
 	// Component styles
 	ttitleStyle    = lipgloss.NewStyle().Bold(true).Foreground(thighlight).Padding(0, 1).MarginBottom(1)
 	tsectionStyle  = lipgloss.NewStyle().Bold(true).Foreground(compat.AdaptiveColor{Light: lipgloss.Color("#444444"), Dark: lipgloss.Color("#AAAAAA")})
-	tselectedStyle = lipgloss.NewStyle().Bold(true).Foreground(thighlight).Background(compat.AdaptiveColor{Light: lipgloss.Color("#DDFAFF"), Dark: lipgloss.Color("#003344")}).Padding(0, 1)
+	tselectedStyle = common.TSelectedStyle.Padding(0, 1)
 	tnormalStyle   = lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Light: lipgloss.Color("#333333"), Dark: lipgloss.Color("#CCCCCC")}).Padding(0, 1)
 	// Service status and feedback styles
 	tenabledBadge  = lipgloss.NewStyle().Foreground(tsuccess).Bold(true)
@@ -60,36 +61,55 @@ func (f tuiFilter) label() string {
 
 // tuiModel holds the state of the TUI application.
 type tuiModel struct {
-	id            string                   // bubblezone ID prefix for clickable elements
-	backend       Backend                  // service manager backend (runit, openrc, …)
-	services      []Service                // all loaded services
-	cursor        int                      // selected item index in filtered list
-	filter        tuiFilter                // current filter (all/enabled/disabled)
-	scopeFilter   ScopeFilter              // current scope filter (all/system/user)
-	search        textinput.Model          // search input field
-	searchMode    bool                     // true when user is typing search query
-	status        string                   // status/error message
-	statusErr     bool                     // true if status is an error
-	svStatus      ServiceStatus            // live runtime status of selected service
-	svStatKey     string                   // service key svStatus was fetched for
-	svStatusAll   map[string]ServiceStatus // batch status cache for all services (keyed by Service.Key())
-	showAbout     bool                     // true when about screen is shown
-	width         int                      // terminal width
-	height        int                      // terminal height
-	confirmAction string                   // pending confirmation action: "", "disable", "stop", "kill"
-	confirmSvc    Service                  // service for the pending action
+	id            string      // bubblezone ID prefix for clickable elements
+	backend       Backend     // service manager backend (runit, openrc, …)
+	services      []Service   // all loaded services
+	cursor        int         // selected item index in filtered list
+	filter        tuiFilter   // current filter (all/enabled/disabled)
+	scopeFilter   ScopeFilter // current scope filter (all/system/user)
+	search        textinput.Model
+	searchMode    bool
+	status        string
+	statusErr     bool
+	svStatus      ServiceStatus
+	svStatKey     string
+	svStatusAll   map[string]ServiceStatus
+	showAbout     bool
+	showSettings  bool
+	showLogs      bool
+	logText       string
+	logReader     io.ReadCloser
+	logService    string
+	settings      []textinput.Model
+	settingsFocus int
+	width         int
+	height        int
+	confirmAction string  // pending confirmation action: "", "disable", "stop", "kill"
+	confirmSvc    Service // service for the pending action
 }
 
 // Messages for async operations.
-type tuiReloadMsg struct{}
-type tuiErrMsg struct{ err error }
-type tuiStatusMsg struct{ msg string }
-type tuiSvOpDoneMsg struct {
-	name   string
-	action string // key into status.* translations
-}
+type (
+	tuiReloadMsg   struct{}
+	tuiErrMsg      struct{ err error }
+	tuiStatusMsg   struct{ msg string }
+	tuiSvOpDoneMsg struct {
+		name       string
+		action     string // key into status.* translations
+		serviceKey string
+	}
+)
 type tuiSvAllStatusMsg struct {
 	statuses map[string]ServiceStatus
+}
+type tuiLogsStartedMsg struct {
+	stream io.ReadCloser
+	err    error
+	name   string
+}
+type tuiLogReadMsg struct {
+	chunk string
+	err   error
 }
 
 // Key bindings for TUI navigation and actions.
@@ -111,7 +131,9 @@ var (
 	tkeyPause    = key.NewBinding(key.WithKeys("p"))
 	tkeyContinue = key.NewBinding(key.WithKeys("c"))
 	tkeyKill     = key.NewBinding(key.WithKeys("K"))
+	tkeyLogs     = key.NewBinding(key.WithKeys("v"))
 	tkeyAbout    = key.NewBinding(key.WithKeys("?"))
+	tkeySettings = key.NewBinding(key.WithKeys("g"))
 )
 
 // NewTuiModel creates and initializes a new TUI model with services loaded.
@@ -127,13 +149,75 @@ func NewTuiModel(b Backend) tea.Model {
 	st.Blurred.Prompt = lipgloss.NewStyle().Foreground(thighlight)
 	ti.SetStyles(st)
 	ti.Prompt = "/ "
-	return tuiModel{
-		id:          zone.NewPrefix(),
-		backend:     b,
-		services:    b.List(),
-		search:      ti,
-		scopeFilter: DefaultScopeFilter(b.ScopeDirs()),
+	services := b.List()
+	scopeFilter := DefaultScopeFilter(b.ScopeDirs())
+	var enabled []Service
+	for _, svc := range services {
+		if svc.Enabled && scopeFilter.matches(svc.Scope) {
+			enabled = append(enabled, svc)
+		}
 	}
+	return tuiModel{
+		id:          "serman:" + zone.NewPrefix(),
+		backend:     b,
+		services:    services,
+		svStatusAll: b.StatusAll(enabled),
+		search:      ti,
+		scopeFilter: scopeFilter,
+	}
+}
+
+func (m *tuiModel) openSettings() {
+	sys := ScopeDir{Scope: ScopeSystem, ServiceDir: DefaultServiceDir, DestDir: DefaultServiceDestDir, Elevated: true}
+	usr := ScopeDir{Scope: ScopeUser, ServiceDir: DefaultUserServiceDir(), DestDir: DefaultUserServiceDestDir()}
+	for _, sd := range m.backend.ScopeDirs() {
+		switch sd.Scope {
+		case ScopeSystem:
+			sys = sd
+		case ScopeUser:
+			usr = sd
+		}
+	}
+	values := []string{sys.ServiceDir, sys.DestDir, usr.ServiceDir, usr.DestDir, cfgDefaultScope()}
+	m.settings = make([]textinput.Model, len(values))
+	for i, value := range values {
+		input := textinput.New()
+		input.SetValue(value)
+		input.SetWidth(48)
+		m.settings[i] = input
+	}
+	m.settingsFocus = 0
+	if len(m.settings) > 0 {
+		m.settings[0].Focus()
+	}
+	m.showSettings = true
+}
+
+func (m *tuiModel) saveSettings() {
+	values := make([]string, len(m.settings))
+	for i := range m.settings {
+		values[i] = strings.TrimSpace(m.settings[i].Value())
+	}
+	ds := strings.ToLower(values[4])
+	if ds != string(ScopeSystem) && ds != string(ScopeUser) {
+		m.status = fmt.Sprintf(t("settings.invalid_scope"), ds, ScopeSystem, ScopeUser)
+		m.statusErr = true
+		return
+	}
+	cfg := common.LoadSysManConfig()
+	cfg.Serman.ServiceDir = values[0]
+	cfg.Serman.ServiceDestDir = values[1]
+	cfg.Serman.UserServiceDir = values[2]
+	cfg.Serman.UserServiceDestDir = values[3]
+	cfg.Serman.DefaultScope = ds
+	if err := common.SaveSysManConfig(cfg); err != nil {
+		m.status = fmt.Sprintf(t("settings.save_error"), err)
+		m.statusErr = true
+		return
+	}
+	m.showSettings = false
+	m.status = t("settings.saved")
+	m.statusErr = false
 }
 
 // filtered returns the service list filtered by current filter and search query.
@@ -224,7 +308,7 @@ func (m tuiModel) leftDir() string {
 	return strings.Join(dirs, " | ")
 }
 
-// Init implements tea.Model; returns no initial command.
+// Init implements tea.Model; statuses are loaded with the service list.
 func (m tuiModel) Init() tea.Cmd { return nil }
 
 // handleSearchMode handles keyboard input when the search field is active.
@@ -264,22 +348,95 @@ func (m tuiModel) handleSearchMode(msg tea.KeyPressMsg) (tuiModel, tea.Cmd) {
 	return m, nil
 }
 
+func openServiceLogsCmd(backend Backend, svc Service) tea.Cmd {
+	return func() tea.Msg {
+		logBackend, ok := backend.(LogBackend)
+		if !ok {
+			return tuiLogsStartedMsg{name: svc.Name, err: fmt.Errorf("service logs are not supported")}
+		}
+		stream, err := logBackend.OpenLogs(svc)
+		return tuiLogsStartedMsg{stream: stream, err: err, name: svc.Name}
+	}
+}
+
+func readServiceLogsCmd(stream io.Reader) tea.Cmd {
+	return func() tea.Msg {
+		buf := make([]byte, 4096)
+		n, err := stream.Read(buf)
+		return tuiLogReadMsg{chunk: string(buf[:n]), err: err}
+	}
+}
+
+func (m tuiModel) openLogs(svc Service) (tuiModel, tea.Cmd) {
+	m.showLogs = true
+	m.logText = t("log.loading")
+	m.logService = svc.Name
+	m.logReader = nil
+	return m, openServiceLogsCmd(m.backend, svc)
+}
+
+func (m tuiModel) closeLogs() tuiModel {
+	if m.logReader != nil {
+		_ = m.logReader.Close()
+		m.logReader = nil
+	}
+	m.showLogs = false
+	return m
+}
+
 // Update implements tea.Model; processes keyboard input, window resizes, and async messages.
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyPressMsg); ok && common.ToggleTUIKeyHints(key) {
+		return m, nil
+	}
+	if wheel, ok := msg.(tea.MouseWheelMsg); ok {
+		keyCode := tea.KeyDown
+		if wheel.Button == tea.MouseWheelUp {
+			keyCode = tea.KeyUp
+		}
+		return m.Update(tea.KeyPressMsg{Code: keyCode})
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 
 	case tea.KeyPressMsg:
+		if m.showLogs {
+			if key.Matches(msg, tkeyQuit) {
+				return m.closeLogs(), nil
+			}
+			return m, nil
+		}
 		if m.searchMode {
 			return m.handleSearchMode(msg)
+		}
+		if m.showSettings {
+			switch msg.String() {
+			case "esc":
+				m.showSettings = false
+				return m, nil
+			case "ctrl+s":
+				m.saveSettings()
+				return m, nil
+			case "tab", "down":
+				m.settings[m.settingsFocus].Blur()
+				m.settingsFocus = (m.settingsFocus + 1) % len(m.settings)
+				m.settings[m.settingsFocus].Focus()
+				return m, nil
+			case "shift+tab", "up":
+				m.settings[m.settingsFocus].Blur()
+				m.settingsFocus = (m.settingsFocus + len(m.settings) - 1) % len(m.settings)
+				m.settings[m.settingsFocus].Focus()
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.settings[m.settingsFocus], cmd = m.settings[m.settingsFocus].Update(msg)
+			return m, cmd
 		}
 		if m.showAbout {
 			m.showAbout = false
 			return m, nil
 		}
-
-		// Handle confirmation dialog
 		if m.confirmAction != "" {
 			if msg.String() == "y" {
 				svc := m.confirmSvc
@@ -315,6 +472,12 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, tkeyScope):
 			m = m.switchScope()
 			return m, nil
+		case key.Matches(msg, tkeyLogs):
+			if _, ok := m.backend.(LogBackend); ok {
+				if svc := m.current(); svc != nil {
+					return m.openLogs(*svc)
+				}
+			}
 		case key.Matches(msg, tkeyUp):
 			if m.cursor > 0 {
 				m.cursor--
@@ -377,10 +540,33 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, tkeyAbout):
 			m.showAbout = true
 			return m, nil
+		case key.Matches(msg, tkeySettings):
+			m.openSettings()
+			return m, nil
 		}
-
 	case tea.MouseClickMsg:
 		if msg.Button != tea.MouseLeft {
+			break
+		}
+		if m.confirmAction != "" {
+			if zone.Get(m.id + "a_confirm_yes").InBounds(msg) {
+				svc, action := m.confirmSvc, m.confirmAction
+				m.confirmAction = ""
+				m.confirmSvc = Service{}
+				switch action {
+				case "disable":
+					return m, tuiBackendCmd(m.backend.Disable, svc, "disabled")
+				case "stop":
+					return m, tuiBackendCmd(m.backend.Stop, svc, "stopped")
+				case "kill":
+					return m, tuiBackendCmd(m.backend.Kill, svc, "killed")
+				}
+			}
+			if zone.Get(m.id + "a_confirm_no").InBounds(msg) {
+				m.confirmAction = ""
+				m.confirmSvc = Service{}
+				return m, nil
+			}
 			break
 		}
 		// Check top bar buttons (filter tabs).
@@ -401,8 +587,42 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if zone.Get(m.id + "a_quit").InBounds(msg) {
 			return m, tea.Quit
 		}
-		if zone.Get(m.id + "a_about").InBounds(msg) {
-			m.showAbout = true
+		if m.showSettings {
+			for i := range m.settings {
+				if zone.Get(m.id + fmt.Sprintf("setting_%d", i)).InBounds(msg) {
+					m.settings[m.settingsFocus].Blur()
+					m.settingsFocus = i
+					m.settings[m.settingsFocus].Focus()
+					return m, nil
+				}
+			}
+			if zone.Get(m.id + "a_settings_save").InBounds(msg) {
+				m.saveSettings()
+				return m, nil
+			}
+			if zone.Get(m.id + "a_settings_cancel").InBounds(msg) {
+				m.showSettings = false
+				return m, nil
+			}
+			break
+		}
+		if m.showAbout {
+			m.showAbout = false
+			return m, nil
+		}
+		if zone.Get(m.id + "a_search_clear").InBounds(msg) {
+			m.search.SetValue("")
+			m.cursor = 0
+			m = m.syncStatKey()
+			return m, nil
+		}
+		if zone.Get(m.id + "search").InBounds(msg) {
+			m.searchMode = true
+			m.search.Focus()
+			return m, textinput.Blink
+		}
+		if zone.Get(m.id + "a_settings").InBounds(msg) {
+			m.openSettings()
 			return m, nil
 		}
 		if zone.Get(m.id + "a_reload").InBounds(msg) {
@@ -467,6 +687,14 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		}
+		if zone.Get(m.id + "a_logs").InBounds(msg) {
+			if _, ok := m.backend.(LogBackend); ok {
+				if svc := m.current(); svc != nil {
+					return m.openLogs(*svc)
+				}
+			}
+		}
+
 		// Check list items.
 		list := m.filtered()
 		active := m.activeZones()
@@ -480,9 +708,62 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case tuiLogsStartedMsg:
+		if !m.showLogs {
+			if msg.stream != nil {
+				_ = msg.stream.Close()
+			}
+			return m, nil
+		}
+		if msg.err != nil {
+			m.logText = msg.err.Error()
+			return m, nil
+		}
+		m.logReader = msg.stream
+		m.logService = msg.name
+		m.logText = ""
+		return m, readServiceLogsCmd(m.logReader)
+
+	case tuiLogReadMsg:
+		if !m.showLogs {
+			return m, nil
+		}
+		m.logText = appendServiceLog(m.logText, msg.chunk)
+		if msg.err != nil {
+			if m.logReader != nil {
+				_ = m.logReader.Close()
+				m.logReader = nil
+			}
+			if msg.err != io.EOF {
+				m.logText = appendServiceLog(m.logText, "\n"+msg.err.Error())
+			}
+			return m, nil
+		}
+		return m, readServiceLogsCmd(m.logReader)
+
 	case tuiReloadMsg:
+		selectedKey := ""
+		if svc := m.current(); svc != nil {
+			selectedKey = svc.Key()
+		}
 		m.services = m.backend.List()
-		m = m.clampCursor()
+		m.svStatusAll = nil
+		m.svStatus = ServiceStatus{}
+		m.cursor = 0
+		if selectedKey != "" {
+			for i, svc := range m.filtered() {
+				if svc.Key() == selectedKey {
+					m.cursor = i
+					break
+				}
+			}
+		}
+		m = m.clampCursor().syncStatKey()
+		m.status = t("status.reloaded")
+		if os.Getuid() != 0 {
+			m.status += " ⚠ " + t("status.no_root")
+		}
+		m.statusErr = false
 		return m, m.fetchStatusCmd()
 
 	case tuiStatusMsg:
@@ -503,6 +784,19 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tuiSvOpDoneMsg:
 		m.status = fmt.Sprintf(t("status."+msg.action), msg.name)
 		m.statusErr = false
+		if msg.action == "enabled" || msg.action == "disabled" {
+			m.services = m.backend.List()
+			m.cursor = 0
+			for i, svc := range m.filtered() {
+				if svc.Key() == msg.serviceKey {
+					m.cursor = i
+					break
+				}
+			}
+			m.svStatusAll = nil
+			m.svStatus = ServiceStatus{}
+			m = m.clampCursor().syncStatKey()
+		}
 		return m, m.fetchStatusCmd()
 
 	case tuiErrMsg:
@@ -538,7 +832,7 @@ func tuiBackendCmd(fn func(Service) error, svc Service, action string) tea.Cmd {
 		if err := fn(svc); err != nil {
 			return tuiErrMsg{err}
 		}
-		return tuiSvOpDoneMsg{name: svc.Name, action: action}
+		return tuiSvOpDoneMsg{name: svc.Name, action: action, serviceKey: svc.Key()}
 	}
 }
 
@@ -588,13 +882,15 @@ func (m tuiModel) bottomBar() string {
 		var prompt string
 		switch m.confirmAction {
 		case "disable":
-			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.disable"), m.confirmSvc.Name) + " [y/N]")
+			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.disable"), m.confirmSvc.Name))
 		case "stop":
-			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.stop"), m.confirmSvc.Name) + " [y/N]")
+			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.stop"), m.confirmSvc.Name))
 		case "kill":
-			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.kill"), m.confirmSvc.Name) + " [y/N]")
+			prompt = tdangerStyle.Render("  ⚠ " + fmt.Sprintf(t("confirm.kill"), m.confirmSvc.Name))
 		}
-		return prompt + "\n  " + thelpStyle.Render(t("confirm.hint"))
+		yes := common.TBtn(m.id, "a_confirm_yes", t("confirm.yes"), "y", false)
+		no := common.TBtn(m.id, "a_confirm_no", t("confirm.no"), "n", false)
+		return prompt + " " + yes + " " + no + "\n  " + thelpStyle.Render(t("confirm.hint"))
 	}
 	// Status message
 	statusText := ""
@@ -605,10 +901,13 @@ func (m tuiModel) bottomBar() string {
 			statusText = tstatusOk.Render(m.status)
 		}
 	}
-	// Quit and About buttons on the right
+	settingsBtn := common.TBtn(m.id, "a_settings", t("btn.settings"), "g", false)
 	aboutBtn := common.TBtn(m.id, "a_about", t("btn.about"), "?", false)
-	quitBtn := common.TBtn(m.id, "a_quit", t("action.quit"), "q", false)
-	return statusText + "  " + aboutBtn + " " + quitBtn
+	controls := []string{settingsBtn, aboutBtn}
+	if !common.TUIEmbedded() {
+		controls = append(controls, common.TBtn(m.id, "a_quit", t("action.quit"), "q", false))
+	}
+	return common.TUIFooter(common.TBtnBar(controls...), statusText, m.width)
 }
 
 // detailButtons renders the action buttons inside the right panel (matching GUI layout).
@@ -638,18 +937,51 @@ func (m tuiModel) detailButtons() string {
 		controlRow = thelpStyle.Render("  " + t("help.select_service"))
 	}
 
+	if _, ok := m.backend.(LogBackend); ok && m.current() != nil {
+		controlRow += " " + common.TBtn(m.id, "a_logs", t("btn.logs"), "v", false)
+	}
+
 	return toggleRow + "\n" + controlRow
 }
 
 // View implements tea.Model; renders the entire TUI layout in the alt screen.
-func (m tuiModel) View() tea.View {
-	v := tea.NewView(zone.Scan(m.render()))
+func (m tuiModel) View() tea.View { return m.view(true) }
+
+// EmbeddedView returns the unscanned view for composition inside sysman-tui.
+func (m tuiModel) EmbeddedView() tea.View { return m.view(false) }
+
+func (m tuiModel) view(scan bool) tea.View {
+	content := m.render()
+	if scan {
+		content = zone.Scan(content)
+	}
+	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }
 
 func (m tuiModel) render() string {
+	return m.renderContent()
+}
+
+func (m tuiModel) renderContent() string {
+	if m.showLogs {
+		title := ttitleStyle.Render(t("log.title") + " — " + m.logService)
+		lines := strings.Split(strings.TrimRight(m.logText, "\n"), "\n")
+		maxLines := m.height - 4
+		if maxLines < 1 {
+			maxLines = 20
+		}
+		if len(lines) > maxLines {
+			lines = lines[len(lines)-maxLines:]
+		}
+		return "\n" + title + "\n" + strings.Join(lines, "\n") + "\n\n" +
+			thelpStyle.Render(t("log.close_hint"))
+	}
+	if m.showSettings {
+		return m.renderSettings()
+	}
 	if m.showAbout {
 		return m.renderAbout()
 	}
@@ -699,11 +1031,12 @@ func (m tuiModel) render() string {
 		searchRow = lipgloss.NewStyle().Foreground(thighlight).Render(m.search.View()) +
 			thelpStyle.Render("  "+t("search.active"))
 	case m.search.Value() != "":
-		searchRow = thelpStyle.Render("/ "+m.search.Value()) +
-			lipgloss.NewStyle().Foreground(tdanger).Render("  "+t("search.clear"))
+		searchRow = thelpStyle.Render("/ "+m.search.Value()+"  ") +
+			common.TBtn(m.id, "a_search_clear", t("search.clear_button"), "esc", false)
 	default:
 		searchRow = thelpStyle.Render(t("search.hint"))
 	}
+	searchRow = zone.Mark(m.id+"search", searchRow)
 
 	// Stats — enabled/total and filtered count.
 	stats := tdisabledBadge.Render(fmt.Sprintf(t("stats.fmt"), enabledTotal, len(m.services), len(list)))
@@ -761,9 +1094,9 @@ func (m tuiModel) render() string {
 	}
 
 	svcDir := m.leftDir()
-	leftHeader := tsectionStyle.Render(t("services.header")+svcDir) + "\n" +
-		stats + "\n" +
-		searchRow + "\n\n"
+	leftHeader := searchRow + "\n" + topBar + "\n" +
+		tsectionStyle.Render(t("services.header")+svcDir) + "\n" +
+		stats + "\n\n"
 	leftCol := tcolumnStyle.Width(colWidth).Render(leftHeader + listContent)
 
 	sep := tdividerStyle.Render(strings.Repeat("─", sepWidth))
@@ -773,14 +1106,14 @@ func (m tuiModel) render() string {
 		// Single-column: compact 1-line detail below the list.
 		title := ttitleStyle.Render(t("app.title"))
 		compact := m.compactDetail(list)
-		return "\n" + topBar + "\n" + title + "\n" + leftCol + "\n" + compact + "\n" + sep + "\n" + help + "\n"
+		return "\n" + title + "\n" + leftCol + "\n" + compact + "\n" + sep + "\n" + help + "\n"
 	}
 
 	// Wide two-column layout.
 	title := ttitleStyle.Render(t("app.title") + " - " + t("app.subtitle"))
 	rightCol := tcolumnStyle.Width(colWidth).Render(m.buildDetail(list))
 	cols := lipgloss.JoinHorizontal(lipgloss.Top, leftCol, " ", rightCol)
-	return "\n" + topBar + "\n" + title + "\n" + cols + "\n" + sep + "\n" + help + "\n"
+	return "\n" + title + "\n" + cols + "\n" + sep + "\n" + help + "\n"
 }
 
 // buildDetail renders the full detail panel for the right column (wide layout).
@@ -797,38 +1130,47 @@ func (m tuiModel) buildDetail(list []Service) string {
 		stateStr = tdisabledBadge.Render("[ ] " + t("state.disabled"))
 	}
 
-	runningStr := ""
+	var st ServiceStatus
+	statusKnown := false
 	if svc.Enabled {
-		var st ServiceStatus
 		if m.svStatusAll != nil {
-			st = m.svStatusAll[svc.Key()]
+			st, statusKnown = m.svStatusAll[svc.Key()]
 		} else if m.svStatKey == svc.Key() {
 			st = m.svStatus
-		}
-		if st.Running {
-			runningStr = tenabledBadge.Render("▶ " + t("state.running"))
-			if st.PID > 0 {
-				runningStr += tnormalStyle.Render(fmt.Sprintf("  pid %d", st.PID))
-			}
-			if st.Uptime != "" {
-				runningStr += tdisabledBadge.Render("  " + st.Uptime)
-			}
-		} else if st.Raw != "" {
-			runningStr = tdisabledBadge.Render("■ " + t("state.stopped"))
+			statusKnown = st.Raw != "" || st.Running || st.PID > 0 || st.Uptime != ""
 		}
 	}
-
-	// Detail form (matching GUI layout)
+	sourceDir, destDir := m.backend.Dirs(svc)
 	detail := tsectionStyle.Render(t("detail.header")) + "\n\n" +
 		tnormalStyle.Render(t("detail.name")+":   "+svc.Name) + "\n" +
+		tnormalStyle.Render(t("detail.scope")+":  "+t("scope."+string(svc.Scope))) + "\n" +
+		tnormalStyle.Render(t("detail.source")+":  "+filepath.Join(sourceDir, svc.Name)) + "\n" +
+		tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(destDir, svc.Name)) + "\n" +
 		tnormalStyle.Render(t("detail.state")+":    ") + stateStr + "\n"
-	if runningStr != "" {
+	if statusKnown {
+		runningStr := tdisabledBadge.Render("■ " + t("state.stopped"))
+		if st.Running {
+			runningStr = tenabledBadge.Render("▶ " + t("state.running"))
+		}
+		if st.PID > 0 {
+			runningStr += tnormalStyle.Render(fmt.Sprintf("  pid %d", st.PID))
+		}
+		if st.Uptime != "" {
+			runningStr += tdisabledBadge.Render("  " + st.Uptime)
+		}
 		detail += tnormalStyle.Render(t("detail.running")+": ") + runningStr + "\n"
 	}
-	svcDir2, destDir2 := m.backend.Dirs(svc)
-	detail += tnormalStyle.Render(t("detail.scope")+":   "+t("scope."+string(svc.Scope))) + "\n" +
-		tnormalStyle.Render(t("detail.source")+":   "+filepath.Join(svcDir2, svc.Name)) + "\n" +
-		tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(destDir2, svc.Name)) + "\n"
+	pid, uptime := t("detail.empty"), t("detail.empty")
+	if statusKnown {
+		if st.PID > 0 {
+			pid = fmt.Sprintf("%d", st.PID)
+		}
+		if st.Uptime != "" {
+			uptime = st.Uptime
+		}
+	}
+	detail += tnormalStyle.Render(t("detail.pid")+":      "+pid) + "\n" +
+		tnormalStyle.Render(t("detail.uptime")+":   "+uptime) + "\n"
 
 	// Separator
 	detail += "\n" + tdividerStyle.Render(strings.Repeat("─", 30)) + "\n"
@@ -850,11 +1192,12 @@ func (m tuiModel) buildDetail(list []Service) string {
 				tnormalStyle.Render("SERVICEDESTDIR="+sd.DestDir) + "\n"
 		}
 	}
+	detail += "\n" + thelpStyle.Render(t("config.reload_hint")) + "\n"
 
 	return detail
 }
 
-// compactDetail renders a concise 1-line summary for narrow (single-column) layout.
+// compactDetail renders a single-column detail for narrow terminals.
 func (m tuiModel) compactDetail(list []Service) string {
 	if len(list) == 0 || m.cursor >= len(list) {
 		return ""
@@ -883,7 +1226,11 @@ func (m tuiModel) compactDetail(list []Service) string {
 			line += " " + tdisabledBadge.Render("■")
 		}
 	}
-	return line + "\n"
+	sourceDir, destDir := m.backend.Dirs(svc)
+	return line + "\n" +
+		tnormalStyle.Render(t("detail.scope")+": "+t("scope."+string(svc.Scope))) + "\n" +
+		tnormalStyle.Render(t("detail.source")+": "+filepath.Join(sourceDir, svc.Name)) + "\n" +
+		tnormalStyle.Render(t("detail.symlink")+": "+filepath.Join(destDir, svc.Name)) + "\n"
 }
 
 // renderAbout renders the about screen.
@@ -894,7 +1241,29 @@ func (m tuiModel) renderAbout() string {
 	license := tnormalStyle.Render(t("about.license") + ": " + AppLicense)
 	url := tnormalStyle.Render(AppURL)
 	hint := thelpStyle.Render(t("about.hint"))
-	return "\n" + title + "\n\n" + version + "\n" + author + "\n" + license + "\n" + url + "\n\n" + hint + "\n"
+	closeBtn := common.TBtn(m.id, "a_about_close", t("btn.close"), "any key", false)
+	return "\n" + title + "\n\n" + version + "\n" + author + "\n" + license + "\n" + url + "\n\n" + closeBtn + "\n" + hint + "\n"
+}
+
+func (m tuiModel) renderSettings() string {
+	labels := []string{
+		t("settings.service_dir"),
+		t("settings.service_dest_dir"),
+		t("settings.user_service_dir"),
+		t("settings.user_service_dest_dir"),
+		t("settings.default_scope"),
+	}
+	var b strings.Builder
+	b.WriteString("\n" + ttitleStyle.Render(t("settings.title")) + "\n\n")
+	for i, label := range labels {
+		field := zone.Mark(m.id+fmt.Sprintf("setting_%d", i), m.settings[i].View())
+		b.WriteString(tnormalStyle.Render(label) + "\n" + field + "\n\n")
+	}
+	b.WriteString(common.TBtn(m.id, "a_settings_save", t("settings.save"), "ctrl+s", false))
+	b.WriteString(" ")
+	b.WriteString(common.TBtn(m.id, "a_settings_cancel", t("settings.cancel"), "esc", false))
+	b.WriteString("\n\n" + thelpStyle.Render(t("settings.hint")) + "\n")
+	return b.String()
 }
 
 // ── Standalone runner ────────────────────────────────────────────────

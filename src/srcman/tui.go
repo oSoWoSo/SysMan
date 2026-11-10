@@ -3,10 +3,14 @@ package srcman
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"strings"
 
+	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -26,13 +30,12 @@ var (
 	xWarn      = compat.AdaptiveColor{Light: lipgloss.Color("#BB8800"), Dark: lipgloss.Color("#FFCC00")}
 
 	xTitleStyle    = lipgloss.NewStyle().Bold(true).Foreground(xHighlight)
-	xSelectedStyle = lipgloss.NewStyle().Bold(true).Foreground(xHighlight).
-			Background(compat.AdaptiveColor{Light: lipgloss.Color("#DDF5FF"), Dark: lipgloss.Color("#003344")}).Padding(0, 1)
-	xNormalStyle  = lipgloss.NewStyle().Padding(0, 1)
-	xSubtleStyle  = lipgloss.NewStyle().Foreground(xSubtle)
-	xDangerStyle  = lipgloss.NewStyle().Foreground(xDanger).Bold(true)
-	xSuccessStyle = lipgloss.NewStyle().Foreground(xSuccess)
-	xWarnStyle    = lipgloss.NewStyle().Foreground(xWarn)
+	xSelectedStyle = common.TSelectedStyle.Padding(0, 1)
+	xNormalStyle   = lipgloss.NewStyle().Padding(0, 1)
+	xSubtleStyle   = lipgloss.NewStyle().Foreground(xSubtle)
+	xDangerStyle   = lipgloss.NewStyle().Foreground(xDanger).Bold(true)
+	xSuccessStyle  = lipgloss.NewStyle().Foreground(xSuccess)
+	xWarnStyle     = lipgloss.NewStyle().Foreground(xWarn)
 )
 
 // ── Messages ──────────────────────────────────────────────────────────
@@ -48,25 +51,40 @@ type xbpsDoneMsg struct {
 
 // ── Model ─────────────────────────────────────────────────────────────
 
-// xbpsModel is the Bubbletea model for the xbps-src plugin.
 type xbpsModel struct {
-	id         string
-	distDir    string
-	templates  []Template
-	cursor     int
-	search     textinput.Model
-	searchMode bool
-	output     string // last command output
-	status     string
-	statusErr  bool
-	running    bool
-	showAbout  bool
-	width      int
-	height     int
-	buildQ     bool // build with tests (-Q flag)
-	buildC     bool // build with confpkg (-C flag)
-	ctx        context.Context
-	cancel     context.CancelFunc
+	id             string
+	distDir        string
+	templates      []Template
+	cursor         int
+	search         textinput.Model
+	searchMode     bool
+	output         string
+	status         string
+	statusErr      bool
+	running        bool
+	showAbout      bool
+	width          int
+	height         int
+	buildQ         bool
+	buildC         bool
+	ctx            context.Context
+	cancel         context.CancelFunc
+	editor         textarea.Model
+	editorPath     string
+	editorMode     bool
+	find           textinput.Model
+	findMode       bool
+	findIndex      int
+	history        []string
+	historyIdx     int
+	cfg            Config
+	settings       bool
+	settingsIdx    int
+	settingsFields []textinput.Model
+	outputSelect   bool
+	outputMenu     bool
+	outputLine     int
+	outputWord     int
 }
 
 // NewTuiModel creates an initialized xbps TUI model.
@@ -74,12 +92,13 @@ func NewTuiModel(distDir string) tea.Model {
 	zone.NewGlobal()
 	ti := textinput.New()
 	ti.Placeholder = t("tui.search.placeholder")
-	m := xbpsModel{
-		id:      zone.NewPrefix(),
-		distDir: distDir,
-		search:  ti,
-	}
+	find := textinput.New()
+	find.Placeholder = t("find.placeholder")
+	editor := textarea.New()
+	cfg := LoadConfig()
+	m := xbpsModel{id: "srcman:" + zone.NewPrefix(), distDir: distDir, search: ti, find: find, editor: editor, cfg: cfg, historyIdx: -1}
 	m.templates = LoadTemplates(distDir)
+	m.loadEditorFile(m.selectedName())
 	return m
 }
 
@@ -110,20 +129,88 @@ func (m xbpsModel) selectedName() string {
 	return list[m.cursor].Name
 }
 
+func (m xbpsModel) CapturesGlobalKeys() bool {
+	return m.editorMode || m.searchMode || m.findMode || m.settings || m.outputSelect
+}
+
+func (m *xbpsModel) loadEditorFile(name string) {
+	if name == "" {
+		m.editorPath = ""
+		m.editor.SetValue("")
+		m.editor.Blur()
+		m.editorMode = false
+		return
+	}
+	path := filepath.Join(ResolveDistDir(m.distDir), "srcpkgs", name, "template")
+	if path == m.editorPath {
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		m.editorPath = ""
+		m.editor.SetValue("")
+		m.status = t("status.read_err") + err.Error()
+		m.statusErr = true
+		return
+	}
+	m.editorPath = path
+	m.editor.SetValue(string(data))
+}
+
+func (m xbpsModel) saveEditor() xbpsModel {
+	if m.editorPath == "" {
+		return m
+	}
+	if err := os.WriteFile(m.editorPath, []byte(m.editor.Value()), 0o644); err != nil {
+		m.status = t("status.save_err") + err.Error()
+		m.statusErr = true
+	} else {
+		m.status = t("status.save_ok")
+		m.statusErr = false
+	}
+	return m
+}
+
 // ── tea.Model ─────────────────────────────────────────────────────────
 
 func (m xbpsModel) Init() tea.Cmd { return nil }
 
 func (m xbpsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyPressMsg); ok && common.ToggleTUIKeyHints(key) {
+		return m, nil
+	}
+	if wheel, ok := msg.(tea.MouseWheelMsg); ok && !m.editorMode {
+		keyCode := tea.KeyDown
+		if wheel.Button == tea.MouseWheelUp {
+			keyCode = tea.KeyUp
+		}
+		return m.Update(tea.KeyPressMsg{Code: keyCode})
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		editorWidth := msg.Width - 8
+		if msg.Width >= 100 {
+			editorWidth = max(msg.Width*26/100-4, 1)
+		}
+		m.editor.SetWidth(max(editorWidth, 1))
+		m.editor.SetHeight(max(msg.Height-12, 1))
 		return m, nil
 
 	case tea.MouseClickMsg:
 		if msg.Button != tea.MouseLeft {
 			break
+		}
+		if zone.Get(m.id + "a_editor_save").InBounds(msg) {
+			return m.saveEditor(), nil
+		}
+		if zone.Get(m.id+"editor_area").InBounds(msg) && m.editorPath != "" {
+			m.editorMode = true
+			focusCmd := m.editor.Focus()
+			var updateCmd tea.Cmd
+			m.editor, updateCmd = m.editor.Update(msg)
+			return m, tea.Batch(focusCmd, updateCmd)
 		}
 		// Status bar buttons.
 		if zone.Get(m.id + "a_quit").InBounds(msg) {
@@ -145,8 +232,88 @@ func (m xbpsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+		if zone.Get(m.id + "a_settings_save").InBounds(msg) {
+			return m.handleSettingsKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+		}
+		if zone.Get(m.id + "a_settings_cancel").InBounds(msg) {
+			m.settings = false
+			return m, nil
+		}
+		if zone.Get(m.id + "a_find").InBounds(msg) {
+			m.findMode = true
+			m.find.Focus()
+			return m, nil
+		}
+		if zone.Get(m.id + "a_settings").InBounds(msg) {
+			m.settingsFields = make([]textinput.Model, 3)
+			vals := []string{m.cfg.DistDir, m.cfg.SearchEngine, m.cfg.ForkURL}
+			for i := range vals {
+				m.settingsFields[i] = textinput.New()
+				m.settingsFields[i].SetValue(vals[i])
+			}
+			m.settings = true
+			return m, nil
+		}
 		if zone.Get(m.id + "a_reload").InBounds(msg) {
 			return m, func() tea.Msg { return xbpsReloadMsg{} }
+		}
+		if zone.Get(m.id + "a_output_select").InBounds(msg) {
+			m.startOutputSelection()
+			return m, nil
+		}
+		if m.outputMenu {
+			for i, field := range []string{"hostmakedepends", "makedepends", "depends", "checkdepends"} {
+				if zone.Get(m.id + fmt.Sprintf("a_outdep_%d", i)).InBounds(msg) {
+					return m.outputDependency(field)
+				}
+			}
+			if zone.Get(m.id + "a_out_xlocate").InBounds(msg) {
+				return m.outputCommand("xlocate")
+			}
+			if zone.Get(m.id + "a_out_query").InBounds(msg) {
+				return m.outputCommand("xbps-query")
+			}
+			if zone.Get(m.id + "a_out_web").InBounds(msg) {
+				OpenBrowser(m.cfg.SearchEngine + url.QueryEscape(m.selectedOutputWord()))
+				m.outputMenu = false
+				m.outputSelect = false
+				return m, nil
+			}
+		}
+		if zone.Get(m.id + "a_back").InBounds(msg) {
+			if len(m.history) > 0 {
+				if m.historyIdx == -1 {
+					m.historyIdx = len(m.history) - 1
+				} else if m.historyIdx > 0 {
+					m.historyIdx--
+				}
+				m.output = m.history[m.historyIdx]
+			}
+			return m, nil
+		}
+		if zone.Get(m.id + "a_forward").InBounds(msg) {
+			if m.historyIdx >= 0 {
+				m.historyIdx++
+				if m.historyIdx >= len(m.history) {
+					m.historyIdx = -1
+				} else {
+					m.output = m.history[m.historyIdx]
+				}
+			}
+			return m, nil
+		}
+		if zone.Get(m.id + "a_find_prev").InBounds(msg) {
+			m.findNext(-1)
+			return m, nil
+		}
+		if zone.Get(m.id + "a_find_next").InBounds(msg) {
+			m.findNext(1)
+			return m, nil
+		}
+		if zone.Get(m.id + "a_find_close").InBounds(msg) {
+			m.findMode = false
+			m.find.Blur()
+			return m, nil
 		}
 		// Detail panel buttons — global actions (no template required).
 		// Build button — handled outside !m.running so cancellation works.
@@ -224,10 +391,6 @@ func (m xbpsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.status = fmt.Sprintf(t("tui.status.cleaning"), name)
 					return m, xbpsCmd(context.Background(), "clean", name, dir, "./xbps-src", "clean", name)
 				}
-				if zone.Get(m.id + "a_edit").InBounds(msg) {
-					OpenEditor(m.distDir, name)
-					return m, nil
-				}
 			}
 		}
 		// Check list items.
@@ -240,6 +403,9 @@ func (m xbpsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for i := start; i < len(list); i++ {
 			if zone.Get(m.id + list[i].Name).InBounds(msg) {
 				m.cursor = i
+				m.editorMode = false
+				m.editor.Blur()
+				m.loadEditorFile(list[i].Name)
 				return m, nil
 			}
 		}
@@ -258,9 +424,14 @@ func (m xbpsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.templates = fresh
 		m = m.clampCursor()
+		m.loadEditorFile(m.selectedName())
 		return m, nil
 
 	case xbpsDoneMsg:
+		if m.output != "" {
+			m.history = append(m.history, m.output)
+		}
+		m.historyIdx = -1
 		m.running = false
 		m.output = msg.output
 		if msg.err != nil {
@@ -269,10 +440,9 @@ func (m xbpsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = fmt.Sprintf("%s OK", msg.action)
 			m.statusErr = false
-			// Mark template status on success.
 			if msg.template != "" {
-				for i, t := range m.templates {
-					if t.Name == msg.template {
+				for i, tmpl := range m.templates {
+					if tmpl.Name == msg.template {
 						switch msg.action {
 						case "build":
 							m.templates[i].Built = true
@@ -291,21 +461,45 @@ func (m xbpsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
-
 	case tea.KeyPressMsg:
+		if m.outputSelect {
+			return m.handleOutputSelectKey(msg)
+		}
 		if m.searchMode {
-			return m.handleSearchKey(msg)
+			previous := m.selectedName()
+			updated, cmd := m.handleSearchKey(msg)
+			m = updated.(xbpsModel)
+			if m.selectedName() != previous {
+				m.loadEditorFile(m.selectedName())
+			}
+			return m, cmd
+		}
+		if m.editorMode {
+			return m.handleEditorKey(msg)
+		}
+		if m.findMode {
+			return m.handleFindKey(msg)
+		}
+		if m.settings {
+			updated, cmd := m.handleSettingsKey(msg)
+			m = updated.(xbpsModel)
+			m.loadEditorFile(m.selectedName())
+			return m, cmd
 		}
 		if m.showAbout {
 			m.showAbout = false
 			return m, nil
 		}
-		return m.handleKey(msg)
+		updated, cmd := m.handleKey(msg)
+		m = updated.(xbpsModel)
+		m.loadEditorFile(m.selectedName())
+		return m, cmd
 	}
-
 	if m.searchMode {
 		var cmd tea.Cmd
 		m.search, cmd = m.search.Update(msg)
+		m = m.clampCursor()
+		m.loadEditorFile(m.selectedName())
 		return m, cmd
 	}
 	return m, nil
@@ -368,6 +562,50 @@ func (m xbpsModel) handleKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case "r":
 		return m, func() tea.Msg { return xbpsReloadMsg{} }
+	case "f":
+		m.findMode = true
+		m.findIndex = -1
+		m.find.Focus()
+		return m, nil
+	case "n":
+		m.findNext(1)
+		return m, nil
+	case "N":
+		m.findNext(-1)
+		return m, nil
+	case "v":
+		m.startOutputSelection()
+		return m, nil
+	case "[":
+		if len(m.history) > 0 {
+			if m.historyIdx == -1 {
+				m.historyIdx = len(m.history) - 1
+			} else if m.historyIdx > 0 {
+				m.historyIdx--
+			}
+			m.output = m.history[m.historyIdx]
+		}
+		return m, nil
+	case "]":
+		if m.historyIdx >= 0 {
+			m.historyIdx++
+			if m.historyIdx >= len(m.history) {
+				m.historyIdx = -1
+			} else {
+				m.output = m.history[m.historyIdx]
+			}
+		}
+		return m, nil
+	case "S":
+		m.cfg = LoadConfig()
+		m.settingsFields = make([]textinput.Model, 3)
+		vals := []string{m.cfg.DistDir, m.cfg.SearchEngine, m.cfg.ForkURL}
+		for i := range vals {
+			m.settingsFields[i] = textinput.New()
+			m.settingsFields[i].SetValue(vals[i])
+		}
+		m.settings = true
+		return m, nil
 
 	case "1": // toggle -Q (tests)
 		m.buildQ = !m.buildQ
@@ -465,7 +703,10 @@ func (m xbpsModel) handleKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, xbpsCmd(context.Background(), "clean", name, dir, "./xbps-src", "clean", name)
 
 	case "e":
-		OpenEditor(m.distDir, name)
+		if m.editorPath != "" {
+			m.editorMode = true
+			return m, m.editor.Focus()
+		}
 		return m, nil
 
 	case "h":
@@ -483,6 +724,280 @@ func (m xbpsModel) handleKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m xbpsModel) handleEditorKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if key.String() == "esc" {
+		m.editorMode = false
+		m.editor.Blur()
+		return m, nil
+	}
+	if key.String() == "ctrl+s" {
+		return m.saveEditor(), nil
+	}
+	var cmd tea.Cmd
+	m.editor, cmd = m.editor.Update(key)
+	return m, cmd
+}
+
+func (m xbpsModel) handleFindKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch key.String() {
+	case "esc", "enter":
+		m.findMode = false
+		m.find.Blur()
+		return m, nil
+	case "ctrl+n", "down":
+		m.findNext(1)
+		return m, nil
+	case "ctrl+p", "up":
+		m.findNext(-1)
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.find, cmd = m.find.Update(key)
+	return m, cmd
+}
+
+func (m *xbpsModel) findNext(direction int) {
+	query := m.find.Value()
+	if query == "" || m.output == "" {
+		return
+	}
+	positions := []int{}
+	for at := 0; at < len(m.output); {
+		i := strings.Index(strings.ToLower(m.output[at:]), strings.ToLower(query))
+		if i < 0 {
+			break
+		}
+		at += i
+		positions = append(positions, at)
+		at += len(query)
+	}
+	if len(positions) == 0 {
+		return
+	}
+	if direction > 0 {
+		m.findIndex = (m.findIndex + 1) % len(positions)
+	} else {
+		m.findIndex--
+		if m.findIndex < 0 {
+			m.findIndex = len(positions) - 1
+		}
+	}
+}
+
+func (m xbpsModel) handleSettingsKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch key.String() {
+	case "esc":
+		m.settings = false
+		return m, nil
+	case "tab", "down", "enter":
+		if m.settingsIdx < len(m.settingsFields)-1 {
+			m.settingsIdx++
+		} else {
+			m.cfg.DistDir = strings.TrimSpace(m.settingsFields[0].Value())
+			m.cfg.SearchEngine = strings.TrimSpace(m.settingsFields[1].Value())
+			m.cfg.ForkURL = strings.TrimSpace(m.settingsFields[2].Value())
+			if err := SaveConfig(m.cfg); err != nil {
+				m.status = t("status.save_err") + err.Error()
+				m.statusErr = true
+			} else {
+				m.distDir = m.cfg.DistDir
+				m.templates = LoadTemplates(m.distDir)
+				m.status = t("status.save_ok")
+				m.statusErr = false
+			}
+			m.settings = false
+		}
+		return m, nil
+	case "shift+tab", "up":
+		if m.settingsIdx > 0 {
+			m.settingsIdx--
+		}
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.settingsFields[m.settingsIdx], cmd = m.settingsFields[m.settingsIdx].Update(key)
+	return m, cmd
+}
+func (m *xbpsModel) startOutputSelection() {
+	if m.output == "" {
+		return
+	}
+	m.outputSelect = true
+	m.outputMenu = false
+	lines := m.outputTextLines()
+	m.outputLine = len(lines) - 1
+	for m.outputLine > 0 && len(strings.Fields(lines[m.outputLine])) == 0 {
+		m.outputLine--
+	}
+	m.outputWord = 0
+}
+
+func (m xbpsModel) outputTextLines() []string { return strings.Split(m.output, "\n") }
+
+func (m xbpsModel) selectedOutputWord() string {
+	lines := m.outputTextLines()
+	if m.outputLine < 0 || m.outputLine >= len(lines) {
+		return ""
+	}
+	words := strings.Fields(lines[m.outputLine])
+	if m.outputWord < 0 || m.outputWord >= len(words) {
+		return ""
+	}
+	return strings.Trim(words[m.outputWord], "[](){}<>:,;\"'`")
+}
+
+func (m xbpsModel) handleOutputSelectKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.outputMenu {
+		switch key.String() {
+		case "esc":
+			m.outputMenu = false
+			return m, nil
+		case "1":
+			return m.outputDependency("hostmakedepends")
+		case "2":
+			return m.outputDependency("makedepends")
+		case "3":
+			return m.outputDependency("depends")
+		case "4":
+			return m.outputDependency("checkdepends")
+		case "5":
+			return m.outputCommand("xlocate")
+		case "6":
+			return m.outputCommand("xbps-query")
+		case "7":
+			OpenBrowser(m.cfg.SearchEngine + url.QueryEscape(m.selectedOutputWord()))
+			m.outputMenu = false
+			m.outputSelect = false
+			return m, nil
+		}
+		return m, nil
+	}
+	switch key.String() {
+	case "esc", "v":
+		m.outputSelect = false
+		return m, nil
+	case "enter":
+		if m.selectedOutputWord() != "" {
+			m.outputMenu = true
+		}
+		return m, nil
+	case "up", "k":
+		if m.outputLine > 0 {
+			m.outputLine--
+			m.outputWord = 0
+		}
+	case "down", "j":
+		if m.outputLine < len(m.outputTextLines())-1 {
+			m.outputLine++
+			m.outputWord = 0
+		}
+	case "left", "h":
+		if m.outputWord > 0 {
+			m.outputWord--
+		}
+	case "right", "l":
+		words := strings.Fields(m.outputTextLines()[m.outputLine])
+		if len(words) > 0 && m.outputWord < len(words)-1 {
+			m.outputWord++
+		}
+	}
+	return m, nil
+}
+
+func (m xbpsModel) outputDependency(field string) (tea.Model, tea.Cmd) {
+	pkg := m.selectedOutputWord()
+	name := m.selectedName()
+	if pkg == "" {
+		m.outputMenu = false
+		return m, nil
+	}
+	if name == "" {
+		m.status = t("status.no_template")
+		m.statusErr = true
+		m.outputMenu = false
+		return m, nil
+	}
+	path := filepath.Join(ResolveDistDir(m.distDir), "srcpkgs", name, "template")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		m.status = t("status.read_err") + err.Error()
+		m.statusErr = true
+		m.outputMenu = false
+		return m, nil
+	}
+	text := addDependency(string(data), pkg, field)
+	if err = os.WriteFile(path, []byte(text), 0o644); err != nil {
+		m.status = t("status.save_err") + err.Error()
+		m.statusErr = true
+		m.outputMenu = false
+		return m, nil
+	}
+	m.editorPath = path
+	m.editor.SetValue(text)
+	m.status = fmt.Sprintf(t("status.added"), pkg, field)
+	m.statusErr = false
+	m.outputMenu = false
+	m.outputSelect = false
+	return m, nil
+}
+
+func addDependency(text, pkg, field string) string {
+	re := regexp.MustCompile(`(?m)^(` + regexp.QuoteMeta(field) + `=")([^"]*)(")`)
+	if re.MatchString(text) {
+		return re.ReplaceAllStringFunc(text, func(s string) string {
+			p := re.FindStringSubmatch(s)
+			if len(p) != 4 {
+				return s
+			}
+			old := strings.TrimSpace(p[2])
+			if old == "" {
+				return p[1] + pkg + p[3]
+			}
+			return p[1] + old + " " + pkg + p[3]
+		})
+	}
+	fields := []string{"hostmakedepends=", "makedepends=", "depends=", "checkdepends="}
+	lines := strings.Split(text, "\n")
+	desc, last := -1, -1
+	for i, line := range lines {
+		if strings.HasPrefix(line, "short_desc=") {
+			desc = i
+		}
+		for _, f := range fields {
+			if strings.HasPrefix(line, f) {
+				last = i
+			}
+		}
+	}
+	at := len(lines)
+	if desc >= 0 {
+		at = desc
+	} else if last >= 0 {
+		at = last + 1
+	}
+	lines = append(lines[:at], append([]string{field + `="` + pkg + `"`}, lines[at:]...)...)
+	return strings.Join(lines, "\n")
+}
+
+func (m xbpsModel) outputCommand(which string) (tea.Model, tea.Cmd) {
+	query := m.selectedOutputWord()
+	m.outputSelect = false
+	m.outputMenu = false
+	if query == "" {
+		return m, nil
+	}
+	if which == "xlocate" {
+		return m, func() tea.Msg {
+			out, err := RunXlocate(query)
+			return xbpsDoneMsg{action: "xlocate", output: out, err: err}
+		}
+	}
+	return m, func() tea.Msg {
+		out, err := RunXbpsStream("", nil, "xbps-query", "-Rs", query)
+		return xbpsDoneMsg{action: "xbps-query", output: out, err: err}
+	}
+}
+
 // xbpsCmd returns a tea.Cmd that runs a command and emits xbpsDoneMsg.
 func xbpsCmd(ctx context.Context, action, templateName, dir string, args ...string) tea.Cmd {
 	return func() tea.Msg {
@@ -493,7 +1008,7 @@ func xbpsCmd(ctx context.Context, action, templateName, dir string, args ...stri
 	}
 }
 
-// bottomBar renders a status bar at the very bottom: status message + quit button.
+// bottomBar places controls at the left and the status at the right, like the GUI footer.
 func (m xbpsModel) bottomBar() string {
 	status := ""
 	if m.status != "" {
@@ -503,133 +1018,225 @@ func (m xbpsModel) bottomBar() string {
 			status = xSuccessStyle.Render("  ✓ " + m.status)
 		}
 	}
-	quit := common.TBtn(m.id, "a_quit", t("btn.quit"), "q", false)
 	about := common.TBtn(m.id, "a_about", t("btn.about"), "?", false)
 	reload := common.TBtn(m.id, "a_reload", t("btn.reload"), "r", false)
-	var copyBtn string
-	if m.output != "" {
-		copyBtn = " " + common.TBtn(m.id, "a_copy", t("btn.copy"), "y", false)
+	find := common.TBtn(m.id, "a_find", t("btn.find"), "f", false)
+	settings := common.TBtn(m.id, "a_settings", t("tui.settings.short"), "S", false)
+	buttons := []string{settings, about, reload, find}
+	if len(m.history) > 0 {
+		buttons = append(buttons,
+			common.TBtn(m.id, "a_back", t("tui.history.back"), "[", false),
+			common.TBtn(m.id, "a_forward", t("tui.history.forward"), "]", false),
+		)
 	}
-	return status + "  " + copyBtn + " " + reload + " " + about + " " + quit
+	if !common.TUIEmbedded() {
+		buttons = append(buttons, common.TBtn(m.id, "a_quit", t("btn.quit"), "q", false))
+	}
+	return common.TUIFooter(common.TBtnBar(buttons...), status, m.width)
 }
 
-// detailButtons renders the action buttons inside the detail panel (right side),
-// below the template info. Shows global actions always, template actions only when a template is selected.
+// detailButtons renders the actions aligned with the selected template details.
 func (m xbpsModel) detailButtons() string {
 	hasTemplate := m.selectedName() != ""
-	var btns []string
-
-	// Global actions (always visible)
-	btns = append(btns,
+	buttons := []string{
 		common.TBtn(m.id, "a_bootstrap_update", t("btn.bootstrap"), "u", false),
 		common.TBtn(m.id, "a_homepage", t("btn.homepage"), "h", hasTemplate),
 		common.TBtn(m.id, "a_repology", t("btn.repology"), "p", hasTemplate),
-	)
-
-	// Template actions (only if a template is selected)
+	}
 	if hasTemplate {
-		btns = append(btns, "\n")
 		buildLabel := t("btn.build")
 		if m.running {
 			buildLabel = t("btn.stop")
 		}
-		btns = append(btns,
+		buttons = append(buttons,
+			"\n",
 			common.TBtn(m.id, "a_build", buildLabel, "b", false),
-			common.TBtn(m.id, "a_lint", t("btn.lint"), "l", false),
-			common.TBtn(m.id, "a_sum", t("btn.sum"), "s", false),
-			common.TBtn(m.id, "a_bump", t("btn.bump"), "a", false),
-			common.TBtn(m.id, "a_install", t("btn.install"), "i", false),
 			common.TBtn(m.id, "a_clean", t("btn.clean"), "c", false),
-			common.TBtn(m.id, "a_edit", t("btn.edit"), "e", false),
+			common.TBtn(m.id, "a_install", t("btn.install"), "i", false),
 		)
 	}
+	return common.TBtnBar(buttons...)
+}
 
-	return common.TBtnBar(btns...)
+func (m xbpsModel) editorToolbar() string {
+	return common.TBtnBar(
+		common.TBtn(m.id, "a_lint", t("btn.lint"), "l", false),
+		common.TBtn(m.id, "a_sum", t("btn.sum"), "s", false),
+		common.TBtn(m.id, "a_bump", t("btn.bump"), "a", false),
+		common.TBtn(m.id, "a_editor_save", t("btn.save"), "ctrl+s", false),
+	)
 }
 
 // ── View ──────────────────────────────────────────────────────────────
 
 // View implements tea.Model; renders the TUI in the alt screen.
-func (m xbpsModel) View() tea.View {
-	v := tea.NewView(zone.Scan(m.render()))
+func (m xbpsModel) View() tea.View { return m.view(true) }
+
+// EmbeddedView returns the unscanned view for composition inside sysman-tui.
+func (m xbpsModel) EmbeddedView() tea.View { return m.view(false) }
+
+func (m xbpsModel) view(scan bool) tea.View {
+	content := m.render()
+	if scan {
+		content = zone.Scan(content)
+	}
+	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
+}
+
+func (m xbpsModel) renderOutputSelection() string {
+	lines := m.outputTextLines()
+	var b strings.Builder
+	b.WriteString(xTitleStyle.Render(t("tui.output.select")) + "\n")
+	if m.outputMenu {
+		pkg := m.selectedOutputWord()
+		b.WriteString(fmt.Sprintf(t("tui.output.selected"), pkg) + "\n")
+		actions := []string{t("menu.add.hostmakedepends"), t("menu.add.makedepends"), t("menu.add.depends"), t("menu.add.checkdepends"), t("menu.xlocate"), t("menu.xbpsquery"), t("menu.websearch")}
+		ids := []string{"a_outdep_0", "a_outdep_1", "a_outdep_2", "a_outdep_3", "a_out_xlocate", "a_out_query", "a_out_web"}
+		for i, label := range actions {
+			b.WriteString(zone.Mark(m.id+ids[i], common.TBtn(m.id, ids[i], label, fmt.Sprint(i+1), false)) + " ")
+		}
+		b.WriteString("\n" + xSubtleStyle.Render(t("tui.output.menu.help")))
+		return b.String()
+	}
+	b.WriteString(xSubtleStyle.Render(t("tui.output.select.help")) + "\n")
+	start := max(0, m.outputLine-5)
+	end := min(len(lines), start+11)
+	for i := start; i < end; i++ {
+		prefix := "  "
+		if i == m.outputLine {
+			prefix = "› "
+		}
+		words := strings.Fields(lines[i])
+		line := lines[i]
+		if i == m.outputLine && m.outputWord >= 0 && m.outputWord < len(words) {
+			line = strings.Replace(line, words[m.outputWord], xSelectedStyle.Render(words[m.outputWord]), 1)
+		}
+		b.WriteString(prefix + line + "\n")
+	}
+	b.WriteString("\n" + xSubtleStyle.Render(t("tui.output.current")+": "+m.selectedOutputWord()))
+	return b.String()
 }
 
 func (m xbpsModel) render() string {
 	if m.showAbout {
 		return m.renderAbout()
 	}
+	if m.outputSelect {
+		return m.renderOutputSelection()
+	}
+	if m.settings {
+		var b strings.Builder
+		b.WriteString(xTitleStyle.Render(t("tui.settings.title")) + "\n")
+		labels := []string{t("tui.settings.distdir"), t("tui.settings.search"), t("tui.settings.fork")}
+		for i, f := range m.settingsFields {
+			b.WriteString(labels[i] + ": " + f.View() + "\n")
+		}
+		b.WriteString(common.TBtn(m.id, "a_settings_save", t("btn.save"), "enter", false) + "  " + common.TBtn(m.id, "a_settings_cancel", t("btn.close"), "esc", false))
+		return b.String()
+	}
 	w := m.width
 	if w <= 0 {
-		w = 60
+		w = 80
 	}
-	divider := xSubtleStyle.Render(strings.Repeat("─", w))
+	h := m.height
+	if h <= 0 {
+		h = 24
+	}
 
-	// ── Title ─────────────────────────────────────────────────────────
+	// ── Workspace header ──────────────────────────────────────────────
 	dir := ResolveDistDir(m.distDir)
 	title := xTitleStyle.Render("xbps-src") + "  " + xSubtleStyle.Render(dir)
 	if disk := DiskInfo(m.distDir); disk != "" {
 		title += "  " + xWarnStyle.Render("💾 "+disk)
 	}
+
+	// Keep the search field with the list it filters.
+	listTitle := t("tui.templates")
 	if m.searchMode {
-		title += "  " + m.search.View()
+		listTitle += "  " + m.search.View()
 	} else if m.search.Value() != "" {
-		title += "  " + xSubtleStyle.Render("/"+m.search.Value())
+		listTitle += "  " + xSubtleStyle.Render("/"+m.search.Value())
 	}
 
-	var sb strings.Builder
-	sb.WriteString(title + "\n")
-	sb.WriteString(divider + "\n")
-
-	// ── Template list ─────────────────────────────────────────────────
 	list := m.filtered()
-	// Reserve lines: divider×3 + help + status + detail(3) + output(max 5)
-	listHeight := max(m.height-13, 4)
+	sideBySide := w >= 100
+	contentHeight := max(h-8, 5)
+	outputHeight := max(h/3-3, 2)
+	detailHeight := max(contentHeight-outputHeight-2, 4)
+	leftWidth := w - 4
+	rightWidth := w - 4
+	editorWidth := w - 4
+	if sideBySide {
+		editorWidth = max(w*26/100, 24)
+		mainWidth := w - editorWidth - 2
+		leftWidth = max(mainWidth*32/100, 22)
+		rightWidth = max(mainWidth-leftWidth-3, 24)
+	}
 
-	// Scroll window: keep cursor visible.
+	// ── Template list pane ────────────────────────────────────────────
+	var listBody strings.Builder
+	listBody.WriteString(xTitleStyle.Render(listTitle) + "\n")
+	listHeight := max(contentHeight-3, 1)
 	start := 0
 	if m.cursor >= listHeight {
 		start = m.cursor - listHeight + 1
 	}
-
 	if start > 0 {
-		sb.WriteString(xSubtleStyle.Render(fmt.Sprintf("  ↑ %d", start)) + "\n")
+		listBody.WriteString(xSubtleStyle.Render(fmt.Sprintf("↑ %d", start)) + "\n")
 	}
 	shown := 0
 	for i := start; i < len(list) && shown < listHeight; i++ {
 		tmpl := list[i]
-		// Status badges (B=built L=linted S=sum A=bumped I=installed)
-		badge := buildBadge(tmpl)
-		line := fmt.Sprintf("%-28s %s", tmpl.Name, badge)
+		nameWidth := max(leftWidth-11, 1)
+		name := tmpl.Name
+		if len(name) > nameWidth {
+			name = name[:nameWidth-1] + "…"
+		}
+		line := fmt.Sprintf("%-*s %s", nameWidth, name, buildBadge(tmpl))
 		if i == m.cursor {
-			sb.WriteString(zone.Mark(m.id+tmpl.Name, xSelectedStyle.Render(line)) + "\n")
+			listBody.WriteString(zone.Mark(m.id+tmpl.Name, xSelectedStyle.Render(line)) + "\n")
 		} else {
-			sb.WriteString(zone.Mark(m.id+tmpl.Name, xNormalStyle.Render(line)) + "\n")
+			listBody.WriteString(zone.Mark(m.id+tmpl.Name, xNormalStyle.Render(line)) + "\n")
 		}
 		shown++
 	}
 	if remaining := len(list) - (start + shown); remaining > 0 {
-		sb.WriteString(xSubtleStyle.Render(fmt.Sprintf("  ↓ %d", remaining)) + "\n")
+		listBody.WriteString(xSubtleStyle.Render(fmt.Sprintf("↓ %d", remaining)) + "\n")
 	}
 	if len(list) == 0 {
-		sb.WriteString(xSubtleStyle.Render("  "+t("tui.none")) + "\n")
+		listBody.WriteString(xSubtleStyle.Render(t("tui.none")) + "\n")
 	}
-	sb.WriteString(divider + "\n")
+	leftPane := lipgloss.NewStyle().
+		Width(leftWidth).
+		Height(contentHeight).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(xSubtle).
+		Padding(0, 1).
+		Render(listBody.String())
 
+	// ── Selected template detail/actions pane ─────────────────────────
+	var detail strings.Builder
+	detail.WriteString(xTitleStyle.Render(t("tui.details")) + "\n")
 	if name := m.selectedName(); name != "" {
 		meta := ReadMeta(m.distDir, name)
-		detail := xTitleStyle.Render(name)
+		detail.WriteString(xTitleStyle.Render(name))
 		if meta.Version != "" {
-			detail += "  " + xSubtleStyle.Render("v"+meta.Version)
+			detail.WriteString("  " + xSubtleStyle.Render("v"+meta.Version))
 		}
-		sb.WriteString("  " + detail + "\n")
+		detail.WriteString("\n")
 		if meta.Desc != "" {
-			sb.WriteString("  " + xSubtleStyle.Render(meta.Desc) + "\n")
+			detail.WriteString(xSubtleStyle.Render(meta.Desc) + "\n")
 		}
 	}
-	// Build flags display
+	if m.findMode || m.find.Value() != "" {
+		detail.WriteString(t("btn.find") + ": " + m.find.View() + "  " +
+			common.TBtn(m.id, "a_find_prev", t("tooltip.srcman.find_prev"), "N", false) + " " +
+			common.TBtn(m.id, "a_find_next", t("tooltip.srcman.find_next"), "n", false) + "  " +
+			common.TBtn(m.id, "a_find_close", t("tooltip.srcman.find_close"), "esc", false) + "\n")
+	}
 	var flags []string
 	if m.buildQ {
 		flags = append(flags, "-Q (tests)")
@@ -638,28 +1245,71 @@ func (m xbpsModel) render() string {
 		flags = append(flags, "-C (confpkg)")
 	}
 	if len(flags) > 0 {
-		sb.WriteString("  " + xWarnStyle.Render(t("tui.build_flags")+": "+strings.Join(flags, "  ")) + "\n")
+		detail.WriteString(xWarnStyle.Render(t("tui.build_flags")+": "+strings.Join(flags, "  ")) + "\n")
 	}
-	// Action buttons inside the detail panel (global + template)
-	sb.WriteString(m.detailButtons() + "\n")
-	sb.WriteString(divider + "\n")
+	detail.WriteString(m.detailButtons())
+	rightPane := lipgloss.NewStyle().
+		Width(rightWidth).
+		Height(detailHeight).
+		MaxHeight(detailHeight).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(xSubtle).
+		Padding(0, 1).
+		Render(detail.String())
 
-	// ── Status bar (bottom) ──────────────────────────────────────
-	sb.WriteString(m.bottomBar() + "\n")
-
-	// ── Command output (last lines) ───────────────────────────────────
+	var outputBody strings.Builder
 	if m.output != "" {
-		sb.WriteString(divider + "\n")
-		outputLines := max(m.height/3, 5)
+		outputBody.WriteString(common.TBtnBar(
+			common.TBtn(m.id, "a_copy", t("btn.copy"), "y", false),
+			common.TBtn(m.id, "a_output_select", t("tui.output.select.short"), "v", false),
+		) + "\n")
+	}
+	outputBody.WriteString(xTitleStyle.Render(t("tui.command_output")) + "\n")
+	if m.output != "" {
 		lines := strings.Split(m.output, "\n")
-		if len(lines) > outputLines {
-			lines = lines[len(lines)-outputLines:]
+		maxLines := max(outputHeight-5, 1)
+		if len(lines) > maxLines {
+			lines = lines[len(lines)-maxLines:]
 		}
-		for _, l := range lines {
-			sb.WriteString(xSubtleStyle.Render("  "+l) + "\n")
+		for _, line := range lines {
+			outputBody.WriteString(xSubtleStyle.Render(line) + "\n")
 		}
 	}
+	outputPane := lipgloss.NewStyle().
+		Width(rightWidth).
+		Height(outputHeight).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(xSubtle).
+		Padding(0, 1).
+		Render(outputBody.String())
+	centerColumn := lipgloss.JoinVertical(lipgloss.Left, rightPane, outputPane)
 
+	editor := m.editor
+	editor.SetWidth(max(editorWidth-4, 1))
+	editor.SetHeight(max(contentHeight-4, 1))
+	editorContent := xTitleStyle.Render(t("editor.title")) + "\n" +
+		m.editorToolbar() + "\n" +
+		zone.Mark(m.id+"editor_area", editor.View())
+	editorPane := lipgloss.NewStyle().
+		Width(editorWidth).
+		Height(contentHeight).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(xSubtle).
+		Padding(0, 1).
+		Render(editorContent)
+
+	var workspace string
+	if sideBySide {
+		workspace = lipgloss.JoinHorizontal(lipgloss.Top, leftPane, " ", centerColumn, " ", editorPane)
+	} else {
+		workspace = lipgloss.JoinVertical(lipgloss.Left, leftPane, centerColumn, editorPane)
+	}
+
+	var sb strings.Builder
+	sb.WriteString(title + "\n")
+	sb.WriteString(workspace + "\n")
+
+	sb.WriteString(m.bottomBar() + "\n")
 	return sb.String()
 }
 

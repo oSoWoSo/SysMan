@@ -273,6 +273,10 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	pkgmanAppImageDir := newFormEntry(cfg.Pkgman.AppImageDir, pkgman.DefaultAppImageDir())
 
 	langDir := newFormEntry(cfg.LangDir, "")
+	showTabNames := widget.NewCheck("Show tab names", nil)
+	showTabNames.SetChecked(cfg.ShowTabNames)
+	showTabIcons := widget.NewCheck("Show tab icons", nil)
+	showTabIcons.SetChecked(cfg.ShowTabIcons)
 
 	btnSave := widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() {
 		cfg.Serman.ServiceDir = strings.TrimSpace(sermanServiceDir.Text)
@@ -285,6 +289,8 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 		cfg.Vmsman.VMDir = strings.TrimSpace(vmsmanVMDir.Text)
 		cfg.Pkgman.AppImageDir = strings.TrimSpace(pkgmanAppImageDir.Text)
 		cfg.LangDir = strings.TrimSpace(langDir.Text)
+		cfg.ShowTabNames = showTabNames.Checked
+		cfg.ShowTabIcons = showTabIcons.Checked
 		if err := common.SaveSysManConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("save config: %w", err), win)
 		}
@@ -352,6 +358,8 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 
 	formCommon := widget.NewForm(
 		widget.NewFormItem("Language dir", langDir),
+		widget.NewFormItem("Tab names", showTabNames),
+		widget.NewFormItem("Tab icons", showTabIcons),
 	)
 
 	return container.NewVBox(
@@ -386,19 +394,38 @@ func newFormEntry(value, placeholder string) *widget.Entry {
 // ── TUI ───────────────────────────────────────────────────────────────
 
 type sysManagerModel struct {
-	id      string
-	plugins []api.PluginGUI
-	models  []tea.Model
-	active  int
+	id              string
+	plugins         []api.PluginGUI
+	models          []tea.Model
+	active          int
+	width           int
+	showSettings    bool
+	keyHintsVisible bool
+	settingsModel   tea.Model
 }
 
 func newSysManagerModel(plugins []api.PluginGUI) sysManagerModel {
 	zone.NewGlobal()
+	common.SetTUIKeyHintsVisible(false)
+	common.SetTUIEmbedded(true)
 	models := make([]tea.Model, len(plugins))
 	for i, p := range plugins {
 		models[i] = p.Model()
 	}
-	return sysManagerModel{id: zone.NewPrefix(), plugins: plugins, models: models}
+	return sysManagerModel{
+		id:            zone.NewPrefix(),
+		plugins:       plugins,
+		models:        models,
+		settingsModel: common.NewSysmanSettingsTUI(),
+	}
+}
+func (m *sysManagerModel) toggleKeyHints(key tea.KeyPressMsg) bool {
+	if key.String() != "f1" && key.String() != "ctrl+h" {
+		return false
+	}
+	m.keyHintsVisible = !m.keyHintsVisible
+	common.SetTUIKeyHintsVisible(m.keyHintsVisible)
+	return true
 }
 
 func (m sysManagerModel) Init() tea.Cmd {
@@ -408,44 +435,105 @@ func (m sysManagerModel) Init() tea.Cmd {
 			cmds = append(cmds, cmd)
 		}
 	}
+	if cmd := m.settingsModel.Init(); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
 	return tea.Batch(cmds...)
 }
 
 func (m sysManagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyPressMsg); ok && m.toggleKeyHints(key) {
+		return m, nil
+	}
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = size.Width
+	}
+
 	if key, ok := msg.(tea.KeyPressMsg); ok {
 		if key.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-		// 1, 2, … switch tabs (up to 9 plugins).
-		for i := range m.plugins {
-			if key.String() == fmt.Sprintf("%d", i+1) {
-				m.active = i
-				return m, nil
+		if m.showSettings && key.String() == "esc" {
+			m.showSettings = false
+			return m, nil
+		}
+		captureGlobal := m.showSettings
+		if !captureGlobal && m.active < len(m.models) {
+			if input, ok := m.models[m.active].(interface{ CapturesGlobalKeys() bool }); ok {
+				captureGlobal = input.CapturesGlobalKeys()
 			}
 		}
-	}
-
-	// Handle mouse clicks on tabs.
-	if mouse, ok := msg.(tea.MouseClickMsg); ok && mouse.Button == tea.MouseLeft {
-		for i, p := range m.plugins {
-			if zone.Get(m.id + p.Name()).InBounds(mouse) {
-				if i != m.active {
+		if !captureGlobal {
+			for i := range m.plugins {
+				if key.String() == fmt.Sprintf("%d", i+1) {
 					m.active = i
+					m.showSettings = false
 					return m, nil
 				}
 			}
 		}
+		if key.String() == "ctrl+o" {
+			m.showSettings = !m.showSettings
+			if m.showSettings {
+				m.settingsModel = common.NewSysmanSettingsTUI()
+			}
+			return m, nil
+		}
 	}
 
+	// Handle mouse clicks on the plugin tabs and global settings button.
+	if mouse, ok := msg.(tea.MouseClickMsg); ok && mouse.Button == tea.MouseLeft {
+		for i, p := range m.plugins {
+			if zone.Get(m.id + p.Name()).InBounds(mouse) {
+				m.active = i
+				m.showSettings = false
+				return m, nil
+			}
+		}
+		if zone.Get(m.id + "settings").InBounds(mouse) {
+			m.showSettings = !m.showSettings
+			if m.showSettings {
+				m.settingsModel = common.NewSysmanSettingsTUI()
+			}
+			return m, nil
+		}
+	}
+
+	if _, ok := msg.(tea.MouseClickMsg); ok {
+		if m.showSettings {
+			updated, cmd := m.settingsModel.Update(msg)
+			m.settingsModel = updated
+			return m, cmd
+		}
+		newModels := make([]tea.Model, len(m.models))
+		copy(newModels, m.models)
+		updated, cmd := newModels[m.active].Update(msg)
+		newModels[m.active] = updated
+		m.models = newModels
+		return m, cmd
+	}
+
+	pluginMsg := msg
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		size.Height = max(size.Height-2, 1) // reserve the module tabs and separator
+		pluginMsg = size
+	}
 	newModels := make([]tea.Model, len(m.models))
 	copy(newModels, m.models)
 
 	// Window resize and async result messages go to all plugins so background
-	// commands (e.g. package list loading) complete regardless of which tab is active.
+	// commands complete regardless of which tab is active.
 	if _, isKey := msg.(tea.KeyPressMsg); !isKey {
 		var cmds []tea.Cmd
+		if m.showSettings {
+			updated, cmd := m.settingsModel.Update(pluginMsg)
+			m.settingsModel = updated
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
 		for i, mdl := range newModels {
-			updated, cmd := mdl.Update(msg)
+			updated, cmd := mdl.Update(pluginMsg)
 			newModels[i] = updated
 			if cmd != nil {
 				cmds = append(cmds, cmd)
@@ -453,6 +541,12 @@ func (m sysManagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.models = newModels
 		return m, tea.Batch(cmds...)
+	}
+
+	if m.showSettings {
+		updated, cmd := m.settingsModel.Update(msg)
+		m.settingsModel = updated
+		return m, cmd
 	}
 
 	// Key events go only to the active plugin.
@@ -463,26 +557,62 @@ func (m sysManagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 var (
-	tuiTabActive   = lipgloss.NewStyle().Bold(true).Underline(true).Foreground(lipgloss.Color("#00DDFF")).Padding(0, 1)
-	tuiTabInactive = lipgloss.NewStyle().Foreground(lipgloss.Color("#585858")).Padding(0, 1)
-	tuiTabHelp     = lipgloss.NewStyle().Foreground(lipgloss.Color("#585858"))
+	tuiTabActive   = lipgloss.NewStyle().Bold(true).Underline(true).Foreground(lipgloss.Color("#00DDFF"))
+	tuiTabInactive = lipgloss.NewStyle().Foreground(lipgloss.Color("#585858"))
 	tuiTabBar      = lipgloss.NewStyle().BorderBottom(true).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#585858"))
 )
 
-// View implements tea.Model; renders the tab bar and the active plugin in the alt screen.
+type embeddedView interface {
+	EmbeddedView() tea.View
+}
+
+func getEmbeddedView(model tea.Model) tea.View {
+	if m, ok := model.(embeddedView); ok {
+		return m.EmbeddedView()
+	}
+	return model.View()
+}
+
+// View implements tea.Model; renders the tab bar and active terminal page.
 func (m sysManagerModel) View() tea.View {
+	cfg := common.LoadSysManConfig()
 	var tabs []string
 	for i, p := range m.plugins {
-		label := fmt.Sprintf("%d %s", i+1, p.Name())
-		if i == m.active {
+		label := common.FormatTabLabel(p.Name(), cfg.ShowTabNames, cfg.ShowTabIcons)
+		if label == "" {
+			label = fmt.Sprintf("%d", i+1)
+		}
+		if common.TUIKeyHintsVisible() {
+			label += fmt.Sprintf(" [%d]", i+1)
+		}
+		if i == m.active && !m.showSettings {
 			tabs = append(tabs, zone.Mark(m.id+p.Name(), tuiTabActive.Render(label)))
 		} else {
 			tabs = append(tabs, zone.Mark(m.id+p.Name(), tuiTabInactive.Render(label)))
 		}
 	}
-	bar := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
-	bar += "  " + tuiTabHelp.Render("1-9: switch tab  click: switch tab  ctrl+c: quit")
-	v := tea.NewView(zone.Scan(tuiTabBar.Render(bar) + "\n" + m.models[m.active].View().Content))
+	settings := "⚙"
+	if common.TUIKeyHintsVisible() {
+		settings += " [ctrl+o]"
+	}
+	settingsStyle := tuiTabInactive
+	if m.showSettings {
+		settingsStyle = tuiTabActive
+	}
+	settingsButton := zone.Mark(m.id+"settings", settingsStyle.Render(settings))
+	leftBar := strings.Join(tabs, " ")
+	bar := leftBar
+	if m.width > 0 {
+		gap := max(0, m.width-lipgloss.Width(leftBar)-lipgloss.Width(settingsButton))
+		bar += strings.Repeat(" ", gap)
+	}
+	bar += settingsButton
+	contentModel := m.models[m.active]
+	if m.showSettings {
+		contentModel = m.settingsModel
+	}
+	content := getEmbeddedView(contentModel).Content
+	v := tea.NewView(zone.Scan(tuiTabBar.Render(bar) + "\n" + content))
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v

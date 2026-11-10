@@ -9,13 +9,15 @@ import (
 
 // SysManConfig is the main SysMan configuration.
 type SysManConfig struct {
-	Serman  SermanConfig `yaml:"serman,omitempty"`
-	Pkgman  PkgmanConfig `yaml:"pkgman,omitempty"`
-	Srcman  Config       `yaml:"srcman,omitempty"`
-	Vmsman  VmsmanConfig `yaml:"vmsman,omitempty"`
-	Ugsman  UgsmanConfig `yaml:"ugsman,omitempty"`
-	Infman  InfmanConfig `yaml:"infman,omitempty"`
-	LangDir string       `yaml:"lang_dir,omitempty"`
+	Serman       SermanConfig `yaml:"serman,omitempty"`
+	Pkgman       PkgmanConfig `yaml:"pkgman,omitempty"`
+	Srcman       Config       `yaml:"srcman,omitempty"`
+	Vmsman       VmsmanConfig `yaml:"vmsman,omitempty"`
+	Ugsman       UgsmanConfig `yaml:"ugsman,omitempty"`
+	Infman       InfmanConfig `yaml:"infman,omitempty"`
+	LangDir      string       `yaml:"lang_dir,omitempty"`
+	ShowTabNames bool         `yaml:"show_tab_names"`
+	ShowTabIcons bool         `yaml:"show_tab_icons"`
 }
 
 // SermanConfig is the services configuration.
@@ -65,6 +67,7 @@ func sysmanConfigPath() string {
 // LoadSysManConfig loads the SysMan configuration.
 func LoadSysManConfig() SysManConfig {
 	var c SysManConfig
+	c.ShowTabNames = true
 	path := sysmanConfigPath()
 	if path == "" {
 		return c

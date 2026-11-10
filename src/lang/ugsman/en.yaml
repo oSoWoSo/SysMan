@@ -39,6 +39,7 @@ strings:
   btn.cancel: "Cancel"
 
   chk.system_users: "Show system users"
+  tui.remove_home: "Remove home"
 
   user.add.title: "Add User"
   user.add.login: "Login"
@@ -93,8 +94,8 @@ strings:
   confirm.del_group: "Delete group %s?"
   confirm.hint: "y = confirm, any key = cancel"
 
-  tui.tab.users: "1 Users"
-  tui.tab.groups: "2 Groups"
+  tui.tab.users: "Users"
+  tui.tab.groups: "Groups"
   tui.none.users: "(no users)"
   tui.none.groups: "(no groups)"
   tui.help: "↑/↓/j/k: navigate   1/2: tab   s: system   q: quit"
@@ -138,4 +139,7 @@ strings:
   dialog.group_name: "Group Name"
   dialog.password_new: "New Password"
   dialog.password_confirm: "Confirm Password"
+  dialog.members_hint: "↑/↓ navigate, Space toggle, Enter apply, Esc cancel"
+  dialog.login_required: "Login required"
+  dialog.group_required: "Group name required"
   dialog.hint: "Tab=next field, Enter=OK, Esc=Cancel"

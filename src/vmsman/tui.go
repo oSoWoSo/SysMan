@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -24,7 +25,7 @@ var (
 
 	ttitleStyle    = lipgloss.NewStyle().Bold(true).Foreground(thighlight).Padding(0, 1).MarginBottom(1)
 	tsectionStyle  = lipgloss.NewStyle().Bold(true).Foreground(compat.AdaptiveColor{Light: lipgloss.Color("#444444"), Dark: lipgloss.Color("#AAAAAA")})
-	tselectedStyle = lipgloss.NewStyle().Bold(true).Foreground(thighlight).Background(compat.AdaptiveColor{Light: lipgloss.Color("#DDFAFF"), Dark: lipgloss.Color("#003344")}).Padding(0, 1)
+	tselectedStyle = common.TSelectedStyle
 	tnormalStyle   = lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Light: lipgloss.Color("#333333"), Dark: lipgloss.Color("#CCCCCC")}).Padding(0, 1)
 
 	trunningBadge = lipgloss.NewStyle().Foreground(tGreen).Bold(true)
@@ -52,17 +53,24 @@ type tuiModel struct {
 	showAbout     bool
 	width         int
 	height        int
-	confirmAction string // "", "kill"
-	confirmArg    string // VM name
+	confirmAction string
+	confirmArg    string
 
-	// create-VM prompts
 	createMode    bool
-	createStep    int // 0 = name, 1 = guest os, 2 = ssh user
+	createStep    int
 	createName    string
 	createGuestOS string
+	createISO     string
+	createMemory  string
+	createCores   string
+	createSSHUser string
 	createInput   textinput.Model
 
-	// log screen
+	editMode     string // "config", "ssh_user", "settings"
+	editVM       *VM
+	editInput    textinput.Model
+	configEditor textarea.Model
+
 	logMode bool
 	logBuf  string
 	logSink *tuiLogBuffer
@@ -96,23 +104,26 @@ type tuiVMMsg struct{ vms []VM }
 type tuiErrMsg struct{ err error }
 type tuiStatusMsg struct{ msg string }
 type tuiTickMsg struct{}
+type tuiRefreshMsg struct{}
 
 var (
-	tkeyUp      = key.NewBinding(key.WithKeys("up", "k"))
-	tkeyDown    = key.NewBinding(key.WithKeys("down", "j"))
-	tkeyConnect = key.NewBinding(key.WithKeys("c"))
-	tkeyBoot    = key.NewBinding(key.WithKeys("b"))
-	tkeyKill    = key.NewBinding(key.WithKeys("K"))
-	tkeyNew     = key.NewBinding(key.WithKeys("n"))
-	tkeyEdit    = key.NewBinding(key.WithKeys("e"))
-	tkeyLog     = key.NewBinding(key.WithKeys("l"))
-	tkeyQuit    = key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"))
-	tkeySearch  = key.NewBinding(key.WithKeys("/"))
-	tkeyEsc     = key.NewBinding(key.WithKeys("esc"))
-	tkeyEnter   = key.NewBinding(key.WithKeys("enter"))
-	tkeyFilter  = key.NewBinding(key.WithKeys("tab"))
-	tkeyReload  = key.NewBinding(key.WithKeys("r"))
-	tkeyAbout   = key.NewBinding(key.WithKeys("?"))
+	tkeyUp       = key.NewBinding(key.WithKeys("up", "k"))
+	tkeyDown     = key.NewBinding(key.WithKeys("down", "j"))
+	tkeyConnect  = key.NewBinding(key.WithKeys("c"))
+	tkeyBoot     = key.NewBinding(key.WithKeys("b"))
+	tkeyKill     = key.NewBinding(key.WithKeys("K"))
+	tkeyNew      = key.NewBinding(key.WithKeys("n"))
+	tkeyEdit     = key.NewBinding(key.WithKeys("e"))
+	tkeyLog      = key.NewBinding(key.WithKeys("l"))
+	tkeySSHUser  = key.NewBinding(key.WithKeys("u"))
+	tkeySettings = key.NewBinding(key.WithKeys("s"))
+	tkeyQuit     = key.NewBinding(key.WithKeys("q", "ctrl+c", "esc"))
+	tkeySearch   = key.NewBinding(key.WithKeys("/"))
+	tkeyEsc      = key.NewBinding(key.WithKeys("esc"))
+	tkeyEnter    = key.NewBinding(key.WithKeys("enter"))
+	tkeyFilter   = key.NewBinding(key.WithKeys("tab"))
+	tkeyReload   = key.NewBinding(key.WithKeys("r"))
+	tkeyAbout    = key.NewBinding(key.WithKeys("?"))
 )
 
 // NewTuiModel creates a new TUI model.
@@ -134,6 +145,15 @@ func NewTuiModel(b Backend) tea.Model {
 	ci.SetStyles(st)
 	ci.Prompt = t("new.name") + " > "
 
+	ei := textinput.New()
+	ei.CharLimit = 64
+	ei.SetWidth(48)
+	ei.SetStyles(st)
+	ei.Prompt = "> "
+
+	ce := textarea.New()
+	ce.SetWidth(72)
+	ce.SetHeight(20)
 	// Check if VM directory exists and report any errors
 	status := ""
 	statusErr := false
@@ -143,14 +163,16 @@ func NewTuiModel(b Backend) tea.Model {
 	}
 
 	return tuiModel{
-		id:          zone.NewPrefix(),
-		backend:     b,
-		vms:         b.List(),
-		search:      ti,
-		createInput: ci,
-		logSink:     &tuiLogBuffer{},
-		status:      status,
-		statusErr:   statusErr,
+		id:           "vmsman:" + zone.NewPrefix(),
+		backend:      b,
+		vms:          b.List(),
+		search:       ti,
+		createInput:  ci,
+		editInput:    ei,
+		configEditor: ce,
+		logSink:      &tuiLogBuffer{},
+		status:       status,
+		statusErr:    statusErr,
 	}
 }
 
@@ -179,9 +201,21 @@ func (m tuiModel) selectedVM() *VM {
 	return &list[m.cursor]
 }
 
-func (m tuiModel) Init() tea.Cmd { return nil }
+func (m tuiModel) Init() tea.Cmd {
+	return tea.Tick(3*time.Second, func(time.Time) tea.Msg { return tuiRefreshMsg{} })
+}
 
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyPressMsg); ok && common.ToggleTUIKeyHints(key) {
+		return m, nil
+	}
+	if wheel, ok := msg.(tea.MouseWheelMsg); ok && !m.logMode && m.editMode == "" {
+		keyCode := tea.KeyDown
+		if wheel.Button == tea.MouseWheelUp {
+			keyCode = tea.KeyUp
+		}
+		return m.Update(tea.KeyPressMsg{Code: keyCode})
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -198,6 +232,67 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			default:
 				return m, nil
 			}
+		}
+		if m.editMode != "" {
+			if msg.String() == "esc" {
+				m.editMode = ""
+				m.editVM = nil
+				m.editInput.Blur()
+				return m, nil
+			}
+			if m.editMode == "config" {
+				if msg.String() == "esc" {
+					m.editMode, m.editVM = "", nil
+					m.configEditor.Blur()
+					return m, nil
+				}
+				if msg.String() == "ctrl+s" {
+					vm := m.editVM
+					content := m.configEditor.Value()
+					m.editMode = ""
+					m.configEditor.Blur()
+					if vm != nil {
+						if err := m.backend.WriteConfig(vm, content); err != nil {
+							m.status, m.statusErr = t("status.err")+err.Error(), true
+						} else {
+							m.status, m.statusErr = fmt.Sprintf(t("status.saved"), vm.Name), false
+							return m, func() tea.Msg { return tuiVMMsg{vms: m.backend.List()} }
+						}
+					}
+					return m, nil
+				}
+				var cmd tea.Cmd
+				m.configEditor, cmd = m.configEditor.Update(msg)
+				return m, cmd
+			}
+			if msg.String() == "enter" {
+				value := strings.TrimSpace(m.editInput.Value())
+				mode, vm := m.editMode, m.editVM
+				m.editMode = ""
+				m.editInput.Blur()
+				if mode == "ssh_user" && vm != nil {
+					if value != "" && !ValidVMName(value) {
+						m.status, m.statusErr = t("status.err")+t("new.err_name"), true
+					} else if err := SetSSHUser(vm, value); err != nil {
+						m.status, m.statusErr = t("status.err")+err.Error(), true
+					} else {
+						m.status, m.statusErr = fmt.Sprintf(t("status.saved"), vm.Name), false
+						return m, func() tea.Msg { return tuiVMMsg{vms: m.backend.List()} }
+					}
+				} else if mode == "settings" {
+					cfg := common.LoadSysManConfig()
+					cfg.Vmsman.VMDir = value
+					if err := common.SaveSysManConfig(cfg); err != nil {
+						m.status, m.statusErr = t("status.err")+err.Error(), true
+					} else {
+						m.status, m.statusErr = t("status.settings_saved"), false
+					}
+				}
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.editInput, cmd = m.editInput.Update(msg)
+			return m, cmd
 		}
 
 		if m.createMode {
@@ -307,9 +402,14 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, tkeyEdit):
 			vm := m.selectedVM()
 			if vm != nil {
-				OpenEditor(m.backend.VMDir(), vm.Name)
-				m.status = fmt.Sprintf(t("status.saved"), vm.Name)
-				m.statusErr = false
+				content, err := m.backend.ReadConfig(vm)
+				if err != nil {
+					m.status, m.statusErr = t("status.err")+err.Error(), true
+					return m, nil
+				}
+				m.editMode, m.editVM = "config", vm
+				m.configEditor.SetValue(content)
+				m.configEditor.Focus()
 				return m, nil
 			}
 		case key.Matches(msg, tkeyLog):
@@ -323,6 +423,22 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg {
 				return tuiVMMsg{vms: m.backend.List()}
 			}
+		case key.Matches(msg, tkeySSHUser):
+			if vm := m.selectedVM(); vm != nil {
+				m.editMode, m.editVM = "ssh_user", vm
+				m.editInput.SetValue(vm.SSHUser)
+				m.editInput.Placeholder = t("ssh_user.empty")
+				m.editInput.Focus()
+				return m, textinput.Blink
+			}
+		case key.Matches(msg, tkeySettings):
+			cfg := common.LoadSysManConfig()
+			m.editMode = "settings"
+			m.editInput.SetValue(cfg.Vmsman.VMDir)
+			m.editInput.Placeholder = DefaultVMDir
+			m.editInput.Focus()
+			return m, textinput.Blink
+
 		case key.Matches(msg, tkeyAbout):
 			m.showAbout = true
 			return m, nil
@@ -331,6 +447,40 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseClickMsg:
 		if msg.Button != tea.MouseLeft {
 			break
+		}
+		if m.createMode {
+			if zone.Get(m.id + "a_create_cancel").InBounds(msg) {
+				m.createMode = false
+				m.createInput.Blur()
+				return m, nil
+			}
+			if zone.Get(m.id + "a_create_next").InBounds(msg) {
+				var cmd tea.Cmd
+				m, cmd = m.updateCreate(tea.KeyPressMsg{Code: tea.KeyEnter})
+				return m, cmd
+			}
+		}
+		if m.editMode != "" {
+			if zone.Get(m.id + "a_edit_save").InBounds(msg) {
+				if m.editMode == "config" && m.editVM != nil {
+					if err := m.backend.WriteConfig(m.editVM, m.configEditor.Value()); err != nil {
+						m.status, m.statusErr = t("status.err")+err.Error(), true
+					} else {
+						m.status, m.statusErr = fmt.Sprintf(t("status.saved"), m.editVM.Name), false
+						m.editMode, m.editVM = "", nil
+						return m, func() tea.Msg { return tuiVMMsg{vms: m.backend.List()} }
+					}
+				} else {
+					return m, func() tea.Msg { return tea.KeyPressMsg{Code: tea.KeyEnter} }
+				}
+				return m, nil
+			}
+			if zone.Get(m.id + "a_edit_cancel").InBounds(msg) {
+				m.editMode, m.editVM = "", nil
+				m.configEditor.Blur()
+				m.editInput.Blur()
+				return m, nil
+			}
 		}
 		// Check filter tabs.
 		for _, f := range []vmmanFilter{FilterAll, FilterRunning, FilterStopped} {
@@ -367,11 +517,15 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, textinput.Blink
 		}
 		if zone.Get(m.id + "a_edit").InBounds(msg) {
-			vm := m.selectedVM()
-			if vm != nil {
-				OpenEditor(m.backend.VMDir(), vm.Name)
-				m.status = fmt.Sprintf(t("status.saved"), vm.Name)
-				m.statusErr = false
+			if vm := m.selectedVM(); vm != nil {
+				content, err := m.backend.ReadConfig(vm)
+				if err != nil {
+					m.status, m.statusErr = t("status.err")+err.Error(), true
+					return m, nil
+				}
+				m.editMode, m.editVM = "config", vm
+				m.configEditor.SetValue(content)
+				m.configEditor.Focus()
 				return m, nil
 			}
 		}
@@ -397,6 +551,23 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, connectCmd(vm)
 			}
 		}
+		if zone.Get(m.id + "a_ssh_user").InBounds(msg) {
+			if vm := m.selectedVM(); vm != nil {
+				m.editMode, m.editVM = "ssh_user", vm
+				m.editInput.SetValue(vm.SSHUser)
+				m.editInput.Placeholder = t("ssh_user.empty")
+				m.editInput.Focus()
+				return m, textinput.Blink
+			}
+		}
+		if zone.Get(m.id + "a_settings").InBounds(msg) {
+			cfg := common.LoadSysManConfig()
+			m.editMode = "settings"
+			m.editInput.SetValue(cfg.Vmsman.VMDir)
+			m.editInput.Placeholder = DefaultVMDir
+			m.editInput.Focus()
+			return m, textinput.Blink
+		}
 		if zone.Get(m.id + "a_reload").InBounds(msg) {
 			return m, func() tea.Msg {
 				return tuiVMMsg{vms: m.backend.List()}
@@ -419,6 +590,10 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case tuiRefreshMsg:
+		m.vms = m.backend.List()
+		m = m.clampCursor()
+		return m, tea.Tick(3*time.Second, func(time.Time) tea.Msg { return tuiRefreshMsg{} })
 	case tuiVMMsg:
 		m.vms = msg.vms
 		m = m.clampCursor()
@@ -441,8 +616,17 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model; renders the TUI in the alt screen.
-func (m tuiModel) View() tea.View {
-	v := tea.NewView(zone.Scan(m.render()))
+func (m tuiModel) View() tea.View { return m.view(true) }
+
+// EmbeddedView returns the unscanned view for composition inside sysman-tui.
+func (m tuiModel) EmbeddedView() tea.View { return m.view(false) }
+
+func (m tuiModel) view(scan bool) tea.View {
+	content := m.render()
+	if scan {
+		content = zone.Scan(content)
+	}
+	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
@@ -450,9 +634,9 @@ func (m tuiModel) View() tea.View {
 
 // listOverhead returns the number of non-list lines consumed by the layout.
 func (m tuiModel) listOverhead() int {
-	overhead := 14 // blank(1)+title(1)+topbar(1)+col-borders(2)+header(4)+sep(1)+bottombar(1)+trailing(2)
+	overhead := 16 // reserve space for the module header, pane borders, and footer
 	if m.width > 0 && m.width < 60 {
-		overhead = 15 // +1 for compact-detail line
+		overhead = 17 // compact detail adds one line
 	}
 	return overhead
 }
@@ -482,7 +666,7 @@ func (m tuiModel) topBar() string {
 	)
 }
 
-// bottomBar renders the status bar at the bottom of the TUI: status message + quit.
+// bottomBar places controls at the left and the status at the right, like the GUI footer.
 func (m tuiModel) bottomBar() string {
 	if m.confirmAction != "" {
 		var prompt string
@@ -492,23 +676,21 @@ func (m tuiModel) bottomBar() string {
 		}
 		return prompt + "\n  " + thelpStyle.Render(t("confirm.hint"))
 	}
-	left := ""
+	status := ""
 	if m.status != "" {
 		if m.statusErr {
-			left = tstatusErr.Render(m.status)
+			status = tstatusErr.Render(m.status)
 		} else {
-			left = tstatusOk.Render(m.status)
+			status = tstatusOk.Render(m.status)
 		}
 	}
-	quit := common.TBtn(m.id, "a_quit", t("action.quit"), "q", false)
+	settings := common.TBtn(m.id, "a_settings", t("btn.settings"), "s", false)
 	about := common.TBtn(m.id, "a_about", t("btn.about"), "?", false)
-	if m.width > 0 {
-		gap := m.width - lipgloss.Width(left) - lipgloss.Width(quit) - lipgloss.Width(about) - 6
-		if gap > 0 {
-			return left + strings.Repeat(" ", gap) + about + " " + quit
-		}
+	controls := []string{settings, about}
+	if !common.TUIEmbedded() {
+		controls = append(controls, common.TBtn(m.id, "a_quit", t("action.quit"), "q", false))
 	}
-	return left + "  " + about + " " + quit
+	return common.TUIFooter(common.TBtnBar(controls...), status, m.width)
 }
 
 // detailButtons renders action buttons inside the right panel.
@@ -531,10 +713,32 @@ func (m tuiModel) detailButtons() string {
 		buttons = append(buttons, common.TBtn(m.id, "a_connect", t("btn.connect"), "c", false))
 	}
 	buttons = append(buttons, common.TBtn(m.id, "a_reload", t("btn.reload"), "r", false))
+	if vm != nil {
+		buttons = append(buttons, common.TBtn(m.id, "a_ssh_user", t("btn.ssh_user"), "u", false))
+	}
 	return common.TBtnBar(buttons...)
 }
 
 func (m tuiModel) render() string {
+	return m.renderContent()
+}
+func (m tuiModel) renderContent() string {
+	if m.editMode == "config" {
+		return "\n" + ttitleStyle.Render(fmt.Sprintf(t("edit.title"), m.editVM.Name)) + "\n\n" +
+			m.configEditor.View() + "\n\n" +
+			common.TBtnBar(common.TBtn(m.id, "a_edit_save", t("btn.save"), "ctrl+s", false),
+				common.TBtn(m.id, "a_edit_cancel", t("btn.cancel"), "esc", false)) + "\n"
+	}
+	if m.editMode != "" {
+		title, prompt := t("settings.title"), t("settings.vm_dir")
+		if m.editMode == "ssh_user" && m.editVM != nil {
+			title, prompt = fmt.Sprintf(t("ssh_user.title"), m.editVM.Name), t("btn.ssh_user")
+		}
+		return "\n" + ttitleStyle.Render(title) + "\n\n" +
+			tsectionStyle.Render(prompt+": ") + m.editInput.View() + "\n\n" +
+			common.TBtnBar(common.TBtn(m.id, "a_edit_save", t("btn.save"), "enter", false),
+				common.TBtn(m.id, "a_edit_cancel", t("btn.cancel"), "esc", false)) + "\n"
+	}
 	if m.showAbout {
 		return m.renderAbout()
 	}
@@ -618,10 +822,22 @@ func (m tuiModel) render() string {
 			badge = "[■]"
 		}
 		line := fmt.Sprintf("%s %s", badge, vm.Name)
+		// Keep the selected row on a single line and aligned with unselected rows.
+		contentWidth := colWidth - 6
+		if contentWidth < 8 {
+			contentWidth = 8
+		}
+		if lipgloss.Width(line) > contentWidth {
+			name := vm.Name
+			for lipgloss.Width(fmt.Sprintf("%s %s…", badge, name)) > contentWidth && len(name) > 0 {
+				name = name[:len(name)-1]
+			}
+			line = fmt.Sprintf("%s %s…", badge, name)
+		}
 		if i == m.cursor {
-			lsb.WriteString(zone.Mark(m.id+vm.Name, tselectedStyle.Width(colWidth-4).Render(line)) + "\n")
+			lsb.WriteString(zone.Mark(m.id+vm.Name, tselectedStyle.Width(colWidth-2).Render(line)) + "\n")
 		} else {
-			lsb.WriteString(zone.Mark(m.id+vm.Name, tnormalStyle.Render(line)) + "\n")
+			lsb.WriteString(zone.Mark(m.id+vm.Name, lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Light: lipgloss.Color("#333333"), Dark: lipgloss.Color("#CCCCCC")}).Render(line)) + "\n")
 		}
 		shown++
 	}
@@ -639,14 +855,14 @@ func (m tuiModel) render() string {
 	if narrow {
 		title := ttitleStyle.Render(t("app.title"))
 		compact := m.compactDetail(list)
-		return "\n" + topBarStr + "\n" + title + "\n" + listContent + "\n" + compact + sep + "\n" + help + "\n"
+		return "\n" + title + "\n" + topBarStr + "\n" + listContent + "\n" + compact + sep + "\n" + help + "\n"
 	}
 
 	title := ttitleStyle.Render(t("app.title") + " - " + t("app.subtitle"))
 	rightCol := tcolumnStyle.Width(colWidth).Render(m.buildDetail(list))
 	cols := lipgloss.JoinHorizontal(lipgloss.Top, tcolumnStyle.Width(colWidth).Render(
-		tsectionStyle.Render(t("vms.header")+" "+stats+"\n\n"+topBarStr+"\n"+searchRow+"\n\n")+listContent), " ", rightCol)
-	return "\n" + topBarStr + "\n" + title + "\n" + cols + "\n" + sep + "\n" + help + "\n"
+		tsectionStyle.Render(t("vms.header")+" "+stats+"\n"+topBarStr+"\n"+searchRow)+"\n"+listContent), " ", rightCol)
+	return "\n" + title + "\n" + cols + "\n" + sep + "\n" + help + "\n"
 }
 
 func (m tuiModel) buildDetail(list []VM) string {
@@ -776,7 +992,8 @@ func (m tuiModel) updateCreate(msg tea.KeyPressMsg) (tuiModel, tea.Cmd) {
 			m.createInput.Focus()
 			return m, nil
 		}
-		if m.createStep == 1 {
+		switch m.createStep {
+		case 1:
 			if value == "" {
 				value = "linux"
 			}
@@ -785,23 +1002,44 @@ func (m tuiModel) updateCreate(msg tea.KeyPressMsg) (tuiModel, tea.Cmd) {
 			m.createInput.SetValue("")
 			m.createInput.Prompt = t("new.ssh_user") + " > "
 			m.createInput.Placeholder = t("new.ssh_user_ph")
-			m.createInput.Focus()
-			return m, nil
-		}
-		name := m.createName
-		guestOS := m.createGuestOS
-		sshUser := strings.TrimSpace(value)
-		m.createMode = false
-		m.createStep = 0
-		m.createInput.SetValue("")
-		m.createInput.Prompt = "/ "
-		m.createInput.Blur()
-		return m, func() tea.Msg {
-			if err := m.backend.Create(VMCreateConfig{Name: name, GuestOS: guestOS, SSHUser: sshUser}); err != nil {
-				return tuiErrMsg{err}
+		case 2:
+			m.createSSHUser = value
+			m.createStep = 3
+			m.createInput.SetValue("")
+			m.createInput.Prompt = t("new.iso") + " > "
+			m.createInput.Placeholder = t("new.iso_ph")
+		case 3:
+			m.createISO = value
+			m.createStep = 4
+			m.createInput.SetValue("")
+			m.createInput.Prompt = t("new.memory") + " > "
+			m.createInput.Placeholder = "2048"
+		case 4:
+			m.createMemory = value
+			m.createStep = 5
+			m.createInput.SetValue("")
+			m.createInput.Prompt = t("new.cores") + " > "
+			m.createInput.Placeholder = "2"
+		case 5:
+			m.createCores = value
+			name, guestOS, sshUser, iso := m.createName, m.createGuestOS, m.createSSHUser, m.createISO
+			memory, cores := 0, 0
+			_, _ = fmt.Sscanf(m.createMemory, "%d", &memory)
+			_, _ = fmt.Sscanf(m.createCores, "%d", &cores)
+			m.createMode = false
+			m.createStep = 0
+			m.createInput.SetValue("")
+			m.createInput.Blur()
+			return m, func() tea.Msg {
+				cfg := VMCreateConfig{Name: name, GuestOS: guestOS, SSHUser: sshUser, ISO: iso, MemoryMB: memory, CPUCores: cores}
+				if err := m.backend.Create(cfg); err != nil {
+					return tuiErrMsg{err}
+				}
+				return tuiStatusMsg{fmt.Sprintf(t("status.created"), name)}
 			}
-			return tuiStatusMsg{fmt.Sprintf(t("status.created"), name)}
 		}
+		m.createInput.Focus()
+		return m, nil
 	default:
 		var cmd tea.Cmd
 		m.createInput, cmd = m.createInput.Update(msg)
@@ -840,8 +1078,22 @@ func (m tuiModel) renderCreate() string {
 			tsectionStyle.Render(fmt.Sprintf("%s: %s", t("new.guest_os"), m.createGuestOS)) + "\n\n" +
 			tsectionStyle.Render(t("new.ssh_user")) + " " + lipgloss.NewStyle().Foreground(thighlight).Render(m.createInput.View()) +
 			thelpStyle.Render("  ("+t("new.ssh_user_ph")+")")
+	case 3, 4, 5:
+		line = tsectionStyle.Render(fmt.Sprintf("%s: %s", t("new.name"), m.createName)) + "\n" +
+			tsectionStyle.Render(fmt.Sprintf("%s: %s", t("new.guest_os"), m.createGuestOS)) + "\n" +
+			tsectionStyle.Render(fmt.Sprintf("%s: %s", t("new.ssh_user"), m.createSSHUser)) + "\n"
+		if m.createStep > 3 {
+			line += tsectionStyle.Render(fmt.Sprintf("%s: %s", t("new.iso"), m.createISO)) + "\n"
+		}
+		if m.createStep > 4 {
+			line += tsectionStyle.Render(fmt.Sprintf("%s: %s", t("new.memory"), m.createMemory)) + "\n"
+		}
+		prompt := map[int]string{3: t("new.iso"), 4: t("new.memory"), 5: t("new.cores")}[m.createStep]
+		line += "\n" + tsectionStyle.Render(prompt) + " " + lipgloss.NewStyle().Foreground(thighlight).Render(m.createInput.View())
 	}
-	return "\n" + title + "\n\n" + line + "\n"
+	return "\n" + title + "\n\n" + line + "\n\n" +
+		common.TBtnBar(common.TBtn(m.id, "a_create_next", t("btn.next"), "enter", false),
+			common.TBtn(m.id, "a_create_cancel", t("btn.cancel"), "esc", false)) + "\n"
 }
 
 // renderAbout renders the about screen.

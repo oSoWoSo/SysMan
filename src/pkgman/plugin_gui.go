@@ -63,6 +63,10 @@ type pkgGuiApp struct {
 	xbpsOn      bool
 	btnFlatpak  *common.HoverableButton
 	flatpakOn   bool
+	btnNix      *common.HoverableButton
+	nixOn       bool
+	btnGuix     *common.HoverableButton
+	guixOn      bool
 
 	pkgList       *widget.List
 	detailName    *widget.Label
@@ -159,6 +163,12 @@ func (g *pkgGuiApp) enabledBackends() []PkgBackend {
 	}
 	if g.flatpakOn {
 		out = append(out, NewFlatpakBackend())
+	}
+	if g.nixOn {
+		out = append(out, NewNixBackend())
+	}
+	if g.guixOn {
+		out = append(out, NewGuixBackend())
 	}
 	if len(out) == 0 {
 		out = append(out, NewXbpsBackend())
@@ -350,16 +360,6 @@ func (g *pkgGuiApp) showAppImageSettings() {
 // ── Custom xbps repositories ─────────────────────────────────────────
 
 // repos management is now embedded in settings.
-
-// usedRepoSet returns the set of repositories currently active in
-// /etc/xbps.d/<repoFile> (read-only, no elevation required).
-func usedRepoSet(repoFile string) map[string]bool {
-	set := make(map[string]bool)
-	for _, r := range loadReposConf("/etc/xbps.d", repoFile) {
-		set[r] = true
-	}
-	return set
-}
 
 // repos management is now embedded in settings.
 
@@ -736,7 +736,30 @@ func (g *pkgGuiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	})
 	g.btnFlatpak.Importance = widget.MediumImportance
 
-	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable, widget.NewSeparator(), g.btnXbps, g.btnAppImage, g.btnFlatpak)
+	g.btnNix = common.NewHoverableButtonText(t("filter.nix"), t("tooltip.pkgman.nix"), g.statusBar, func() {
+		g.nixOn = !g.nixOn
+		if g.nixOn {
+			g.btnNix.Importance = widget.HighImportance
+		} else {
+			g.btnNix.Importance = widget.MediumImportance
+		}
+		g.btnNix.Refresh()
+		g.reload()
+	})
+	g.btnNix.Importance = widget.MediumImportance
+
+	g.btnGuix = common.NewHoverableButtonText(t("filter.guix"), t("tooltip.pkgman.guix"), g.statusBar, func() {
+		g.guixOn = !g.guixOn
+		if g.guixOn {
+			g.btnGuix.Importance = widget.HighImportance
+		} else {
+			g.btnGuix.Importance = widget.MediumImportance
+		}
+		g.btnGuix.Refresh()
+		g.reload()
+	})
+	g.btnGuix.Importance = widget.MediumImportance
+	filterRow := container.NewHBox(btnFilterAll, btnFilterInstalled, btnFilterAvailable, widget.NewSeparator(), g.btnXbps, g.btnAppImage, g.btnFlatpak, g.btnNix, g.btnGuix)
 
 	// ── Package list ──────────────────────────────────────────────────
 	installedColor := color.RGBA{R: 0x44, G: 0xDD, B: 0x77, A: 0xFF} // grn

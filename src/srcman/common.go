@@ -294,18 +294,6 @@ func RunXbpsStreamCtx(ctx context.Context, distDir string, w io.Writer, args ...
 	return strings.TrimSpace(buf.String()), err
 }
 
-// OpenEditor opens srcpkgs/<name>/template in $EDITOR (or xdg-open as fallback).
-// The editor is launched detached (non-blocking).
-func OpenEditor(distDir, name string) {
-	path := filepath.Join(ResolveDistDir(distDir), "srcpkgs", name, "template")
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "xdg-open"
-	}
-	cmd := exec.Command(editor, path) //nolint:gosec
-	_ = cmd.Start()
-}
-
 // OpenBrowser opens a URL in the default browser (non-blocking).
 func OpenBrowser(url string) {
 	cmd := exec.Command("xdg-open", url) //nolint:gosec

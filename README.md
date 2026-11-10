@@ -76,7 +76,7 @@ libGL libX11 libXcursor libXi libXinerama libXrandr libXxf86vm
 ```bash
 sysman              # GUI (default when display available)
 sysman --tui        # TUI
-sysman --help
+sysman-tui --small  # compact TUI for small terminals
 
 serman               # Services GUI
 serman --tui         # Services TUI

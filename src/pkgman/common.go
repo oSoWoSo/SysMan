@@ -522,6 +522,16 @@ func reposConfContent(repos []string) string {
 	return b.String()
 }
 
+// usedRepoSet returns the set of repositories currently active in
+// /etc/xbps.d/<repoFile> (read-only, no elevation required).
+func usedRepoSet(repoFile string) map[string]bool {
+	set := make(map[string]bool)
+	for _, r := range loadReposConf("/etc/xbps.d", repoFile) {
+		set[r] = true
+	}
+	return set
+}
+
 // loadReposConf parses `repository=` lines from the managed conff file in dir.
 func loadReposConf(dir, file string) []string {
 	data, err := os.ReadFile(filepath.Join(dir, file))

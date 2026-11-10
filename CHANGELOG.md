@@ -4,9 +4,22 @@ All notable changes to SysMan are documented here.
 
 ---
 
-## [Unreleased]
+## [0.025 Alpha]
 
-No unreleased changes.
+### Added
+- **pkgman: Nix and Guix backends** — browse and manage Nix and Guix packages alongside xbps, AppImage, and Flatpak
+- **sysman: configurable tab display** — toggle tab names and icons independently in settings
+- **sysman-tui: --small (-s)** - compact tabbed TUI mode for small terminals.
+- **serman: live service logs** — inspect a selected service's existing and streaming runit logs in the GUI and TUI via `svlogtail`
+
+### Changed
+- **TUI: unified selected row color** — all TUI modules use the same green highlight as the top bar
+- **Sysman TUI layouts** - now mirror GUI module button placement, including the inline template editor and output pane; shortcut hints toggle with F1 or Ctrl+H.
+
+### Fixed
+- **pkgman: nix-env installation support** — the Nix backend now correctly handles nix-env installations
+- **Prefer terminal-based privilege prompts** - when a TUI is attached to a terminal.
+- **Makefile: version comment placement**
 
 ---
 

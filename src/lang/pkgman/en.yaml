@@ -11,12 +11,17 @@ strings:
   about.version: "Version"
   about.author: "Author"
   about.license: "License"
-  about.description: "Manage XBPS packages on Void Linux.\n\nTop: search bar and filter tabs (All / Installed / Available).\nLeft: package list. Right: detail of selected package — name, version,\nstatus, description, homepage link. Buttons: Install, Remove, Update all."
+  about.description: "Manage packages from XBPS, AppImage, and Flatpak backends."
   btn.about: "About"
   btn.close: "Close"
-
+  btn.settings: "Settings"
+  btn.reload: "Reload"
+  btn.save: "Save"
+  btn.confirm: "Confirm"
+  btn.cancel: "Cancel"
+  settings.title: "pkgman Settings"
+  about.open_homepage: "Open project homepage"
   about.hint: "Press any key to go back"
-
   search.placeholder: "Search packages…"
 
   filter.all: "All"
@@ -25,6 +30,8 @@ strings:
   filter.xbps: "XBPS"
   filter.appimage: "AppImage"
   filter.flatpak: "Flatpak"
+  filter.nix: "Nix"
+  filter.guix: "Guix"
 
   action.install: "+"
   action.remove: "-"
@@ -85,6 +92,7 @@ strings:
   tui.repo: "Repo"
   tui.size: "Size"
   tui.deps: "Deps"
+  tui.architecture: "Architecture"
 
   tooltip.pkgman.install: "Install selected package"
   tooltip.pkgman.remove: "Remove selected package"
@@ -102,7 +110,8 @@ strings:
   appimage.am_missing: "am/appman not found in PATH"
   tooltip.pkgman.backend: "Switch package backend"
   tooltip.pkgman.flatpak: "Switch to Flatpak backend"
-  settings.repos_file: "Managed repos file in /etc/xbps.d"
+  tooltip.pkgman.nix: "Switch to Nix backend"
+  tooltip.pkgman.guix: "Switch to Guix backend"
   tooltip.pkgman.repos: "Manage custom xbps repositories"
   tooltip.pkgman.repos_use: "Enable this repository system-wide"
   tooltip.pkgman.repos_stop: "Disable this repository system-wide"
@@ -121,3 +130,4 @@ strings:
   repos.confirm_title: "Trust repository?"
   repos.confirm_body: "Enable %s?\n\nYou may be asked to confirm its signing key during the next xbps sync."
   action.repos_sync: "repos"
+  repos.synced: "Repositories synchronized"

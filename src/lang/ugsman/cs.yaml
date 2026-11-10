@@ -39,6 +39,7 @@ strings:
   btn.cancel: "Zrušit"
 
   chk.system_users: "Zobrazit systémové uživatele"
+  tui.remove_home: "Odstranit domovský adresář"
 
   user.add.title: "Přidat uživatele"
   user.add.login: "Přihlášení"
@@ -93,8 +94,8 @@ strings:
   confirm.del_group: "Smazat skupinu %s?"
   confirm.hint: "y = potvrdit, jiná klávesa = zrušit"
 
-  tui.tab.users: "1 Uživatelé"
-  tui.tab.groups: "2 Skupiny"
+  tui.tab.users: "Uživatelé"
+  tui.tab.groups: "Skupiny"
   tui.none.users: "(žádní uživatelé)"
   tui.none.groups: "(žádné skupiny)"
   tui.help: "↑/↓/j/k: pohyb   1/2: záložka   s: systémoví   q: konec"
@@ -138,4 +139,7 @@ strings:
   dialog.group_name: "Název skupiny"
   dialog.password_new: "Nové heslo"
   dialog.password_confirm: "Potvrdit heslo"
+  dialog.members_hint: "↑/↓ pohyb, Mezerník přepnout, Enter použít, Esc zrušit"
+  dialog.login_required: "Přihlášení je povinné"
+  dialog.group_required: "Název skupiny je povinný"
   dialog.hint: "Tab=další pole, Enter=OK, Esc=Zrušit"

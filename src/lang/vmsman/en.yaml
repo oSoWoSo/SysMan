@@ -81,9 +81,17 @@ strings:
   btn.log: Log
   btn.ssh_user: SSH user
   btn.create: Create
+  btn.cancel: Cancel
+  btn.next: Next
   btn.save: Save
   btn.reload: Reload
   btn.about: About
+  settings.title: Settings
+  settings.vm_dir: VM directory
+  settings.hint: "Enter=save  Esc=cancel"
+  status.settings_saved: Settings saved
+  btn.settings: Settings
+  edit.hint: "Ctrl+S=save  Esc=cancel"
   btn.close: Close
 
   about.version: "Version"

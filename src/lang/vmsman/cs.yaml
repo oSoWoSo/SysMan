@@ -81,9 +81,17 @@ strings:
   btn.log: Log
   btn.ssh_user: SSH uživatel
   btn.create: Vytvořit
+  btn.cancel: Zrušit
+  btn.next: Další
   btn.save: Uložit
   btn.reload: Znovu načíst
   btn.about: O aplikaci
+  settings.title: Nastavení
+  settings.vm_dir: Adresář VM
+  settings.hint: "Enter=uložit  Esc=zrušit"
+  status.settings_saved: Nastavení uloženo
+  btn.settings: Nastavení
+  edit.hint: "Ctrl+S=uložit  Esc=zrušit"
   btn.close: Zavřít
 
   about.version: "Verze"

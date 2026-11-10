@@ -14,7 +14,7 @@ import (
 // NewTuiModel returns a Bubbletea tea.Model showing system information.
 func NewTuiModel() tea.Model {
 	zone.NewGlobal()
-	return sysInfoModel{id: zone.NewPrefix()}
+	return sysInfoModel{id: zone.NewPrefix(), logo: common.TerminalLogo(24)}
 }
 
 type fetchDoneMsg struct{ entries []infoEntry }
@@ -32,6 +32,7 @@ type sysInfoModel struct {
 	showAbout   bool
 	width       int
 	height      int
+	logo        string
 }
 
 func (m sysInfoModel) Init() tea.Cmd {
@@ -52,6 +53,9 @@ func (m sysInfoModel) Init() tea.Cmd {
 }
 
 func (m sysInfoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyPressMsg); ok && common.ToggleTUIKeyHints(key) {
+		return m, nil
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -66,10 +70,10 @@ func (m sysInfoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Button != tea.MouseLeft {
 			break
 		}
-		if zone.Get(m.id + "a_quit").InBounds(msg) {
+		if zone.Get(m.id + "infman:a_quit").InBounds(msg) {
 			return m, tea.Quit
 		}
-		if zone.Get(m.id + "a_about").InBounds(msg) {
+		if zone.Get(m.id + "infman:a_about").InBounds(msg) {
 			m.showAbout = true
 			return m, nil
 		}
@@ -90,8 +94,17 @@ func (m sysInfoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model; renders the info listing in the alt screen.
-func (m sysInfoModel) View() tea.View {
-	v := tea.NewView(zone.Scan(m.render()))
+func (m sysInfoModel) View() tea.View { return m.view(true) }
+
+// EmbeddedView returns the unscanned view for composition inside sysman-tui.
+func (m sysInfoModel) EmbeddedView() tea.View { return m.view(false) }
+
+func (m sysInfoModel) view(scan bool) tea.View {
+	content := m.render()
+	if scan {
+		content = zone.Scan(content)
+	}
+	v := tea.NewView(content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
@@ -114,11 +127,24 @@ func (m sysInfoModel) render() string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("\n")
+	var info strings.Builder
 	for _, e := range m.entries {
 		k := tuiKeyStyle.Render(fmt.Sprintf("  %-*s", maxKey, e.Key))
 		v := tuiValStyle.Render("  " + e.Value)
-		sb.WriteString(k + v + "\n")
+		info.WriteString(k + v + "\n")
+	}
+	if m.logo != "" && m.width >= 80 {
+		logoWidth := min(28, m.width/3)
+		infoWidth := max(1, m.width-logoWidth-4)
+		left := lipgloss.NewStyle().Width(logoWidth).Render(m.logo)
+		right := lipgloss.NewStyle().Width(infoWidth).Render(info.String())
+		sb.WriteString("\n" + lipgloss.JoinHorizontal(lipgloss.Top, left, "  ", right) + "\n")
+	} else {
+		sb.WriteString("\n")
+		if m.logo != "" {
+			sb.WriteString(m.logo + "\n")
+		}
+		sb.WriteString(info.String())
 	}
 
 	if m.fetchOutput != "" {
@@ -133,15 +159,18 @@ func (m sysInfoModel) render() string {
 	}
 
 	sb.WriteString("\n")
-	quitBtn := common.TBtn(m.id, "a_quit", t("action.quit"), "q", false)
-	aboutBtn := common.TBtn(m.id, "a_about", t("btn.about"), "?", false)
+	aboutBtn := common.TBtn(m.id, "infman:a_about", t("btn.about"), "?", false)
+	controls := []string{aboutBtn}
+	if !common.TUIEmbedded() {
+		controls = append(controls, common.TBtn(m.id, "infman:a_quit", t("action.quit"), "q", false))
+	}
 	status := ""
 	if m.loaded {
 		status = lipgloss.NewStyle().Foreground(lipgloss.Color("#55FF55")).Render(fmt.Sprintf("  %d %s", len(m.entries), t("info.entries")))
 	}
 	sep := strings.Repeat("─", max(0, m.width-2))
 	sb.WriteString(sep + "\n")
-	sb.WriteString(status + "  " + aboutBtn + " " + quitBtn + "\n")
+	sb.WriteString(common.TUIFooter(common.TBtnBar(controls...), status, m.width) + "\n")
 	return sb.String()
 }
 

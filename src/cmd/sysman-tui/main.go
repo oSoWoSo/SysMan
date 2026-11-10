@@ -3,11 +3,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"codeberg.org/oSoWoSo/SysMan/src/common"
 	"codeberg.org/oSoWoSo/SysMan/src/infman"
 	"codeberg.org/oSoWoSo/SysMan/src/pkgman"
 	serman "codeberg.org/oSoWoSo/SysMan/src/serman"
@@ -29,21 +31,31 @@ func main() {
 
 	for _, arg := range os.Args[1:] {
 		if arg == "--help" || arg == "-h" {
-			fmt.Println("sysman-tui\n\nTabs: 1-9 or click to switch\nQuit: ctrl+c")
+			fmt.Println("sysman-tui\n\nTabs: 1-9 or click to switch\nQuit: ctrl+c\n\nFlags:\n  -s, -small\tuse compact small TUI layout")
 			os.Exit(0)
 		}
 	}
 
+	small := flag.Bool("small", false, "use compact small TUI layout")
+	flag.BoolVar(small, "s", false, "use compact small TUI layout")
+	flag.Parse()
+
+	vmDir := os.Getenv("VMDIR")
+	if vmDir == "" {
+		vmDir = common.LoadSysManConfig().Vmsman.VMDir
+	}
+	vmModel := vmman.NewTuiModel(vmman.NewQEMUBackend(vmman.ResolveVMDir(vmDir)))
 	tabs := []tabEntry{
 		{name: "Services", model: serman.NewTuiModel(serman.NewScopedRunitBackend(system, user))},
 		{name: "Packages", model: pkgman.NewTuiModel()},
 		{name: "Templates", model: srcman.NewTuiModel("")},
 		{name: "System Info", model: infman.NewTuiModel()},
 		{name: "Users & Groups", model: ugsman.NewTuiModel()},
-		{name: "VMs", model: vmman.NewTuiModel(vmman.NewQEMUBackend(vmman.DefaultVMDir))},
+		{name: "Virtual Machines", model: vmModel},
+		{name: "Settings", model: common.NewSysmanSettingsTUI()},
 	}
 
-	m := newTabModel(tabs)
+	m := newTabModel(tabs, *small)
 	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -59,14 +71,24 @@ type tabEntry struct {
 }
 
 type tabModel struct {
-	id     string
-	tabs   []tabEntry
-	active int
+	id           string
+	tabs         []tabEntry
+	active       int
+	showTabNames bool
+	showTabIcons bool
+	small        bool
 }
 
-func newTabModel(tabs []tabEntry) tabModel {
+func newTabModel(tabs []tabEntry, small bool) tabModel {
 	zone.NewGlobal()
-	return tabModel{id: zone.NewPrefix(), tabs: tabs}
+	cfg := common.LoadSysManConfig()
+	return tabModel{
+		id:           zone.NewPrefix(),
+		tabs:         tabs,
+		showTabNames: cfg.ShowTabNames,
+		showTabIcons: cfg.ShowTabIcons,
+		small:        small,
+	}
 }
 
 func (m tabModel) Init() tea.Cmd {
@@ -96,12 +118,17 @@ func (m tabModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if mouse, ok := msg.(tea.MouseClickMsg); ok && mouse.Button == tea.MouseLeft {
 		for i, t := range m.tabs {
 			if zone.Get(m.id + t.name).InBounds(mouse) {
-				if i != m.active {
-					m.active = i
-					return m, nil
-				}
+				m.active = i
+				return m, nil
 			}
 		}
+	}
+
+	// Mouse events go only to the active plugin.
+	if _, ok := msg.(tea.MouseClickMsg); ok {
+		updated, cmd := m.tabs[m.active].model.Update(msg)
+		m.tabs[m.active].model = updated
+		return m, cmd
 	}
 
 	// Non-key events go to all plugins (window resize, async results).
@@ -132,10 +159,26 @@ var (
 	tuiTabBar      = lipgloss.NewStyle().BorderBottom(true).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("#585858"))
 )
 
+type embeddedView interface {
+	EmbeddedView() tea.View
+}
+
+func getEmbeddedView(model tea.Model) tea.View {
+	if m, ok := model.(embeddedView); ok {
+		return m.EmbeddedView()
+	}
+	return model.View()
+}
+
 func (m tabModel) View() tea.View {
 	var tabLabels []string
 	for i, t := range m.tabs {
-		label := fmt.Sprintf("%d %s", i+1, t.name)
+		label := common.FormatTabLabel(t.name, m.showTabNames, m.showTabIcons)
+		if label == "" {
+			label = fmt.Sprintf("%d", i+1)
+		} else {
+			label = fmt.Sprintf("%d %s", i+1, label)
+		}
 		if i == m.active {
 			tabLabels = append(tabLabels, zone.Mark(m.id+t.name, tuiTabActive.Render(label)))
 		} else {
@@ -143,9 +186,19 @@ func (m tabModel) View() tea.View {
 		}
 	}
 	bar := lipgloss.JoinHorizontal(lipgloss.Top, tabLabels...)
-	bar += "  " + tuiTabHelp.Render("1-9: switch  click: switch  ctrl+c: quit")
-	v := tea.NewView(zone.Scan(tuiTabBar.Render(bar) + "\n" + m.tabs[m.active].model.View().Content))
-	v.AltScreen = true
+	help := "1-9:switch click:switch ctrl+c:quit"
+	if !m.small {
+		bar += "  " + tuiTabHelp.Render("1-9: switch  click: switch  ctrl+c: quit")
+	} else {
+		bar += "  " + tuiTabHelp.Render(help)
+	}
+	content := getEmbeddedView(m.tabs[m.active].model).Content
+	v := tea.NewView(zone.Scan(tuiTabBar.Render(bar) + "\n" + content))
+	if m.small {
+		v.AltScreen = false
+	} else {
+		v.AltScreen = true
+	}
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }

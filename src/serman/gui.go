@@ -3,6 +3,7 @@
 package serman
 
 import (
+	"bufio"
 	"fmt"
 	"image/color"
 	"os"
@@ -146,6 +147,7 @@ type guiApp struct {
 	btnPause      *common.HoverableButton
 	btnContinue   *common.HoverableButton
 	btnKill       *common.HoverableButton
+	btnLogs       *common.HoverableButton
 	statusBar     *common.StatusBar
 	countLabel    *widget.Label
 }
@@ -301,6 +303,7 @@ func (s *guiApp) clearDetail() {
 	s.btnPause.Disable()
 	s.btnContinue.Disable()
 	s.btnKill.Disable()
+	s.btnLogs.Disable()
 }
 
 func (s *guiApp) showDetail(svc Service) {
@@ -312,6 +315,11 @@ func (s *guiApp) showDetail(svc Service) {
 	s.detailDst.SetText(filepath.Join(destDir, svc.Name))
 	s.btnEnable.Enable()
 	s.btnDisable.Enable()
+	if _, ok := s.backend.(LogBackend); ok {
+		s.btnLogs.Enable()
+	} else {
+		s.btnLogs.Disable()
+	}
 	if svc.Enabled {
 		s.btnEnable.Disable()
 		s.btnStart.Enable()
@@ -382,6 +390,45 @@ func (s *guiApp) setStatus(msg string) {
 	fyne.Do(func() {
 		s.statusBar.SetText(msg)
 	})
+}
+func (s *guiApp) showLogs(svc Service) {
+	logBackend, ok := s.backend.(LogBackend)
+	if !ok {
+		return
+	}
+	stream, err := logBackend.OpenLogs(svc)
+	if err != nil {
+		s.setStatus(t("status.err") + err.Error())
+		return
+	}
+
+	logText := widget.NewLabel("")
+	logText.TextStyle = fyne.TextStyle{Monospace: true}
+	logText.Wrapping = fyne.TextWrapBreak
+	logText.Selectable = true
+	scroll := container.NewScroll(logText)
+	d := dialog.NewCustom(t("log.title")+" — "+svc.Name, t("btn.close"), scroll, s.win)
+	d.SetOnClosed(func() { _ = stream.Close() })
+	d.Resize(fyne.NewSize(720, 480))
+	d.Show()
+
+	go func() {
+		scanner := bufio.NewScanner(stream)
+		scanner.Buffer(make([]byte, 4096), maxServiceLogBytes)
+		var contents string
+		for scanner.Scan() {
+			contents = appendServiceLog(contents, scanner.Text()+"\n")
+			text := contents
+			fyne.Do(func() {
+				logText.SetText(text)
+				scroll.ScrollToBottom()
+			})
+		}
+		if err := scanner.Err(); err != nil {
+			text := appendServiceLog(contents, err.Error()+"\n")
+			fyne.Do(func() { logText.SetText(text) })
+		}
+	}()
 }
 
 // showAbout displays the About dialog with app metadata.
@@ -747,6 +794,11 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 			}, s.win)
 	})
 	s.btnKill.Importance = widget.DangerImportance
+	s.btnLogs = common.NewHoverableButton(t("btn.logs"), theme.DocumentIcon(), t("tooltip.serman.logs"), s.statusBar, func() {
+		if svc, ok := s.selectedService(); ok {
+			s.showLogs(svc)
+		}
+	})
 
 	s.btnEnable.Disable()
 	s.btnDisable.Disable()
@@ -757,9 +809,10 @@ func (s *guiApp) buildContent(showHeader bool) fyne.CanvasObject {
 	s.btnPause.Disable()
 	s.btnContinue.Disable()
 	s.btnKill.Disable()
+	s.btnLogs.Disable()
 
 	toggleRow := container.NewHBox(s.btnEnable, s.btnDisable)
-	controlRow := container.NewHBox(s.btnStart, s.btnStop, s.btnRestart, s.btnHup, s.btnPause, s.btnContinue, s.btnKill, layout.NewSpacer(), btnReload)
+	controlRow := container.NewHBox(s.btnStart, s.btnStop, s.btnRestart, s.btnHup, s.btnPause, s.btnContinue, s.btnKill, s.btnLogs, layout.NewSpacer(), btnReload)
 	buttons := container.NewVBox(toggleRow, controlRow)
 
 	// Settings button

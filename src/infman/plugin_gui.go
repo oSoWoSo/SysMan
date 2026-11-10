@@ -37,7 +37,7 @@ func (p *Plugin) SetStatusBar(statusBar *common.StatusBar) {
 // Implements api.PluginIF.
 func (p *Plugin) Model() tea.Model {
 	zone.NewGlobal()
-	return sysInfoModel{id: zone.NewPrefix()}
+	return sysInfoModel{id: zone.NewPrefix(), logo: common.TerminalLogo(24)}
 }
 
 // ── Logo ───────────────────────────────────────────────────────────────
