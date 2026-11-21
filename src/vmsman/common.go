@@ -307,7 +307,7 @@ func (b *QEMUBackend) BootStream(vm *VM, onLog func(string)) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("quickemu", "--vm", vm.Config) //nolint:gosec
+	cmd := exec.Command(quickemuBin(), "--vm", vm.Config) //nolint:gosec
 	cmd.Dir = b.vmDir
 	cmd.Stdout = tty
 	cmd.Stderr = tty
@@ -444,7 +444,7 @@ func (b *QEMUBackend) Kill(vm *VM) error {
 	// Graceful stop first: quickemu powers the VM down and removes its own
 	// pid/ports files. Any error is ignored and we fall back to signals.
 	if vm.Config != "" {
-		_ = exec.Command("quickemu", "--vm", vm.Config, "--kill").Run() //nolint:gosec
+		_ = exec.Command(quickemuBin(), "--vm", vm.Config, "--kill").Run() //nolint:gosec
 	}
 
 	if vm.PID > 0 && pidAlive(vm.PID) {
@@ -524,6 +524,26 @@ func ConnectToVM(port int, viewer string) error {
 	}
 	cmd := exec.Command(args[0], args[1:]...)
 	return cmd.Start()
+}
+
+// quickemuBin resolves the quickemu executable, preferring PATH and falling
+// back to common install/source locations so VMs can boot even when the GUI
+// process inherits a reduced PATH.
+func quickemuBin() string {
+	if p, err := exec.LookPath("quickemu"); err == nil {
+		return p
+	}
+	for _, candidate := range []string{
+		"/home/z/bin/quickemu",
+		"/usr/local/bin/quickemu",
+		"/usr/bin/quickemu",
+		"/home/z/Projects/dh/quickemu",
+	} {
+		if st, err := os.Stat(candidate); err == nil && !st.IsDir() && st.Mode()&0111 != 0 {
+			return candidate
+		}
+	}
+	return "quickemu"
 }
 
 // resolveTerminal returns a terminal emulator binary that accepts `-e CMD`,

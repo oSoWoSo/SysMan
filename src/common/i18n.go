@@ -29,41 +29,43 @@ var i18nOnce sync.Once
 // GetLangDirs returns the search paths for language files.
 // Priority: SYSMAN_LANGDIR env > config lang_dir > default paths.
 func GetLangDirs(module string) []string {
-	var dirs []string
-
-	// 1. SYSMAN_LANGDIR environment variable (highest priority)
-	if langDir := os.Getenv("SYSMAN_LANGDIR"); langDir != "" {
-		dirs = append(dirs, filepath.Join(langDir, module))
-	}
-
-	// 2. Config file lang_dir (only if not already set via env)
-	if langDir := os.Getenv("SYSMAN_LANGDIR"); langDir == "" {
-		if cfg := LoadSysManConfig(); cfg.LangDir != "" {
-			dirs = append(dirs, filepath.Join(cfg.LangDir, module))
-		}
-	}
-
-	// 3. Default system paths
+	// 3. Default system paths (lowest priority among defaults)
 	defaultDirs := []string{
-		"/usr/local/share/SysMan/lang/" + module,
-		"/usr/share/SysMan/lang/" + module,
+		"/usr/local/share/sysman/lang/" + module,
+		"/usr/share/sysman/lang/" + module,
 	}
 	if exe, err := os.Executable(); err == nil {
 		defaultDirs = append([]string{filepath.Join(filepath.Dir(exe), "lang", module)}, defaultDirs...)
 	}
 
 	// 4. Development paths (relative to CWD - various depths)
-	// These cover running from project root, src/, src/<module>/, or during tests
-	dirs = append(dirs,
-		"./lang/"+module,         // from project root
-		"./src/lang/"+module,     // from project root
-		"../lang/"+module,        // from src/<module>/
-		"../../lang/"+module,     // from src/<module>/ (alternate)
-		"../src/lang/"+module,    // from src/<module>/
-		"../../src/lang/"+module, // from src/<module>/
-	)
+	// These cover running from project root, src/, src/<module>/, or during tests.
+	// Appended after system paths so development files override stale installs.
+	devDirs := []string{
+		"./lang/" + module,         // from project root
+		"./src/lang/" + module,     // from project root
+		"../lang/" + module,        // from src/<module>/
+		"../../lang/" + module,     // from src/<module>/ (alternate)
+		"../src/lang/" + module,    // from src/<module>/
+		"../../src/lang/" + module, // from src/<module>/
+	}
 
+	// Build final list: system defaults first, then dev, then config, then env.
+	dirs := []string{}
 	dirs = append(dirs, defaultDirs...)
+	dirs = append(dirs, devDirs...)
+
+	// Re-add config/env with higher priority than dev.
+	if langDir := os.Getenv("SYSMAN_LANGDIR"); langDir != "" {
+		// move env to end (highest) by removing earlier? env not added yet; add now.
+		dirs = append(dirs, filepath.Join(langDir, module))
+	}
+	if os.Getenv("SYSMAN_LANGDIR") == "" {
+		if cfg := LoadSysManConfig(); cfg.LangDir != "" {
+			dirs = append(dirs, filepath.Join(cfg.LangDir, module))
+		}
+	}
+
 	return dirs
 }
 

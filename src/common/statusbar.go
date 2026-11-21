@@ -18,6 +18,7 @@ func NewStatusBar() *StatusBar {
 	bar := &StatusBar{}
 	bar.ExtendBaseWidget(bar)
 	bar.Alignment = fyne.TextAlignLeading
+	bar.Selectable = true
 	return bar
 }
 

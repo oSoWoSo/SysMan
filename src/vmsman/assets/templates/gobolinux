@@ -1,0 +1,25 @@
+# Template file for 'gobolinux'
+OSNAME="gobolinux"
+PRETTY="GoboLinux"
+LOGO=""
+ICON="gobolinux.svg"
+CATEGORY="Desktop, Live Medium, Source-based"
+BASEDOF="-"
+HOMEPAGE="https://gobolinux.org/"
+DESCRIPTION="Experimental Linux distribution that redefines the entire filesystem hierarchy"
+CREDENTIALS="-"
+GPG=""
+RSS=""
+DW=""
+
+function releases_() {
+	echo $(web_pipe "https://gobolinux.org/downloads.html" | grep -oP 'href="https://gobolinux\.neonsys\.org/\K[^"]+(?=-ISO)' | sed 's|/.*||' | sort -u)
+}
+
+function get_() {
+	local HASH=""
+	local ISO="GoboLinux-${RELEASE}-x86_64.iso"
+	local URL="https://gobolinux.neonsys.org/${RELEASE}-ISO"
+	HASH=$(web_pipe "https://gobolinux.org/downloads.html" | grep -oP 'SHA256: \K[a-f0-9]+')
+	echo "${URL}/${ISO} ${HASH}"
+}

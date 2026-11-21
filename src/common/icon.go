@@ -17,16 +17,25 @@ func AppIcon() *fyne.StaticResource {
 	candidates := []string{}
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
+		candidates = append(candidates, filepath.Join(dir, "sysman.svg"))
 		candidates = append(candidates, filepath.Join(dir, "void-transparent.png"))
 	}
 	candidates = append(candidates,
+		"/usr/local/share/icons/hicolor/scalable/apps/sysman.svg",
+		"/usr/share/icons/hicolor/scalable/apps/sysman.svg",
+		"/usr/local/share/sysman/sysman.svg",
+		"/usr/share/sysman/sysman.svg",
+		"/usr/local/share/SysMan/sysman.svg",
+		"/usr/share/SysMan/sysman.svg",
+		"sysman.svg",
 		"/usr/local/share/SysMan/void-transparent.png",
 		"/usr/share/SysMan/void-transparent.png",
 	)
 	for _, path := range candidates {
 		if data, err := os.ReadFile(path); err == nil {
+			name := filepath.Base(path)
 			return &fyne.StaticResource{
-				StaticName:    "void-transparent.png",
+				StaticName:    name,
 				StaticContent: data,
 			}
 		}

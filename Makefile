@@ -1,7 +1,9 @@
-VERSION  ?= 0.025 Alpha
+VERSION  ?= 0.026 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
-PREFIX   ?= /usr/local
+PREFIX   ?= /usr
+DATADIR  ?= $(PREFIX)/share
+ICONDIR  ?= $(DATADIR)/icons/hicolor/scalable/apps
 LDFLAGS   = -s -w -X 'codeberg.org/oSoWoSo/SysMan/src/common.Version=$(VERSION)'
 
 # add PIE flags for cgo builds
@@ -13,6 +15,7 @@ PIE_LDFLAGS = $(LDFLAGS) $(PIE_EXTLDFLAGS)
 BUILD_DIR = build
 
 GUI_BINS = sysman serman ugsman infman srcman pkgman vmsman
+EXTRA_GUI_BINS = vmsman-create
 TUI_BINS = sysman-tui serman-tui ugsman-tui infman-tui srcman-tui pkgman-tui vmsman-tui
 
 # pkg-config modules required for GUI (CGO) builds on Linux
@@ -21,10 +24,32 @@ PKG_CONFIG_MODULES = x11 xrandr xinerama xcursor xi xxf86vm gl wayland-client wa
 .PHONY: all clean fmt lint test check-deps \
 	build build-tui \
 	install install-tui install-all uninstall uninstall-tui uninstall-all release \
-	help default
+	version generate help default
+
+# Catch-all so `make version 0.026 Alpha` doesn't fail on the version tokens.
+%:
+	@:
 
 # Default target - show help when no target specified
 default: help
+
+## generate: regenerate public OS metadata from vendored templates
+generate:
+	@echo "Generating public OS metadata..."
+	cd src/vmsman/assets && ./generate -a -p
+	@rm -f src/vmsman/assets/public/tmp_*
+	@echo "Public metadata updated."
+
+## version: set the project version (e.g. make version 0.026 Alpha or make version VERSION="0.026 Alpha")
+version:
+	@newver="$${VERSION:-$(filter-out version,$(MAKECMDGOALS))}"; \
+	if [ -z "$$newver" ]; then \
+		echo "Usage: make version VERSION=\"0.026 Alpha\" (or: make version 0.026 Alpha)"; \
+		exit 1; \
+	fi; \
+	sed -i "s/^VERSION[[:space:]]*?=.*/VERSION  ?= $$newver/" Makefile; \
+	sed -i "s/var Version = .*/var Version = \"$$newver\"/" src/common/version.go; \
+	echo "Version set to $$newver"
 
 ## help: show available targets
 help:
@@ -104,9 +129,11 @@ else
 endif
 
 ## build: build all GUI binaries
-build: $(addprefix build-,$(GUI_BINS))
+build: $(addprefix build-,$(GUI_BINS)) build-vmsman-create
 	@echo "All GUI binaries built in $(BUILD_DIR)/."
 	@cp -r src/lang/. $(BUILD_DIR)/lang 2>/dev/null || true
+	@cp sysman.svg $(BUILD_DIR)/sysman.svg
+	@cp sysman.svg $(BUILD_DIR)/sysman.svg
 
 ## build-tui: build all TUI-only binaries (CGO-free)
 build-tui: $(addprefix build-,$(TUI_BINS))
@@ -118,12 +145,21 @@ build-%: check-deps
 	@mkdir -p $(BUILD_DIR)
 	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/$* ./src/cmd/$*-gui/
 	@cp -r src/lang/. $(BUILD_DIR)/lang 2>/dev/null || true
+	@cp sysman.svg $(BUILD_DIR)/sysman.svg
+	@cp sysman.svg $(BUILD_DIR)/sysman.svg
 
 ## Generic TUI build rule
 build-%-tui:
 	@echo "Building $*-tui TUI..."
 	@mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=0 go build -tags tui_only -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$*-tui ./src/cmd/$*-tui/
+	@cp -r src/lang/. $(BUILD_DIR)/lang 2>/dev/null || true
+
+## build-vmsman-create: build standalone VM creator
+build-vmsman-create: check-deps
+	@echo "Building vmsman-create..."
+	@mkdir -p $(BUILD_DIR)
+	go build -buildmode=pie -ldflags="$(PIE_LDFLAGS)" -o $(BUILD_DIR)/vmsman-create ./src/cmd/vmsman-create/
 	@cp -r src/lang/. $(BUILD_DIR)/lang 2>/dev/null || true
 
 ## install: build and install all GUI binaries and data files
@@ -135,12 +171,23 @@ install: build
 	        echo "  installed $$bin"; \
 	    fi; \
 	done
-	@echo "Installing lang files to $(DESTDIR)$(PREFIX)/share/SysMan/lang/ ..."
-	install -d $(DESTDIR)$(PREFIX)/share/SysMan/lang
-	cp -r src/lang/. $(DESTDIR)$(PREFIX)/share/SysMan/lang/
+	@if [ -f $(BUILD_DIR)/vmsman-create ]; then \
+	    install -Dm755 $(BUILD_DIR)/vmsman-create $(DESTDIR)$(PREFIX)/bin/vmsman-create; \
+	    echo "  installed vmsman-create"; \
+	fi
+	@if [ -d src/vmsman/assets ]; then \
+	    install -d $(DESTDIR)$(DATADIR)/sysman/vmsman; \
+	    cp -r src/vmsman/assets/. $(DESTDIR)$(DATADIR)/sysman/vmsman/; \
+	    chmod +x $(DESTDIR)$(DATADIR)/sysman/vmsman/qget $(DESTDIR)$(DATADIR)/sysman/vmsman/generate 2>/dev/null || true; \
+	    echo "  installed vmsman assets"; \
+	fi
+	install -Dm644 sysman.svg $(DESTDIR)$(ICONDIR)/sysman.svg
+	@echo "Installing lang files to $(DESTDIR)$(DATADIR)/sysman/lang/ ..."
+	install -d $(DESTDIR)$(DATADIR)/sysman/lang
+	cp -r src/lang/. $(DESTDIR)$(DATADIR)/sysman/lang/
 	@[ -f void-transparent.png ] && \
-	    install -Dm644 void-transparent.png $(DESTDIR)$(PREFIX)/share/SysMan/ || true
-	@echo "Done. highlight.conf is created in ~/.config/SysMan/ on first run."
+	    install -Dm644 void-transparent.png $(DESTDIR)$(DATADIR)/sysman/ || true
+	@echo "Done. User configuration is stored under ~/.config/sysman/."
 
 ## install-tui: build and install all TUI-only binaries
 install-tui: build-tui
@@ -151,9 +198,9 @@ install-tui: build-tui
 	        echo "  installed $$bin"; \
 	    fi; \
 	done
-	@echo "Installing lang files to $(DESTDIR)$(PREFIX)/share/SysMan/lang/ ..."
-	install -d $(DESTDIR)$(PREFIX)/share/SysMan/lang
-	cp -r src/lang/. $(DESTDIR)$(PREFIX)/share/SysMan/lang/
+	@echo "Installing lang files to $(DESTDIR)$(DATADIR)/sysman/lang/ ..."
+	install -d $(DESTDIR)$(DATADIR)/sysman/lang
+	cp -r src/lang/. $(DESTDIR)$(DATADIR)/sysman/lang/
 	@echo "Done."
 
 ## install-all: build and install all binaries (GUI + TUI)
@@ -165,8 +212,10 @@ uninstall:
 	@for bin in $(GUI_BINS); do \
 	    rm -f $(DESTDIR)$(PREFIX)/bin/$$bin && echo "  removed $$bin" || true; \
 	done
-	@echo "Removing $(DESTDIR)$(PREFIX)/share/SysMan/ ..."
-	rm -rf $(DESTDIR)$(PREFIX)/share/SysMan/
+	rm -f $(DESTDIR)$(PREFIX)/bin/vmsman-create
+	@echo "Removing SysMan shared data and icon ..."
+	rm -rf $(DESTDIR)$(DATADIR)/sysman/
+	rm -f $(DESTDIR)$(ICONDIR)/sysman.svg
 	@echo "Done."
 
 ## uninstall-tui: remove installed TUI binaries

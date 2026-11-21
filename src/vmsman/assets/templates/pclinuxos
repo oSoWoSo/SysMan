@@ -1,0 +1,35 @@
+# Template file for 'pclinuxos'
+OSNAME="pclinuxos"
+PRETTY="PCLinuxOS"
+LOGO=""
+ICON="pclinuxos.svg"
+CATEGORY="Beginner"
+ORIGIN="Independent"
+HOMEPAGE="https://www.pclinuxos.com"
+DESCRIPTION="Free, easy to use Linux-based Operating System for x86_64 desktops or laptops"
+CREDENTIALS="-"
+GPG=""
+RSS=""
+DW=""
+
+function releases_() {
+	# shellcheck disable=SC2046
+	echo $(web_pipe "https://ftp.fau.de/pclinuxos/iso" | grep -oP 'pclinuxos64-\K[^\-]+-\K[0-9]+\.[0-9]+' | sort -ur | head -n 1)
+}
+
+function editions_() {
+	echo kde kde-darkstar mate xfce
+}
+
+function get_() {
+	local URL="https://ftp.fau.de/pclinuxos/iso"
+	local IMAGE_EDITION="${EDITION}"
+	case "${EDITION}" in
+		mate) IMAGE_EDITION="MATE";;
+		xfce) IMAGE_EDITION="XFCE";;
+	esac
+	local ISO="pclinuxos64-${IMAGE_EDITION}-${RELEASE}.iso"
+	local HASH=""
+	HASH=$(web_pipe "${URL}/${ISO}.md5sum" | awk -v iso="${ISO}" '$2 == iso && length($1) == 32 {print $1; exit}')
+	echo "${URL}/${ISO} ${HASH}"
+}

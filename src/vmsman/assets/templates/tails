@@ -1,0 +1,34 @@
+# Template file for 'tails'
+OSNAME="tails"
+PRETTY="Tails"
+LOGO=""
+ICON="tails.svg"
+CATEGORY="advanced"
+BASEDOF="Debian"
+HOMEPAGE="https://tails.net"
+DESCRIPTION="Portable operating system that protects against surveillance and censorship"
+CREDENTIALS="-"
+GPG=""
+RSS=""
+DW=""
+
+function releases_() {
+	echo stable
+}
+
+function get_() {
+	local JSON=""
+	local HASH=""
+	local URL=""
+	JSON="$(web_pipe "https://tails.net/install/v2/Tails/amd64/${RELEASE}/latest.json")"
+	printf '%s' "${JSON}" | jq -e 'type == "object"' >/dev/null 2>&1 || return 0
+	URL=$(printf '%s' "${JSON}" | jq -r '.installations[0]."installation-paths"[]|select(.type=="iso")|."target-files"[0].url' 2>/dev/null)
+	HASH=$(printf '%s' "${JSON}" | jq -r '.installations[0]."installation-paths"[]|select(.type=="iso")|."target-files"[0].sha256' 2>/dev/null)
+	[[ "${URL}" == null ]] && URL=""
+	[ -n "${URL}" ] || return 0
+	echo "${URL} ${HASH}"
+}
+
+function config_() {
+	echo "boot=\"legacy\"" >> "${CONF_FILE}"
+}

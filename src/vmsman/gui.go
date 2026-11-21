@@ -3,9 +3,13 @@
 package vmman
 
 import (
+	"context"
 	"fmt"
 	"image/color"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"codeberg.org/oSoWoSo/SysMan/src/common"
@@ -58,12 +62,27 @@ type guiApp struct {
 	win        fyne.Window
 	backend    Backend
 	vmDir      string
+	distro     *DistroApp
 	vms        []VM
 	selected   int
 	searchText string
 	filter     FilterMode
 
+	// download tab
+	supportedSystems []OperatingSystem
+	filteredSystems  []OperatingSystem
+	busy             bool
+	workers          sync.WaitGroup
+	viewMode         string
+	supportedGrid    *fyne.Container
+	supportedIcons   *container.Scroll
+	supportedList    *widget.List
+	iconCache        map[string]fyne.Resource
+	downloadSearch   *widget.Entry
+
 	vmList      *widget.List
+	vmGrid      *fyne.Container
+	vmIcons     *container.Scroll
 	detailName  *widget.Label
 	detailState *widget.Label
 	detailPID   *widget.Label
@@ -72,10 +91,11 @@ type guiApp struct {
 	btnBoot     *common.HoverableButton
 	btnKill     *common.HoverableButton
 	btnConnect  *common.HoverableButton
-	btnNew      *common.HoverableButton
+	btnCustom   *common.HoverableButton
 	btnEdit     *common.HoverableButton
 	btnLog      *common.HoverableButton
 	btnSSHUser  *common.HoverableButton
+	btnDelete   *common.HoverableButton
 	btnAbout    *common.HoverableButton
 	statusBar   *common.StatusBar
 	countLabel  *widget.Label
@@ -107,6 +127,7 @@ func (s *guiApp) reload() {
 
 		s.vms = s.backend.List()
 		s.vmList.Refresh()
+		s.refreshVMGrid()
 		s.updateCount()
 		list := s.filtered()
 		if s.selected >= 0 && s.selected < len(list) {
@@ -161,6 +182,7 @@ func (s *guiApp) clearDetail() {
 	s.btnEdit.Disable()
 	s.btnLog.Disable()
 	s.btnSSHUser.Disable()
+	s.btnDelete.Disable()
 }
 
 func (s *guiApp) showDetail(vm VM) {
@@ -191,6 +213,7 @@ func (s *guiApp) showDetail(vm VM) {
 		s.detailSSH.SetText(t("detail.empty"))
 	}
 	s.btnEdit.Enable()
+	s.btnDelete.Enable()
 	s.btnLog.Enable()
 	s.btnSSHUser.Enable()
 	s.showLogFor(vm.Name)
@@ -232,17 +255,11 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 		s.vmList.Refresh()
 	}
 
-	s.btnNew = common.NewHoverableButton(t("btn.new"), theme.ContentAddIcon(), t("tooltip.vmsman.new"), s.statusBar, func() {
-		s.showCreateView()
-	})
-	s.btnNew.Importance = widget.SuccessImportance
-
 	filterAll := common.NewHoverableButtonText(t("filter.all"), t("tooltip.vmsman.filter_all"), s.statusBar, func() { s.applyFilter(FilterAll) })
 	filterRunning := common.NewHoverableButtonText(t("filter.running"), t("tooltip.vmsman.filter_running"), s.statusBar, func() { s.applyFilter(FilterRunning) })
 	filterStopped := common.NewHoverableButtonText(t("filter.stopped"), t("tooltip.vmsman.filter_stopped"), s.statusBar, func() { s.applyFilter(FilterStopped) })
-	filterRow := container.NewHBox(s.btnNew, filterAll, filterRunning, filterStopped)
-
 	s.countLabel = widget.NewLabel("")
+	filterRow := container.NewHBox(filterAll, filterRunning, filterStopped, layout.NewSpacer(), s.countLabel)
 	s.countLabel.Alignment = fyne.TextAlignCenter
 
 	s.vmList = widget.NewList(
@@ -306,6 +323,7 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 			}()
 		}
 	})
+	s.btnBoot.Importance = widget.SuccessImportance
 	s.btnBoot.Disable()
 
 	s.btnKill = common.NewHoverableButton(t("btn.kill"), theme.DeleteIcon(), t("tooltip.vmsman.kill"), s.statusBar, func() {
@@ -372,6 +390,36 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	})
 	s.btnSSHUser.Disable()
 
+	s.btnDelete = common.NewHoverableButton(t("btn.delete"), theme.DeleteIcon(), t("tooltip.vmsman.delete"), s.statusBar, func() {
+		vm := s.selectedVM()
+		if vm == nil {
+			return
+		}
+		dialog.ShowConfirm(t("confirm.title"), fmt.Sprintf("Delete %s?", vm.Name), func(ok bool) {
+			if !ok {
+				return
+			}
+			if vm.Running {
+				if err := s.backend.Kill(vm); err != nil {
+					s.setStatus(t("status.err") + err.Error())
+				}
+			}
+			// Remove config file and known state files.
+			_ = os.Remove(vm.Config)
+			vmDir := s.backend.VMDir()
+			for _, name := range []string{vm.Name + ".qcow2", vm.Name + ".log", vm.Name + ".pid", vm.Name + ".ports", vm.Name + ".spice", vm.Name + ".sock"} {
+				_ = os.Remove(filepath.Join(vmDir, name))
+			}
+			// Remove per-VM state directory if present.
+			_ = os.RemoveAll(filepath.Join(vmDir, vm.Name))
+			s.setStatus(fmt.Sprintf("Deleted %s", vm.Name))
+			s.selected = -1
+			s.reload()
+		}, s.win)
+	})
+	s.btnDelete.Importance = widget.DangerImportance
+	s.btnDelete.Disable()
+
 	s.btnAbout = common.NewHoverableButton("", theme.InfoIcon(), t("tooltip.vmsman.about"), s.statusBar, func() {
 		common.ShowAbout(common.AboutConfig{
 			Win:       s.win,
@@ -387,20 +435,56 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	})
 	s.btnAbout.Importance = widget.LowImportance
 
+	cfg := common.LoadSysManConfig()
 	btnSettings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
-		common.ShowSettingsDialog(s.win, t("app.window"), []common.SettingsField{
-			{Label: "VM dir", Value: s.vmDir, Placeholder: DefaultVMDir},
+		common.ShowSettingsDialog(s.win, "vmsman - virtual machines manager settings", []common.SettingsField{
+			{Label: "VM dir", Value: cfg.Vmsman.VMDir, Placeholder: DefaultVMDir},
+			{Label: "Source dir", Value: cfg.Vmsman.SourceDir, Placeholder: ""},
+			{Label: "RAM disk", Value: cfg.Vmsman.RAMDisk, Placeholder: "no", Type: "bool"},
+			{Label: "RAM dir", Value: cfg.Vmsman.RAMDir, Placeholder: "/dev/shm/quickemu"},
+			{Label: "ISO dir", Value: cfg.Vmsman.ISODir, Placeholder: ""},
+			{Label: "Templates", Value: cfg.Vmsman.Templates, Placeholder: "no", Type: "bool"},
+			{Label: "Display mode", Value: cfg.Vmsman.DisplayMode, Placeholder: "Combined", Type: "select", Options: []string{viewCombined, viewIcons, viewText}},
 		}, func(values map[string]string) {
-			cfg := common.LoadSysManConfig()
-			cfg.Vmsman.VMDir = values["VM dir"]
-			if err := common.SaveSysManConfig(cfg); err != nil {
+			c := common.LoadSysManConfig()
+			c.Vmsman.VMDir = values["VM dir"]
+			c.Vmsman.SourceDir = values["Source dir"]
+			c.Vmsman.RAMDisk = values["RAM disk"]
+			c.Vmsman.RAMDir = values["RAM dir"]
+			c.Vmsman.ISODir = values["ISO dir"]
+			c.Vmsman.Templates = values["Templates"]
+			c.Vmsman.DisplayMode = values["Display mode"]
+			if err := common.SaveSysManConfig(c); err != nil {
 				common.ShowSettingsError(s.win, err)
+				return
 			}
+			// Apply settings live so VM lists and downloads use the new paths.
+			newVM := ResolveVMDir(values["VM dir"])
+			if newVM == "" {
+				newVM = ResolveVMDir("")
+			}
+			s.vmDir = newVM
+			s.backend = NewQEMUBackend(newVM)
+			d, _ := NewDistroApp(context.Background(), DistroConfig{
+				VMs:       newVM,
+				SourceDir: values["Source dir"],
+				RAMDisk:   values["RAM disk"],
+				RAMDir:    values["RAM dir"],
+				ISOs:      values["ISO dir"],
+				Templates: values["Templates"],
+			})
+			if d != nil {
+				s.distro = d
+			}
+			s.viewMode = validView(values["Display mode"])
+			s.setVMView(s.viewMode)
+			s.setView(s.viewMode)
+			s.reload()
 		})
 	})
 	btnSettings.Importance = widget.LowImportance
 
-	buttonRow := container.NewHBox(s.btnBoot, s.btnKill, s.btnConnect, s.btnEdit, s.btnLog, s.btnSSHUser, layout.NewSpacer())
+	buttonRow := container.NewHBox(s.btnBoot, s.btnKill, s.btnConnect, s.btnEdit, s.btnLog, s.btnSSHUser, s.btnDelete, layout.NewSpacer())
 
 	detailTop := container.NewVBox(
 		detailForm,
@@ -413,8 +497,22 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	s.logScroll = container.NewScroll(s.logText)
 	rightPanel := container.NewBorder(detailTop, nil, nil, nil, s.logScroll)
 
-	leftTop := container.NewVBox(search, filterRow, s.countLabel, widget.NewSeparator())
-	leftPanel := container.NewBorder(leftTop, nil, nil, nil, s.vmList)
+	cfg2 := common.LoadSysManConfig()
+	if s.viewMode == "" {
+		s.viewMode = validView(cfg2.Vmsman.DisplayMode)
+		if s.viewMode == "" {
+			s.viewMode = validView(fyne.CurrentApp().Preferences().StringWithFallback("display-mode", viewCombined))
+		}
+	}
+
+	s.vmGrid = container.NewGridWrap(fyne.NewSize(132, 120))
+	s.vmIcons = container.NewVScroll(s.vmGrid)
+	vmView := container.NewStack(s.vmList, s.vmIcons)
+
+	leftTop := container.NewVBox(search, filterRow, widget.NewSeparator())
+	leftPanel := container.NewBorder(leftTop, nil, nil, nil, vmView)
+
+	s.setVMView(s.viewMode)
 
 	split := container.NewHSplit(container.NewPadded(leftPanel), container.NewPadded(rightPanel))
 	split.SetOffset(0.42)
@@ -422,25 +520,13 @@ func (s *guiApp) buildContent() fyne.CanvasObject {
 	statusBarRow := container.NewHBox(btnSettings, s.btnAbout, layout.NewSpacer(), s.statusBar)
 	s.bottomBar = container.NewVBox(widget.NewSeparator(), statusBarRow)
 
-	s.root = container.NewBorder(
-		nil,
-		s.bottomBar,
-		nil, nil,
-		split,
-	)
+	s.root = split
 
 	s.applyFilter(FilterAll)
 
 	s.startAutoRefresh()
 
 	return s.root
-}
-
-func (s *guiApp) buildContentWithHeader() fyne.CanvasObject {
-	return container.NewBorder(
-		nil, nil, nil, nil,
-		s.buildContent(),
-	)
 }
 
 func (s *guiApp) selectedVM() *VM {
@@ -451,17 +537,70 @@ func (s *guiApp) selectedVM() *VM {
 	return &list[s.selected]
 }
 
+// setVMView toggles the Run VM tab between list and icon views.
+func (s *guiApp) setVMView(mode string) {
+	s.viewMode = validView(mode)
+	fyne.CurrentApp().Preferences().SetString("display-mode", s.viewMode)
+	cfg := common.LoadSysManConfig()
+	cfg.Vmsman.DisplayMode = s.viewMode
+	_ = common.SaveSysManConfig(cfg)
+	if s.vmGrid == nil || s.vmIcons == nil || s.vmList == nil {
+		return
+	}
+	if s.viewMode == viewText {
+		s.vmIcons.Hide()
+		s.vmList.Show()
+	} else {
+		s.vmList.Hide()
+		s.vmIcons.Show()
+		s.refreshVMGrid()
+	}
+}
+
+// refreshVMGrid rebuilds the Run VM icon grid.
+func (s *guiApp) refreshVMGrid() {
+	if s.vmGrid == nil {
+		return
+	}
+	list := s.filtered()
+	objects := make([]fyne.CanvasObject, 0, len(list))
+	for i, vm := range list {
+		i := i
+		vm := vm
+		icon := theme.ComputerIcon()
+		if vm.Running {
+			icon = theme.NewSuccessThemedResource(theme.ComputerIcon())
+		}
+		var label string
+		if vm.Running {
+			label = "[▶] " + vm.Name
+		} else {
+			label = "[■] " + vm.Name
+		}
+		tile := newIconTile(label, icon, s.viewMode == viewCombined, func() {
+			s.selected = i
+			s.showDetail(vm)
+		})
+		objects = append(objects, tile)
+	}
+	s.vmGrid.Objects = objects
+	s.vmGrid.Refresh()
+}
+
 func (s *guiApp) applyFilter(mode FilterMode) {
 	s.filter = mode
 	s.selected = -1
 	s.vmList.Refresh()
+	s.refreshVMGrid()
 	s.updateCount()
 	s.clearDetail()
 }
 
 func (s *guiApp) setStatus(msg string) {
 	fyne.Do(func() {
-		s.statusBar.SetText(msg)
+		if s.statusBar != nil {
+			s.statusBar.SetText(msg)
+		}
 	})
 }
 
@@ -600,14 +739,51 @@ func RunGUI(vmDir string) {
 	a.Settings().SetTheme(darkIndustrialTheme{theme.DefaultTheme()})
 	win := a.NewWindow(t("app.window"))
 	common.SetWindowIcon(win)
+	if env := os.Getenv("VMDIR"); env != "" {
+		vmDir = ResolveVMDir(env)
+	} else {
+		cfg := common.LoadSysManConfig()
+		if cfg.Vmsman.VMDir != "" {
+			vmDir = ResolveVMDir(cfg.Vmsman.VMDir)
+		} else if vmDir == "" {
+			vmDir = ResolveVMDir("")
+		} else {
+			vmDir = ResolveVMDir(vmDir)
+		}
+	}
 	b := NewQEMUBackend(vmDir)
+	cfg := common.LoadSysManConfig()
+	if cfg.Vmsman.VMDir == "" {
+		cfg.Vmsman.VMDir = vmDir
+	}
+	d, _ := NewDistroApp(context.Background(), DistroConfig{
+		VMs:       cfg.Vmsman.VMDir,
+		SourceDir: cfg.Vmsman.SourceDir,
+		RAMDisk:   cfg.Vmsman.RAMDisk,
+		RAMDir:    cfg.Vmsman.RAMDir,
+		ISOs:      cfg.Vmsman.ISODir,
+		Templates: cfg.Vmsman.Templates,
+		Terminal:  cfg.Vmsman.Terminal,
+	})
+	if d == nil || cfg.Vmsman.VMDir == "" {
+		d, _ = NewDistroApp(context.Background(), DistroConfig{VMs: vmDir})
+	}
 	g := &guiApp{
 		win:     win,
 		backend: b,
 		vmDir:   vmDir,
+		distro:  d,
 	}
 	g.vms = b.List()
-	win.SetContent(g.buildContentWithHeader())
+	tabs := container.NewAppTabs(
+		container.NewTabItemWithIcon("Run VM", theme.ComputerIcon(), g.buildContent()),
+		container.NewTabItemWithIcon("Create VM", theme.DownloadIcon(), g.buildDownloadContent()),
+	)
+	if g.bottomBar == nil {
+		g.bottomBar = container.NewVBox(widget.NewSeparator(), container.NewHBox(layout.NewSpacer(), g.statusBar))
+	}
+	g.root = container.NewBorder(nil, g.bottomBar, nil, nil, tabs)
+	win.SetContent(g.root)
 	g.reload()
 	win.Resize(fyne.NewSize(860, 560))
 	win.SetMaster()

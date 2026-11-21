@@ -3,6 +3,8 @@
 package common
 
 import (
+	"strings"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
@@ -50,6 +52,10 @@ func (b *HoverableButton) MouseIn(_ *desktop.MouseEvent) {
 // MouseOut handles mouse out event.
 func (b *HoverableButton) MouseOut() {
 	if b.statusBar != nil {
+		// Keep long-running operation status messages (e.g. Renew) visible.
+		if strings.Contains(b.statusBar.Text, "Renew") {
+			return
+		}
 		b.statusBar.SetText("")
 	}
 }

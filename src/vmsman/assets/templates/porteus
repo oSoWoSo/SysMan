@@ -1,0 +1,34 @@
+# Template file for 'porteus'
+OSNAME="porteus"
+PRETTY="Porteus"
+LOGO=""
+ICON="porteus.svg"
+CATEGORY="Lightweight"
+BASEDOF="Slackware"
+HOMEPAGE="http://www.porteus.org"
+DESCRIPTION="Complete linux operating system that is optimized to run from CD, USB flash drive, hard drive, or other bootable storage media"
+CREDENTIALS="-"
+GPG=""
+RSS=""
+DW=""
+
+function releases_() {
+	echo 5.1 5.01 5.0 4.0
+}
+
+function editions_() {
+	echo cinnamon kde lxde lxqt mate openbox xfce
+}
+
+function get_() {
+	local HASH=""
+	local ISO=""
+	local URL=""
+	edition="${EDITION~~}"
+	local suffix=""
+	[ "${RELEASE}" = "5.1" ] && suffix="-alpha4"
+	ISO="Porteus-${edition}-v${RELEASE}${suffix}-x86_64.iso"
+	URL="https://ftp.nluug.nl/os/Linux/distr/porteus/x86_64/Porteus-v${RELEASE}"
+	HASH=$(web_pipe "${URL}/sha256sums.txt" | grep "${ISO}" | cut -d' ' -f1)
+	echo "${URL}/${ISO} ${HASH}"
+}

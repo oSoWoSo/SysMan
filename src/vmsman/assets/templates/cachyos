@@ -1,0 +1,35 @@
+# Template file for 'cachyos'
+OSNAME="cachyos"
+PRETTY="CachyOS"
+LOGO=""
+ICON="cachyos.svg"
+CATEGORY="advanced"
+BASEDOF="Arch"
+HOMEPAGE="https://cachyos.org"
+DESCRIPTION="Designed to deliver lightning-fast speeds and stability, ensuring a smooth and enjoyable computing experience every time you use it"
+CREDENTIALS="-"
+GPG=""
+RSS=""
+DW=""
+
+function releases_() {
+	# new cdn setup 10/2024
+	echo latest
+}
+
+function editions_() {
+	# desktop version now installs different desktop environments
+	echo desktop handheld
+}
+
+function get_() {
+	local HASH=""
+	local URL=""
+	URL="$(web_pipe "https://cachyos.org/download/" | grep -o "https://iso.cachyos.org/${EDITION}/[^&]*\.iso" | head -1)"
+	HASH=$(web_pipe "${URL}.sha256" | cut -d' ' -f1)
+	echo "${URL} ${HASH}"
+}
+
+function config_() {
+	echo "disk_size=\"64G\"" >> "${CONF_FILE}"
+}

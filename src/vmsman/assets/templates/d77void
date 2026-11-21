@@ -1,0 +1,82 @@
+# Template file for 'd77void'
+OSNAME="d77void"
+PRETTY="d77void"
+LOGO=""
+ICON="d77void.svg"
+#ICON_ONLINE="https://distrowatch.com/images/yvzhuwbpy/arch.png"
+CATEGORY="Desktop, Server"
+BASEDOF="void"
+HOMEPAGE="https://d77void.sourceforge.io"
+DESCRIPTION="Respin of Void GNU/Linux, created to demonstrate the capabilities of Void’s tools, such as void-mklive and void-packages"
+CREDENTIALS="anon:voidlinux,root:voidlinux"
+GPG=""
+RSS="https://sourceforge.net/projects/d77void/rss?path=/ISO-x86_64"
+DW=""
+
+function releases_() {
+	echo latest
+}
+
+# Each feed record carries the URL and checksum for the same image. Ignore
+# non-ISO files and other projects/architectures published alongside d77void.
+function _d77_images_() {
+	web_pipe "${RSS}" | awk '
+		/<item>/ { url = checksum = "" }
+		/<link>https:\/\/sourceforge.net\/projects\/d77void\/files\/ISO-x86_64\/d77void-live-x86_64-[0-9]+-[[:alnum:]-]+\.iso\/download<\/link>/ {
+			url = $0
+			sub(/^.*<link>/, "", url)
+			sub(/<\/link>.*$/, "", url)
+		}
+		/<media:hash algo="md5">/ {
+			checksum = $0
+			sub(/^.*<media:hash algo="md5">/, "", checksum)
+			sub(/<\/media:hash>.*$/, "", checksum)
+			if (length(checksum) != 32 || checksum ~ /[^[:xdigit:]]/) checksum = ""
+		}
+		/<\/item>/ && url != "" {
+			name = url
+			sub(/^.*\/d77void-live-x86_64-/, "", name)
+			date = name
+			sub(/-.*/, "", date)
+			sub(/^[0-9]+-/, "", name)
+			sub(/\.iso\/download$/, "", name)
+			printf "%s\t%s\t%s\t%s\n", name, date, url, checksum
+		}
+	'
+}
+
+function editions_() {
+	_d77_images_ | cut -f1 | sort -u
+}
+
+function arch_() {
+	echo amd64
+}
+
+function get_() {
+	[ "${RELEASE:-latest}" = latest ] || return 1
+	case "${ARCH:-${QEMU_ARCH:-amd64}}" in
+		amd64|x86_64) ;;
+		*) return 1 ;;
+	esac
+
+	local ENTRY
+	ENTRY=$(_d77_images_ | awk -F '\t' -v edition="${EDITION}" '
+		$1 == edition && $2 >= newest {
+			newest = $2; url = $3; checksum = $4
+		}
+		END {
+			if (url != "") {
+				printf "%s", url
+				if (checksum != "") printf " %s", checksum
+				printf "\n"
+			}
+		}
+	')
+	[ -n "${ENTRY}" ] || return 1
+	printf '%s\n' "${ENTRY}"
+}
+
+function config_() {
+	echo "boot=\"legacy\"" >> "${CONF_FILE}"
+}

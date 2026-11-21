@@ -1,0 +1,63 @@
+# Template file for 'blendos'
+OSNAME="blendos"
+PRETTY="BlendOS"
+LOGO=""
+ICON="blendos.svg"
+ICON_ONLINE=""
+CATEGORY="Beginner"
+BASEDOF="Arch"
+DESCRIPTION="A seamless blend of all Linux distributions. Allows you to have an immutable, atomic and declarative Arch Linux system, with application support from several Linux distributions & Android"
+HOMEPAGE="https://blendos.co"
+CREDENTIALS="-"
+GPG=""
+RSS=""
+DW=""
+MAGNET=""
+MAGNET_PREFERRED=""
+TORRENT=""
+CHAT=""
+BLENDOS_BUILD_URL="https://git.blendos.co/api/v4/projects/32/jobs/artifacts/main/raw"
+
+RELEASES="latest"
+QEMU_ARCH="amd64"
+
+releases_() {
+	# The master server publishes a rolling build, not the obsolete GitHub tags.
+	echo latest
+}
+
+arch_() {
+	echo amd64
+}
+
+get_() {
+	[ "${RELEASE:-latest}" = latest ] || return 1
+	[ "${ARCH:-amd64}" = amd64 ] || return 1
+	local SUMS HASH
+	# The build job hashes blendOS.iso before publishing both artifacts. Do not
+	# mix this ISO with mirror/torrent checksums: their compression may differ.
+	if ! SUMS=$(web_pipe "${BLENDOS_BUILD_URL}/checksum?job=build-job" \
+		--fail --show-error --retry 3 --connect-timeout 15 --max-time 60); then
+		echo 'ERROR: Could not fetch the blendOS master build checksum.' >&2
+		return 1
+	fi
+	HASH=$(printf '%s\n' "${SUMS}" | awk '
+		{
+			file = $2
+			sub(/^\*/, "", file)
+			if (file == "blendOS.iso" && length($1) == 64 && $1 !~ /[^[:xdigit:]]/) {
+				print $1
+				exit
+			}
+		}')
+	if [ -z "${HASH}" ]; then
+		echo 'ERROR: No valid SHA256 checksum for the blendOS master ISO.' >&2
+		return 1
+	fi
+	printf '%s %s\n' "${BLENDOS_BUILD_URL}/blendOS.iso?job=build-job" "${HASH}"
+}
+
+releases_() {
+	# Releases parsed at generation time — no network access needed.
+	echo "${RELEASES}"
+}

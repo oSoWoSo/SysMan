@@ -1,0 +1,39 @@
+# Template file for 'odyssey-linux'
+OSNAME="odyssey-linux"
+PRETTY="Odyssey Linux"
+LOGO=" "
+ICON="odyssey-linux.svg"
+CATEGORY="Desktop, Live Medium"
+BASEDOF="Void"
+DESCRIPTION="Void-based, runit, no systemd — independent, self-hosted, rolling releases every ~40 days"
+HOMEPAGE="https://odysseylinux.org"
+CREDENTIALS="user:live,root:void"
+GPG=""
+RSS=""
+DW=""
+CHAT=""
+MAGNET_PREFERRED="true"
+
+# The download page always advertises the current release, so expose a
+# single rolling "latest" entry and resolve its ISO/torrent dynamically.
+function releases_() {
+	echo latest
+}
+
+function get_() {
+	local URL="https://dl.odysseylinux.org"
+	local PAGE ISO HASH
+	PAGE=$(curl -sL "${URL}/download.html")
+	ISO=$(echo "$PAGE" | grep -oP 'odyssey-[a-zA-Z0-9-]+-x86_64\.iso\.torrent' | head -1)
+	HASH=$(echo "$PAGE" | grep -oP 'echo "\K[a-f0-9]{64}(?=  [^"]*\.torrent")' | head -1)
+	if [ -z "$ISO" ] || [ -z "$HASH" ]; then
+		echo "Failed to parse Odyssey Linux download page" >&2
+		return 1
+	fi
+	TORRENT="${URL}/${ISO} ${HASH}"
+	echo "$TORRENT"
+}
+
+function config_() {
+	echo "disk_size=\"32G\"" >> "${CONF_FILE}"
+}

@@ -1,0 +1,61 @@
+# Template file for 'pureos'
+OSNAME="pureos"
+PRETTY="PureOS"
+LOGO=""
+ICON="pureos.svg"
+CATEGORY="advanced"
+BASEDOF="Debian"
+HOMEPAGE="https://www.pureos.net"
+DESCRIPTION="Fully free/libre and open source GNU/Linux operating system, endorsed by the Free Software Foundation"
+CREDENTIALS="-"
+GPG=""
+RSS=""
+DW=""
+
+# The download page links directly to storage.puri.sm ISOs.
+# URL pattern:
+#   https://storage.puri.sm/pureos/images/{CODENAME}/{YYYY.MM}/{EDITION}/pureos-{VERSION}-{EDITION}-live-{YYYYMMDD}_amd64.iso
+#
+# We scrape one GNOME ISO link from the page and derive everything else from it.
+
+function releases_() {
+	local url iso_ver
+	url=$(web_pipe "https://www.pureos.net/download/" \
+		| grep -oP 'pureos-\K[0-9]+(?=-gnome-live-)' \
+		| head -1)
+	[ -n "$url" ] && echo "$url"
+}
+
+function editions_() {
+	# Editions are listed as separate download links on the page.
+	web_pipe "https://www.pureos.net/download/" \
+		| grep -oP 'pureos-[0-9]+-\K[^-]+(?=-live-)' \
+		| sort -u
+}
+
+function get_() {
+	local iso_url codename ver_date version edition build_date
+	iso_url=$(web_pipe "https://www.pureos.net/download/" \
+		| grep -oP 'href="\Khttps://storage[^"]*\.iso[^"]*' \
+		| head -1)
+	[ -z "$iso_url" ] && return
+
+	# Parse URL components: .../images/{CODENAME}/{YYYY.MM}/{EDITION}/pureos-{VERSION}-{EDITION}-live-{YYYYMMDD}_amd64.iso
+	# cut -d'/' fields: 1=https: 2='' 3=host 4=pureos 5=images 6=codename 7=ver_date 8=edition 9=filename
+	codename=$(echo "$iso_url" | cut -d'/' -f6)
+	ver_date=$(echo "$iso_url"   | cut -d'/' -f7)
+	edition=$(echo "$iso_url"    | cut -d'/' -f8)
+	version=$(echo "$iso_url"    | grep -oP 'pureos-\K[0-9]+(?=-)')
+	build_date=$(echo "$iso_url" | grep -oP 'live-\K[0-9]+(?=_amd64)')
+
+	# Reconstruct the URL using the requested RELEASE version and EDITION.
+	# EDITION is set by get_entries_ loop; RELEASE is the PureOS major version.
+	local iso_name="pureos-${version}-${EDITION}-live-${build_date}_amd64.iso"
+	local url="https://storage.puri.sm/pureos/images/${codename}/${ver_date}/${EDITION}/${iso_name}"
+	local hash_url="https://storage.puri.sm/pureos/images/${codename}/${ver_date}/${EDITION}/${iso_name%.iso}.checksums_sha256.txt"
+	local hash
+	hash=$(web_pipe "$hash_url" 2>/dev/null \
+		| grep -m1 "\.iso$" | awk '{print $1}')
+
+	[ -n "$url" ] && echo "${url} ${hash}"
+}

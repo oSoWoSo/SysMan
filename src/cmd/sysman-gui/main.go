@@ -184,7 +184,18 @@ func runGUI(plugins []api.PluginGUI) {
 	for i, p := range plugins {
 		contents[i] = p.Content(win)
 	}
-	settingsContent := buildSettingsContent(win)
+	var vmPlugin *vmman.Plugin
+	for _, p := range plugins {
+		if vp, ok := p.(*vmman.Plugin); ok {
+			vmPlugin = vp
+		}
+	}
+	applyVmsman := func(values map[string]string) {
+		if vmPlugin != nil {
+			vmPlugin.ApplySettings(values)
+		}
+	}
+	settingsContent := buildSettingsContent(win, applyVmsman)
 	allContent := append(contents, settingsContent)
 
 	// Show only the active panel.
@@ -233,7 +244,7 @@ func runGUI(plugins []api.PluginGUI) {
 	settingsIdx := len(plugins)
 	btnSettingsIcon := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
 		// Rebuild settings content to get fresh config values
-		allContent[settingsIdx] = buildSettingsContent(win)
+		allContent[settingsIdx] = buildSettingsContent(win, applyVmsman)
 		show(settingsIdx)
 		for _, b := range tabBtns {
 			b.Importance = widget.LowImportance
@@ -256,7 +267,7 @@ func runGUI(plugins []api.PluginGUI) {
 	win.ShowAndRun()
 }
 
-func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
+func buildSettingsContent(win fyne.Window, applyVmsman func(map[string]string)) fyne.CanvasObject {
 	cfg := common.LoadSysManConfig()
 
 	sermanServiceDir := newFormEntry(cfg.Serman.ServiceDir, serman.DefaultServiceDir)
@@ -269,6 +280,24 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 	srcmanForkURL := newFormEntry(cfg.Srcman.ForkURL, "")
 
 	vmsmanVMDir := newFormEntry(cfg.Vmsman.VMDir, vmman.DefaultVMDir)
+	vmsmanSourceDir := newFormEntry(cfg.Vmsman.SourceDir, "")
+	vmsmanRAMDisk := widget.NewSelect([]string{"no", "yes"}, nil)
+	vmsmanRAMDisk.SetSelected(cfg.Vmsman.RAMDisk)
+	if vmsmanRAMDisk.Selected == "" {
+		vmsmanRAMDisk.SetSelected("no")
+	}
+	vmsmanRAMDir := newFormEntry(cfg.Vmsman.RAMDir, "/dev/shm/quickemu")
+	vmsmanISODir := newFormEntry(cfg.Vmsman.ISODir, "")
+	vmsmanTemplates := widget.NewSelect([]string{"no", "yes"}, nil)
+	vmsmanTemplates.SetSelected(cfg.Vmsman.Templates)
+	if vmsmanTemplates.Selected == "" {
+		vmsmanTemplates.SetSelected("no")
+	}
+	vmsmanDisplayMode := widget.NewSelect([]string{"Combined", "Icons only", "Text only"}, nil)
+	vmsmanDisplayMode.SetSelected(cfg.Vmsman.DisplayMode)
+	if vmsmanDisplayMode.Selected == "" {
+		vmsmanDisplayMode.SetSelected("Combined")
+	}
 
 	pkgmanAppImageDir := newFormEntry(cfg.Pkgman.AppImageDir, pkgman.DefaultAppImageDir())
 
@@ -287,12 +316,30 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 		cfg.Srcman.SearchEngine = strings.TrimSpace(srcmanSearchEngine.Text)
 		cfg.Srcman.ForkURL = strings.TrimSpace(srcmanForkURL.Text)
 		cfg.Vmsman.VMDir = strings.TrimSpace(vmsmanVMDir.Text)
+		cfg.Vmsman.SourceDir = strings.TrimSpace(vmsmanSourceDir.Text)
+		cfg.Vmsman.RAMDisk = vmsmanRAMDisk.Selected
+		cfg.Vmsman.RAMDir = strings.TrimSpace(vmsmanRAMDir.Text)
+		cfg.Vmsman.ISODir = strings.TrimSpace(vmsmanISODir.Text)
+		cfg.Vmsman.Templates = vmsmanTemplates.Selected
+		cfg.Vmsman.DisplayMode = vmsmanDisplayMode.Selected
 		cfg.Pkgman.AppImageDir = strings.TrimSpace(pkgmanAppImageDir.Text)
 		cfg.LangDir = strings.TrimSpace(langDir.Text)
 		cfg.ShowTabNames = showTabNames.Checked
 		cfg.ShowTabIcons = showTabIcons.Checked
 		if err := common.SaveSysManConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("save config: %w", err), win)
+			return
+		}
+		if applyVmsman != nil {
+			applyVmsman(map[string]string{
+				"VM dir":       strings.TrimSpace(vmsmanVMDir.Text),
+				"Source dir":   strings.TrimSpace(vmsmanSourceDir.Text),
+				"RAM disk":     vmsmanRAMDisk.Selected,
+				"RAM dir":      strings.TrimSpace(vmsmanRAMDir.Text),
+				"ISO dir":      strings.TrimSpace(vmsmanISODir.Text),
+				"Templates":    vmsmanTemplates.Selected,
+				"Display mode": vmsmanDisplayMode.Selected,
+			})
 		}
 	})
 	btnSave.Importance = widget.HighImportance
@@ -350,6 +397,12 @@ func buildSettingsContent(win fyne.Window) fyne.CanvasObject {
 
 	formVmsman := widget.NewForm(
 		widget.NewFormItem("VM dir", vmsmanVMDir),
+		widget.NewFormItem("Source dir", vmsmanSourceDir),
+		widget.NewFormItem("RAM disk", vmsmanRAMDisk),
+		widget.NewFormItem("RAM dir", vmsmanRAMDir),
+		widget.NewFormItem("ISO dir", vmsmanISODir),
+		widget.NewFormItem("Templates", vmsmanTemplates),
+		widget.NewFormItem("Display mode", vmsmanDisplayMode),
 	)
 
 	formPkgman := widget.NewForm(

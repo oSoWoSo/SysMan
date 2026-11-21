@@ -521,8 +521,8 @@ func TestHighlighter_LiveReload(t *testing.T) {
 
 	// Override the config path via env so highlightConfigPath() returns our temp file.
 	t.Setenv("XDG_CONFIG_HOME", dir)
-	// Adjust sub-dir to match highlightConfigPath() → <cfgDir>/SysMan/highlight.conf
-	svmanDir := filepath.Join(dir, "SysMan")
+	// Adjust sub-dir to match highlightConfigPath() → <cfgDir>/sysman/highlight.conf
+	svmanDir := filepath.Join(dir, "sysman")
 	if err := os.MkdirAll(svmanDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

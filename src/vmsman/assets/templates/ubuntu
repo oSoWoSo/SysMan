@@ -1,0 +1,316 @@
+# Template file for 'ubuntu'
+case "${OS}" in
+	edubuntu)
+		# Template file for 'edubuntu'
+		OSNAME="edubuntu"
+		PRETTY="Edubuntu"
+		LOGO=""
+		ICON="edubuntu.svg"
+		CATEGORY="Beginner, Education"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://www.edubuntu.org"
+		DESCRIPTION="Stable, secure and privacy concious option for schools"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW=""
+		;;
+	kubuntu)
+		# Template file for 'kubuntu'
+		OSNAME="kubuntu"
+		PRETTY="Kubuntu"
+		LOGO=""
+		ICON="kubuntu.svg"
+		CATEGORY="Beginner, Desktop"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://kubuntu.org"
+		DESCRIPTION="Free, complete, and open-source alternative to Microsoft Windows and Mac OS X which contains everything you need to work, play, or share"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW=""
+		;;
+	lubuntu)
+		# Template file for 'lubuntu'
+		OSNAME="lubuntu"
+		PRETTY="Lubuntu"
+		LOGO=" "
+		ICON="lubuntu.svg"
+		CATEGORY="Beginner, Desktop"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://lubuntu.me"
+		DESCRIPTION="Complete Operating System that ships the essential apps and services for daily use: office applications, PDF reader,  image editor, music and video players, etc. Using lightwave lxde/lxqt"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW=""
+		;;
+	xubuntu)
+		# Template file for 'xubuntu'
+		OSNAME="xubuntu"
+		PRETTY="Xubuntu"
+		LOGO=""
+		ICON="xubuntu.svg"
+		CATEGORY="Beginner, Desktop"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://xubuntu.org"
+		DESCRIPTION="Elegant and easy to use operating system. Xubuntu comes with Xfce, which is a stable, light and configurable desktop environment"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW=""
+		;;
+	ubuntu-budgie)
+		# Template file for ‘ubuntu-budgie’
+		OSNAME="ubuntu-budgie"
+		PRETTY="Ubuntu Budgie"
+		LOGO=""
+		ICON="ubuntu-budgie.svg"
+		CATEGORY="Desktop"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://ubuntubudgie.org"
+		DESCRIPTION="Community developed distribution, integrating the Budgie Desktop Environment with Ubuntu at its core"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW="ubuntubudgie"
+		;;
+	ubuntu-cinnamon)
+		# Template file for ‘ubuntu-cinnamon’
+		OSNAME="ubuntu-cinnamon"
+		PRETTY="Ubuntu Cinnamon"
+		LOGO=""
+		ICON="ubuntucinnamon.svg"
+		CATEGORY="Beginner, Desktop"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://ubuntucinnamon.org"
+		DESCRIPTION="Community-driven, featuring Linux Mint’s Cinnamon Desktop with Ubuntu at the core, packed fast and full of features, here is the most traditionally modern desktop you will ever love"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW="ubuntucinnamon"
+		;;
+	ubuntu-kylin)
+		# Template file for ‘ubuntu-kylin’
+		OSNAME="ubuntu-kylin"
+		PRETTY="Ubuntu Kylin"
+		LOGO=""
+		ICON="ubuntu.svg"
+		CATEGORY="Beginner, Desktop"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://ubuntukylin.com"
+		DESCRIPTION="Universal desktop operating system for personal computers, laptops, and embedded devices. It is dedicated to bringing a smarter user experience to users all over the world"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW="ubuntukylin"
+		;;
+	ubuntu-mate)
+		# Template file for ‘ubuntu-mate’
+		OSNAME="ubuntu-mate"
+		PRETTY="Ubuntu MATE"
+		LOGO=""
+		ICON="ubuntu-mate.svg"
+		CATEGORY="Beginner, Desktop"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://ubuntu-mate.org"
+		DESCRIPTION="Stable, easy-to-use operating system with a configurable desktop environment. It is ideal for those who want the most out of their computers and prefer a traditional desktop metaphor. Using Mate desktop"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW="ubuntumate"
+		;;
+	ubuntu-unity)
+		# Template file for ‘ubuntu-unity’
+		OSNAME="ubuntu-unity"
+		PRETTY="Ubuntu Unity"
+		LOGO=""
+		ICON="ubuntu-unity.svg"
+		CATEGORY="Beginner, Desktop"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://ubuntuunity.org"
+		DESCRIPTION="Flavor of Ubuntu featuring the Unity7 desktop environment (the default desktop environment used by Ubuntu from 2010-2017)"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW="ubuntuunity"
+		;;
+	ubuntu-studio)
+		# Template file for 'ubuntu-studio'
+		OSNAME="ubuntu-studio"
+		PRETTY="UbuntuStudio"
+		LOGO=""
+		ICON="ubuntu.svg"
+		CATEGORY="Beginner, Multimedia"
+		BASEDOF="Ubuntu"
+		HOMEPAGE="https://ubuntustudio.org"
+		DESCRIPTION="Comes preinstalled with a selection of the most common free multimedia applications available, and is configured for best performance for various purposes: Audio, Graphics, Video, Photography and Publishing"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW=""
+		;;
+	ubuntu)
+		# Template file for 'ubuntu'
+		OSNAME="ubuntu"
+		PRETTY="Ubuntu"
+		LOGO=" "
+		ICON="ubuntu.svg"
+		CATEGORY="Beginner, Desktop"
+		BASEDOF="Debian"
+		HOMEPAGE="https://ubuntu.com"
+		DESCRIPTION="Complete desktop Linux operating system, freely available with both community and professional support"
+		CREDENTIALS="-"
+		GPG=""
+		RSS=""
+		DW=""
+		;;
+	esac
+RSS="https://raw.githubusercontent.com/oSoWoSo/distro-feeds/public/releases.xml"
+
+# # If there is a point in the release, check if it is less than 16.04
+# if [[ "${RELEASE}" != *"daily"* ]]; then
+#     # RELEASE_MAJOR=$(echo "$RELEASE" | cut -d. -f1)
+#     # RELEASE_MINOR=$(echo "$RELEASE" | cut -d. -f2)
+#     if [[ ! "$RELEASE" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+#         echo "Error: RELEASE is not a valid number: '$RELEASE'"
+#     fi
+#     NUMERIC_RELEASE=${RELEASE//./}  # Odstraní tečky
+#     if [[ -n "$NUMERIC_RELEASE" && "$NUMERIC_RELEASE" =~ ^[0-9]+$ && "$NUMERIC_RELEASE" -lt 1604 ]]; then
+#         GUEST="linux_old"
+#     fi
+#     # if [ "$RELEASE_MAJOR" -lt 16 ] || { [ "$RELEASE_MAJOR" -eq 16 ] && [ "$RELEASE_MINOR" -lt 4 ]; }; then
+#     #     GUEST="linux_old"
+#     # fi
+# fi
+
+function releases_() {
+	local VERSION_DATA=""
+	local SUPPORTED_VERSIONS=()
+	local FEED_RELEASES=""
+	local RELEASE_LIST=""
+	VERSION_DATA="$(IFS=$'\n' web_pipe https://api.launchpad.net/devel/ubuntu/series | jq -r '.entries[]')"
+	# shellcheck disable=SC2207
+	SUPPORTED_VERSIONS=($(IFS=$'\n' jq -r 'select(.status=="Supported" or .status=="Current Stable Release") | .version' <<<"${VERSION_DATA}" | sort))
+	FEED_RELEASES=$(atom_feed_iso_entries "${RSS}" "${OS//-/}" | cut -f1)
+	case "${OS}" in
+		ubuntu)
+			RELEASE_LIST="${SUPPORTED_VERSIONS[*]}";;
+		kubuntu|lubuntu|ubuntu-kylin|ubuntu-mate|ubuntu-studio|xubuntu)
+			# after 16.04
+			RELEASE_LIST="${SUPPORTED_VERSIONS[*]:1}";;
+		ubuntu-budgie)
+			# after 18.04
+			RELEASE_LIST="${SUPPORTED_VERSIONS[*]:2}";;
+		edubuntu|ubuntu-unity|ubuntu-cinnamon)
+			# after 23.10
+			RELEASE_LIST="${SUPPORTED_VERSIONS[*]:5}";;
+	esac
+	RELEASE_LIST="${RELEASE_LIST} ${FEED_RELEASES} daily-live"
+	printf '%s\n' "${RELEASE_LIST// /$'\n'}" | awk 'NF && !seen[$0]++' | paste -sd ' '
+}
+
+function arch_() {
+	if [ -z "${RELEASE}" ]; then
+		echo "amd64 arm64"
+		return
+	fi
+	if [[ ! "${RELEASE}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+		echo "amd64"
+		return
+	fi
+	local MAJOR="${RELEASE%%.*}"
+	local MINOR="${RELEASE##*.}"
+	local NUM_MINOR
+	NUM_MINOR=$((10#${MINOR}))
+	if [ "${MAJOR}" -gt 25 ] || { [ "${MAJOR}" -eq 25 ] && [ "${NUM_MINOR}" -ge 10 ]; }; then
+		echo "amd64 arm64"
+	else
+		echo "amd64"
+	fi
+}
+
+function get_() {
+	local ISO=""
+	local HASH=""
+	local URL=""
+	local DATA=""
+	local QEMU_ARCH="${ARCH:-amd64}"
+	local CDIMAGE_OS="${OS}"
+	case "${OS}" in
+		ubuntu-cinnamon) CDIMAGE_OS="ubuntucinnamon";;
+		ubuntu-kylin)    CDIMAGE_OS="ubuntukylin";;
+		ubuntu-studio)   CDIMAGE_OS="ubuntustudio";;
+	esac
+
+	if [[ "${RELEASE}" == "daily"* ]] && [ "${OS}" == "ubuntu-studio" ]; then
+		# Ubuntu Studio daily-live images are in the dvd directory
+		RELEASE="dvd"
+	fi
+	if [[ "${RELEASE}" == "jammy-daily" ]]; then
+		if [[ "${OS}" == "ubuntu-studio" ]]; then
+			URL="https://cdimage.ubuntu.com/${CDIMAGE_OS}/jammy/dvd/current"
+		else
+			URL="https://cdimage.ubuntu.com/${CDIMAGE_OS}/jammy/daily-live/current"
+		fi
+		VM_PATH="${OS}-jammy-live$(arch_suffix)"
+	elif [[ "${RELEASE}" == "daily"* ]] || [ "${RELEASE}" == "dvd" ]; then
+		URL="https://cdimage.ubuntu.com/${CDIMAGE_OS}/${RELEASE}/current"
+		VM_PATH="${OS}-${RELEASE}$(arch_suffix)"
+	elif [ "${OS}" == "ubuntu" ]; then
+		URL="https://releases.ubuntu.com/${RELEASE}"
+	else
+		URL="https://cdimage.ubuntu.com/${CDIMAGE_OS}/releases/${RELEASE}/release"
+	fi
+	if web_check "${URL}/SHA256SUMS"; then
+		DATA=$(web_pipe "${URL}/SHA256SUMS" | grep 'desktop\|dvd\|install' | grep "${QEMU_ARCH}" | grep '\.iso$' | grep -v "+mac" | sort -k2,2V | tail -n 1)
+		ISO=$(cut -d'*' -f2 <<<"${DATA}" | sed '1q;d')
+		HASH=$(cut -d' ' -f1 <<<"${DATA}" | sed '1q;d')
+	else
+		DATA=$(web_pipe "${URL}/MD5SUMS" | grep 'desktop\|dvd\|install' | grep "${QEMU_ARCH}" | grep '\.iso$' | grep -v "+mac" | sort -k2,2V | tail -n 1)
+		ISO=$(cut -d'*' -f2 <<<"${DATA}")
+		HASH=$(cut -d' ' -f1 <<<"${DATA}")
+	fi
+	if [ -z "${ISO}" ] || [ -z "${HASH}" ]; then
+		echo "${PRETTY} ${RELEASE} is currently unavailable. Please select other OS/Release combination" >&2
+		exit 1
+	fi
+	if [[ "${RELEASE}" == "daily"* ]] || [ "${RELEASE}" == "dvd" ]; then
+		zsync_get "${URL}/${ISO}" "${VM_PATH}" "${OS}-devel.iso" || return $?
+		make_vm_config "${OS}-devel.iso"
+	elif [[ "${RELEASE}" == "jammy-daily" ]]; then
+		zsync_get "${URL}/${ISO}" "${VM_PATH}" "${OS}-jammy-live.iso" || return $?
+		make_vm_config "${OS}-jammy-live.iso"
+	else
+		web_get "${URL}/${ISO}" "${VM_PATH}" || return $?
+		check_hash "${ISO}" "${HASH}"
+		make_vm_config "${ISO}"
+	fi
+}
+
+function get_entries_() {
+	local OS="$1" ARCH="$2" RELEASE="$3" OPERATION="$4" PUBLIC_DIR="$5" TEMPLATES_DIR="$6"
+	# ubuntu get_() writes its URL line via web_get's "show" path or a test-result
+	# line via _record_test_result.  Extract the URL with grep so both formats work.
+	local _out _url
+	_out=$( (get_) 2>/dev/null )
+	_url=$(grep -oP 'https?://\S+' <<<"${_out}" | head -1)
+	[ -z "${_url}" ] && return
+	if [ "${OPERATION}" == "test" ]; then
+		# In test mode (get_) already tee'd the human-readable result to tmp_${OS}
+		# and ran web_check.  Just write the structured .dat entry to avoid a second
+		# network round-trip and a duplicate line in the text file.
+		local _status
+		_status=$(grep -oP '\bPASS\b|\bFAIL\b' <<<"${_out}" | tail -1)
+		table_add_row "$OS" "$ARCH" "$RELEASE" "" "${_url}" "${_status:-FAIL}"
+		printf '%s\t%s\t%s\t%s\t%s\n' \
+			"${ARCH}" "${RELEASE}" "-" "${_url}" "${_status:-FAIL}" \
+			>> "${PUBLIC_DIR}/tmp_${OS}.dat"
+	else
+		_emit_entry "${OS}" "${ARCH}" "${RELEASE}" "" "${_url}" "${OPERATION}" "${PUBLIC_DIR}"
+	fi
+}
+
+function config_() {
+	[[ "${RELEASE}" == *"daily"* ]] && echo "disk_size=\"32G\"" >> "${CONF_FILE}"
+}

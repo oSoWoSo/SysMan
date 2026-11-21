@@ -77,9 +77,11 @@ strings:
   btn.kill: Kill
   btn.connect: Connect
   btn.new: New
+  btn.custom: custom
   btn.edit: Edit
   btn.log: Log
   btn.ssh_user: SSH user
+  btn.delete: Delete
   btn.create: Create
   btn.cancel: Cancel
   btn.next: Next
@@ -105,9 +107,11 @@ strings:
   tooltip.vmsman.kill: Stop/Kill the VM
   tooltip.vmsman.connect: Connect to VM via SPICE
   tooltip.vmsman.new: Create a new VM
+  tooltip.vmsman.custom: Create a custom VM
   tooltip.vmsman.edit: Edit the VM config file
   tooltip.vmsman.log: Show the VM boot log
   tooltip.vmsman.ssh_user: Set the SSH login user for this VM
+  tooltip.vmsman.delete: Delete the VM and its config file
   tooltip.vmsman.about: About this application
   tooltip.vmsman.reload: Reload VM list
   tooltip.vmsman.filter: Filter VMs

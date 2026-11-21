@@ -1,0 +1,48 @@
+# Template file for 'odyssey-linux'
+OSNAME="odyssey-linux"
+PRETTY="Odyssey Linux"
+LOGO=" "
+ICON="odyssey-linux.svg"
+ICON_ONLINE=""
+CATEGORY="Desktop, Live Medium"
+BASEDOF="Void"
+DESCRIPTION="Void-based, runit, no systemd — independent, self-hosted, rolling releases every ~40 days"
+HOMEPAGE="https://odysseylinux.org"
+CREDENTIALS="user:live,root:void"
+GPG=""
+RSS=""
+DW=""
+MAGNET=""
+MAGNET_PREFERRED="true"
+TORRENT=""
+CHAT=""
+
+RELEASES="latest"
+QEMU_ARCH="amd64"
+
+releases_() {
+	echo latest
+}
+
+get_() {
+	local URL="https://dl.odysseylinux.org"
+	local PAGE ISO HASH
+	PAGE=$(curl -sL "${URL}/download.html")
+	ISO=$(echo "$PAGE" | grep -oP 'odyssey-[a-zA-Z0-9-]+-x86_64\.iso\.torrent' | head -1)
+	HASH=$(echo "$PAGE" | grep -oP 'echo "\K[a-f0-9]{64}(?=  [^"]*\.torrent")' | head -1)
+	if [ -z "$ISO" ] || [ -z "$HASH" ]; then
+		echo "Failed to parse Odyssey Linux download page" >&2
+		return 1
+	fi
+	TORRENT="${URL}/${ISO} ${HASH}"
+	echo "$TORRENT"
+}
+
+config_() {
+	echo "disk_size=\"32G\"" >> "${CONF_FILE}"
+}
+
+releases_() {
+	# Releases parsed at generation time — no network access needed.
+	echo "${RELEASES}"
+}

@@ -17,7 +17,10 @@ func FindElevator() string {
 	}
 
 	bins := []string{"pkexec", "doas", "sudo"}
-	if term.IsTerminal(int(os.Stdin.Fd())) {
+	// Prefer a GUI polkit agent when a display is available, even if stdin
+	// happens to be a terminal (e.g. launched from a terminal emulator).
+	hasDisplay := os.Getenv("DISPLAY") != "" || os.Getenv("WAYLAND_DISPLAY") != ""
+	if term.IsTerminal(int(os.Stdin.Fd())) && !hasDisplay {
 		bins = []string{"doas", "sudo"}
 	}
 	for _, bin := range bins {

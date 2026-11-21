@@ -45,7 +45,14 @@ type Config struct {
 
 // VmsmanConfig is the VM configuration.
 type VmsmanConfig struct {
-	VMDir string `yaml:"vm_dir,omitempty"`
+	VMDir       string `yaml:"vm_dir,omitempty"`
+	SourceDir   string `yaml:"source_dir,omitempty"`
+	RAMDisk     string `yaml:"ram_disk,omitempty"`
+	RAMDir      string `yaml:"ram_dir,omitempty"`
+	ISODir      string `yaml:"iso_dir,omitempty"`
+	Templates   string `yaml:"templates,omitempty"`
+	Terminal    string `yaml:"terminal,omitempty"`
+	DisplayMode string `yaml:"display_mode,omitempty"`
 }
 
 // UgsmanConfig is the users & groups configuration.
@@ -104,6 +111,27 @@ func LoadSysManConfig() SysManConfig {
 		if vmsmanVMDir, ok := raw["vmsman_vm_dir"].(string); ok {
 			c.Vmsman.VMDir = vmsmanVMDir
 		}
+		if v, ok := raw["vmsman_source_dir"].(string); ok {
+			c.Vmsman.SourceDir = v
+		}
+		if v, ok := raw["vmsman_ram_disk"].(string); ok {
+			c.Vmsman.RAMDisk = v
+		}
+		if v, ok := raw["vmsman_ram_dir"].(string); ok {
+			c.Vmsman.RAMDir = v
+		}
+		if v, ok := raw["vmsman_iso_dir"].(string); ok {
+			c.Vmsman.ISODir = v
+		}
+		if v, ok := raw["vmsman_templates"].(string); ok {
+			c.Vmsman.Templates = v
+		}
+		if v, ok := raw["vmsman_terminal"].(string); ok {
+			c.Vmsman.Terminal = v
+		}
+		if v, ok := raw["vmsman_display_mode"].(string); ok {
+			c.Vmsman.DisplayMode = v
+		}
 		return c
 	}
 
@@ -147,6 +175,27 @@ func SaveSysManConfig(cfg SysManConfig) error {
 	}
 	if cfg.Vmsman.VMDir == "" {
 		cfg.Vmsman.VMDir = existing.Vmsman.VMDir
+	}
+	if cfg.Vmsman.SourceDir == "" {
+		cfg.Vmsman.SourceDir = existing.Vmsman.SourceDir
+	}
+	if cfg.Vmsman.RAMDisk == "" {
+		cfg.Vmsman.RAMDisk = existing.Vmsman.RAMDisk
+	}
+	if cfg.Vmsman.RAMDir == "" {
+		cfg.Vmsman.RAMDir = existing.Vmsman.RAMDir
+	}
+	if cfg.Vmsman.ISODir == "" {
+		cfg.Vmsman.ISODir = existing.Vmsman.ISODir
+	}
+	if cfg.Vmsman.Templates == "" {
+		cfg.Vmsman.Templates = existing.Vmsman.Templates
+	}
+	if cfg.Vmsman.Terminal == "" {
+		cfg.Vmsman.Terminal = existing.Vmsman.Terminal
+	}
+	if cfg.Vmsman.DisplayMode == "" {
+		cfg.Vmsman.DisplayMode = existing.Vmsman.DisplayMode
 	}
 	if cfg.LangDir == "" {
 		cfg.LangDir = existing.LangDir

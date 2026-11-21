@@ -77,9 +77,11 @@ strings:
   btn.kill: Zabít
   btn.connect: Připojit
   btn.new: Nové
+  btn.custom: vlastní
   btn.edit: Upravit
   btn.log: Log
   btn.ssh_user: SSH uživatel
+  btn.delete: Smazat
   btn.create: Vytvořit
   btn.cancel: Zrušit
   btn.next: Další
@@ -105,9 +107,11 @@ strings:
   tooltip.vmsman.kill: Zastavit/zabít VM
   tooltip.vmsman.connect: Připojit k VM přes SPICE
   tooltip.vmsman.new: Vytvořit nové VM
+  tooltip.vmsman.custom: Vytvořit vlastní VM
   tooltip.vmsman.edit: Upravit konfigurační soubor VM
   tooltip.vmsman.log: Zobrazit log spuštění VM
   tooltip.vmsman.ssh_user: Nastavit přihlašovacího SSH uživatele pro toto VM
+  tooltip.vmsman.delete: Smazat VM a jeho konfigurační soubor
   tooltip.vmsman.about: O této aplikaci
   tooltip.vmsman.reload: Znovu načíst seznam VM
   tooltip.vmsman.filter: Filtrovat VM

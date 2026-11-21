@@ -1,0 +1,34 @@
+# Template file for 'truenas-scale'
+OSNAME="truenas-scale"
+PRETTY="TrueNAS Scale"
+LOGO=""
+ICON="truenas-scale.svg"
+CATEGORY="advanced"
+BASEDOF="Debian"
+HOMEPAGE="https://www.truenas.com/truenas-scale"
+DESCRIPTION="Open Source Hyperconverged Infrastructure (HCI) solution. In addition to powerful scale-out storage capabilities, SCALE adds Linux Containers and VMs (KVM) so apps run closer to data"
+CREDENTIALS="-"
+GPG=""
+RSS=""
+DW=""
+GUEST="truenas"
+
+function releases_() {
+	echo ElectricEel Dragonfish
+}
+
+function get_() {
+	local HASH=""
+	local URL=""
+	local BASE="https://download.sys.truenas.net/TrueNAS-SCALE-${RELEASE}"
+	local VERSION
+	VERSION=$(web_pipe "${BASE}/" | grep -oE '[0-9]+\.[0-9]+\.[0-9.]+/' | tr -d '/' | sort -Vr | head -1)
+	[ -n "${VERSION}" ] || return 0
+	URL="${BASE}/${VERSION}/TrueNAS-SCALE-${VERSION}.iso"
+	HASH=$(web_pipe "${URL}.sha256" | grep -oE '[[:xdigit:]]{64}' | head -1)
+	echo "${URL} ${HASH}"
+}
+
+function config_() {
+	echo "boot=\"legacy\"" >> "${CONF_FILE}"
+}
