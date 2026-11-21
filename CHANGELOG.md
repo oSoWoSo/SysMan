@@ -4,6 +4,35 @@ All notable changes to SysMan are documented here.
 
 ---
 
+## [0.026 Alpha]
+
+### Added
+- **vmsman: OS browser** — search distributions and download VM images
+- **vmsman: bundled assets** — qget, OS templates, icons, and metadata
+- **vmsman-create** — standalone VM creator with download progress
+- **vmsman: Renew and Delete** — refresh desktop entries or remove selected VMs
+- **vmsman: settings** — source, RAM disk, ISO, templates, and display mode
+- **Makefile** — generate OS metadata and update the project version
+
+### Changed
+- **vmsman: tabs** — separate Run VM and Create VM views
+- **vmsman: display modes** — icon, text, and combined views
+- **vmsman: live settings** — apply path changes without restarting
+- **Settings dialogs** — checkboxes, dropdowns, and Save/Close buttons
+- **Status and errors** — selectable status text and copyable VM errors
+- **Application icon** — use sysman.svg for GUI windows
+- **Installation** — /usr prefix and lowercase share/sysman paths
+
+### Fixed
+- **Privilege prompts** — prefer polkit when a graphical display is available
+- **Highlight config** — lowercase ~/.config/sysman path
+- **Language lookup** — respect custom paths and development translations
+- **vmsman: quickemu lookup** — handle reduced PATH
+- **vmsman: status bar** — shared across tabs with visible Renew progress
+- **vmsman-create: downloads** — start after the picker closes
+
+---
+
 ## [0.025 Alpha]
 
 ### Added
