@@ -12,6 +12,7 @@
 !/README.md
 !/README-cz.md
 !/src
+!/data
 !/web
 !/.golangci.yml
 !/AGENTS.md

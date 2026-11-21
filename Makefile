@@ -4,6 +4,7 @@ GOARCH   ?= amd64
 PREFIX   ?= /usr
 DATADIR  ?= $(PREFIX)/share
 ICONDIR  ?= $(DATADIR)/icons/hicolor/scalable/apps
+APPLICATIONSDIR ?= $(DATADIR)/applications
 LDFLAGS   = -s -w -X 'codeberg.org/oSoWoSo/SysMan/src/common.Version=$(VERSION)'
 
 # add PIE flags for cgo builds
@@ -182,6 +183,9 @@ install: build
 	    echo "  installed vmsman assets"; \
 	fi
 	install -Dm644 sysman.svg $(DESTDIR)$(ICONDIR)/sysman.svg
+	@for bin in $(GUI_BINS) $(EXTRA_GUI_BINS); do \
+	    install -Dm644 data/applications/$$bin.desktop "$(DESTDIR)$(APPLICATIONSDIR)/$$bin.desktop" || exit 1; \
+	done
 	@echo "Installing lang files to $(DESTDIR)$(DATADIR)/sysman/lang/ ..."
 	install -d $(DESTDIR)$(DATADIR)/sysman/lang
 	cp -r src/lang/. $(DESTDIR)$(DATADIR)/sysman/lang/
@@ -213,6 +217,9 @@ uninstall:
 	    rm -f $(DESTDIR)$(PREFIX)/bin/$$bin && echo "  removed $$bin" || true; \
 	done
 	rm -f $(DESTDIR)$(PREFIX)/bin/vmsman-create
+	@for bin in $(GUI_BINS) $(EXTRA_GUI_BINS); do \
+	    rm -f "$(DESTDIR)$(APPLICATIONSDIR)/$$bin.desktop" || exit 1; \
+	done
 	@echo "Removing SysMan shared data and icon ..."
 	rm -rf $(DESTDIR)$(DATADIR)/sysman/
 	rm -f $(DESTDIR)$(ICONDIR)/sysman.svg

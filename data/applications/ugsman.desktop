@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=UgsMan
+GenericName=Users and Groups Manager
+GenericName[cs]=Správce uživatelů a skupin
+Comment=Manage local users and groups
+Comment[cs]=Správa místních uživatelů a skupin
+Exec=ugsman
+TryExec=ugsman
+Icon=sysman
+Terminal=false
+Categories=System;
+Keywords=users;groups;accounts;

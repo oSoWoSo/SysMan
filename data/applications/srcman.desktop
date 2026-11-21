@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=SrcMan
+GenericName=Template Manager
+GenericName[cs]=Správce šablon
+Comment=Manage Void Linux package templates with xbps-src
+Comment[cs]=Správa šablon balíčků Void Linux pomocí xbps-src
+Exec=srcman
+TryExec=srcman
+Icon=sysman
+Terminal=false
+Categories=Settings;PackageManager;
+Keywords=templates;packages;xbps-src;Void;

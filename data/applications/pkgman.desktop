@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=PkgMan
+GenericName=Package Manager
+GenericName[cs]=Správce balíčků
+Comment=Manage Void Linux packages with XBPS
+Comment[cs]=Správa balíčků Void Linux pomocí XBPS
+Exec=pkgman
+TryExec=pkgman
+Icon=sysman
+Terminal=false
+Categories=Settings;PackageManager;
+Keywords=packages;install;update;XBPS;Void;

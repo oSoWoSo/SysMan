@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=VmsMan
+GenericName=Virtual Machine Manager
+GenericName[cs]=Správce virtuálních strojů
+Comment=Create and manage virtual machines
+Comment[cs]=Vytváření a správa virtuálních strojů
+Exec=vmsman
+TryExec=vmsman
+Icon=sysman
+Terminal=false
+Categories=System;Emulator;
+Keywords=virtual;machines;VM;QEMU;

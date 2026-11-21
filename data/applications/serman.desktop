@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=SerMan
+GenericName=Service Manager
+GenericName[cs]=Správce služeb
+Comment=Manage system and user runit services
+Comment[cs]=Správa systémových a uživatelských služeb runit
+Exec=serman
+TryExec=serman
+Icon=sysman
+Terminal=false
+Categories=System;
+Keywords=services;runit;system;

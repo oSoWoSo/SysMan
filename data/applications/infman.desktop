@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=InfMan
+GenericName=System Information
+GenericName[cs]=Informace o systému
+Comment=View system and hardware information
+Comment[cs]=Zobrazení informací o systému a hardwaru
+Exec=infman
+TryExec=infman
+Icon=sysman
+Terminal=false
+Categories=System;Monitor;
+Keywords=system;information;hardware;fastfetch;

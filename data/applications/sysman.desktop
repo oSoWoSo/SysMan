@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=SysMan
+GenericName=System Manager
+GenericName[cs]=Správce systému
+Comment=Manage services, packages, users and virtual machines
+Comment[cs]=Správa služeb, balíčků, uživatelů a virtuálních strojů
+Exec=sysman
+TryExec=sysman
+Icon=sysman
+Terminal=false
+Categories=System;
+Keywords=system;administration;services;packages;users;

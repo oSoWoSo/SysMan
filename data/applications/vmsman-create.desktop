@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=VmsMan VM Creator
+Name[cs]=VmsMan – tvorba virtuálních strojů
+GenericName=Virtual Machine Creator
+GenericName[cs]=Tvůrce virtuálních strojů
+Comment=Create a new virtual machine
+Comment[cs]=Vytvoření nového virtuálního stroje
+Exec=vmsman-create
+TryExec=vmsman-create
+Icon=sysman
+Terminal=false
+Categories=System;Emulator;
+Keywords=virtual;machines;VM;QEMU;create;
