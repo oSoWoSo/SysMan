@@ -1,4 +1,4 @@
-VERSION  ?= 0.026 Alpha
+VERSION  ?= 0.026.2 Alpha
 GOOS     ?= linux
 GOARCH   ?= amd64
 PREFIX   ?= /usr
